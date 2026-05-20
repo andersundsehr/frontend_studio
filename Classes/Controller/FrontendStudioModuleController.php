@@ -15,6 +15,10 @@ use Throwable;
 #[AsController]
 final readonly class FrontendStudioModuleController
 {
+    private const VARIANT_SIDEBAR_WIDTH_USER_SETTING = 'frontendStudio.variantView.sidebarWidth';
+    private const DEFAULT_VARIANT_SIDEBAR_WIDTH = 360;
+    private const MINIMUM_VARIANT_SIDEBAR_WIDTH = 280;
+
     public function __construct(
         private ModuleTemplateFactory $moduleTemplateFactory,
         private ComponentMetadataProvider $componentMetadataProvider,
@@ -54,7 +58,41 @@ final readonly class FrontendStudioModuleController
             'componentPreviewUri' => $selectedComponentMetadata !== null
                 ? $this->buildComponentPreviewUri($selectedVariantIdentifier)
                 : null,
+            'variantSidebarWidth' => $this->getVariantSidebarWidth($GLOBALS['BE_USER']->uc ?? []),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $backendUserSettings
+     */
+    private function getVariantSidebarWidth(array $backendUserSettings): int
+    {
+        $configuredWidth = $this->getBackendUserSettingByDottedPath(
+            $backendUserSettings,
+            self::VARIANT_SIDEBAR_WIDTH_USER_SETTING,
+        );
+
+        if (!is_int($configuredWidth) && !(is_string($configuredWidth) && preg_match('/^\d+$/', $configuredWidth) === 1)) {
+            return self::DEFAULT_VARIANT_SIDEBAR_WIDTH;
+        }
+
+        return max((int)$configuredWidth, self::MINIMUM_VARIANT_SIDEBAR_WIDTH);
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function getBackendUserSettingByDottedPath(array $settings, string $path): mixed
+    {
+        $value = $settings;
+        foreach (explode('.', $path) as $pathSegment) {
+            if (!is_array($value) || !array_key_exists($pathSegment, $value)) {
+                return null;
+            }
+            $value = $value[$pathSegment];
+        }
+
+        return $value;
     }
 
     private function buildComponentPreviewUri(string $selectedVariantIdentifier): ?string

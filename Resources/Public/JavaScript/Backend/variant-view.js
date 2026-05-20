@@ -1,5 +1,6 @@
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
+import PersistentStorage from '@typo3/backend/storage/persistent.js';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
@@ -7,7 +8,7 @@ import { html } from '@codemirror/lang-html';
 import { oneDark } from '@codemirror/theme-one-dark';
 
 class FrontendStudioVariantView {
-  static sidebarWidthStorageKey = 'frontend-studio.variant-view.sidebar-width';
+  static sidebarWidthStorageKey = 'frontendStudio.variantView.sidebarWidth';
 
   static defaultSidebarWidth = 360;
 
@@ -94,7 +95,7 @@ class FrontendStudioVariantView {
       return;
     }
 
-    this.applySidebarWidth(this.readStoredSidebarWidth());
+    this.applySidebarWidth(this.readInitialSidebarWidth());
 
     this.sidebarResizeHandle.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) {
@@ -126,15 +127,14 @@ class FrontendStudioVariantView {
     });
   }
 
-  readStoredSidebarWidth() {
-    try {
-      const storedWidth = Number.parseInt(window.localStorage.getItem(FrontendStudioVariantView.sidebarWidthStorageKey) || '', 10);
+  readInitialSidebarWidth() {
+    const initialWidth = Number.parseInt(
+      getComputedStyle(this.root).getPropertyValue('--frontend-studio-variant-sidebar-width'),
+      10,
+    );
 
-      if (Number.isFinite(storedWidth)) {
-        return storedWidth;
-      }
-    } catch {
-      // localStorage can be unavailable in restricted browser contexts.
+    if (Number.isFinite(initialWidth)) {
+      return initialWidth;
     }
 
     return FrontendStudioVariantView.defaultSidebarWidth;
@@ -183,10 +183,14 @@ class FrontendStudioVariantView {
       this.sidebarResizeHandle.releasePointerCapture(pointerId);
     }
 
+    this.persistSidebarWidth(Math.round(this.sidebarWidth));
+  }
+
+  async persistSidebarWidth(width) {
     try {
-      window.localStorage.setItem(FrontendStudioVariantView.sidebarWidthStorageKey, String(Math.round(this.sidebarWidth)));
+      await PersistentStorage.set(FrontendStudioVariantView.sidebarWidthStorageKey, width);
     } catch {
-      // Ignore storage failures; resizing still works for the current page load.
+      // Ignore persistence failures; resizing still works for the current page load.
     }
   }
 
