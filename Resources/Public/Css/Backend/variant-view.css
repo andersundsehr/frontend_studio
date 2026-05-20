@@ -100,7 +100,8 @@
     top: 0;
     z-index: 1;
     display: flex;
-    align-items: stretch;
+    align-items: flex-end;
+    margin: 0 .75rem;
     min-height: var(--frontend-studio-variant-header-height);
     padding: 0;
     background: var(--frontend-studio-variant-surface);
@@ -112,13 +113,11 @@
 
 .frontend-studio-variant-tabs {
     flex: 1 1 auto;
-    align-items: stretch;
+    align-items: flex-end;
     margin-bottom: 0;
 }
 
 .frontend-studio-variant-tab {
-    height: 100%;
-    min-height: var(--frontend-studio-variant-header-height);
     white-space: nowrap;
 }
 
