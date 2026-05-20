@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Controller;
 
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
+use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
@@ -23,6 +25,8 @@ final readonly class FrontendStudioModuleController
     public function __construct(
         private ModuleTemplateFactory $moduleTemplateFactory,
         private ComponentMetadataProvider $componentMetadataProvider,
+        private ComponentPreviewRenderer $componentPreviewRenderer,
+        private HtmlSourceHighlighter $htmlSourceHighlighter,
         private SiteFinder $siteFinder,
     ) {}
 
@@ -41,7 +45,7 @@ final readonly class FrontendStudioModuleController
 
         $moduleTemplate->setTitle($selectedVariantIdentifier !== '' ? $selectedVariantIdentifier : 'Frontend Studio');
         $moduleTemplate->getDocHeaderComponent()->disable();
-        $moduleTemplate->assignMultiple($this->getVariantAssignments($selectedVariantIdentifier));
+        $moduleTemplate->assignMultiple($this->getVariantAssignments($selectedVariantIdentifier, $request));
 
         return $moduleTemplate->renderResponse('FrontendStudio/Variant');
     }
@@ -49,9 +53,12 @@ final readonly class FrontendStudioModuleController
     /**
      * @return array<string, mixed>
      */
-    private function getVariantAssignments(string $selectedVariantIdentifier): array
+    private function getVariantAssignments(string $selectedVariantIdentifier, ServerRequestInterface $request): array
     {
         $selectedComponentMetadata = $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($selectedVariantIdentifier);
+        [$renderedHtmlSource, $renderedHtmlStatus] = $selectedComponentMetadata !== null
+            ? $this->renderInitialHtmlSource($selectedVariantIdentifier, $request)
+            : ['', ''];
 
         return [
             'selectedVariantIdentifier' => $selectedVariantIdentifier,
@@ -61,7 +68,29 @@ final readonly class FrontendStudioModuleController
                 : null,
             'variantSidebarWidth' => $this->getVariantSidebarWidth($GLOBALS['BE_USER']->uc ?? []),
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
+            'renderedHtmlSource' => $renderedHtmlSource,
+            'renderedHtmlStatus' => $renderedHtmlStatus,
         ];
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function renderInitialHtmlSource(string $selectedVariantIdentifier, ServerRequestInterface $request): array
+    {
+        try {
+            return [
+                $this->htmlSourceHighlighter->highlight(
+                    $this->componentPreviewRenderer->renderVariant($selectedVariantIdentifier, $request),
+                ),
+                '',
+            ];
+        } catch (Throwable $throwable) {
+            return [
+                '',
+                'The rendered HTML could not be loaded. ' . $throwable->getMessage(),
+            ];
+        }
     }
 
     /**

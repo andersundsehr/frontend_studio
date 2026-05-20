@@ -1,11 +1,6 @@
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
 import PersistentStorage from '@typo3/backend/storage/persistent.js';
-import { Compartment, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { html } from '@codemirror/lang-html';
-import { oneDark } from '@codemirror/theme-one-dark';
 
 class FrontendStudioVariantView {
   static sidebarWidthStorageKey = 'frontendStudio.variantView.sidebarWidth';
@@ -39,15 +34,11 @@ class FrontendStudioVariantView {
     this.savedValues = {};
     this.hasUnsavedChanges = false;
     this.activeTab = this.readInitialActiveTab();
-    this.htmlEditor = null;
-    this.htmlEditorTheme = new Compartment();
     this.htmlRefreshTimeout = null;
     this.renderedHtmlPreviewUrl = '';
     this.renderedHtmlRequestId = 0;
     this.sidebarWidth = FrontendStudioVariantView.defaultSidebarWidth;
     this.isResizingSidebar = false;
-    this.colorSchemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    this.colorSchemeObserver = null;
   }
 
   initialize() {
@@ -56,10 +47,10 @@ class FrontendStudioVariantView {
     }
 
     this.savedValues = this.collectValues();
+    this.renderedHtmlPreviewUrl = this.buildRenderedHtmlUrl().toString();
     this.updateDirtyState();
     this.initializeTabs();
     this.initializeSidebarResize();
-    this.initializeColorSchemeSync();
 
     this.fields.forEach((field) => {
       field.addEventListener('input', () => {
@@ -213,24 +204,6 @@ class FrontendStudioVariantView {
     return this.isValidTabName(activeTab) ? activeTab : 'values';
   }
 
-  initializeColorSchemeSync() {
-    const updateEditorTheme = () => {
-      this.updateRenderedHtmlEditorTheme();
-    };
-
-    this.colorSchemeMediaQuery.addEventListener('change', updateEditorTheme);
-
-    this.colorSchemeObserver = new MutationObserver((mutations) => {
-      if (mutations.some((mutation) => mutation.attributeName === 'data-color-scheme')) {
-        updateEditorTheme();
-      }
-    });
-    this.colorSchemeObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-color-scheme'],
-    });
-  }
-
   activateTab(tabName, persist = true) {
     if (!this.isValidTabName(tabName)) {
       tabName = 'values';
@@ -300,7 +273,7 @@ class FrontendStudioVariantView {
 
   buildRenderedHtmlUrl() {
     const renderedHtmlUrl = this.buildPreviewUrl();
-    renderedHtmlUrl.searchParams.set('frontendStudioPreviewFormat', 'fragment');
+    renderedHtmlUrl.searchParams.set('frontendStudioPreviewFormat', 'highlighted-fragment');
 
     return renderedHtmlUrl;
   }
@@ -368,55 +341,7 @@ class FrontendStudioVariantView {
       return;
     }
 
-    const editorState = EditorState.create({
-      doc: renderedHtml,
-      extensions: [
-        EditorState.readOnly.of(true),
-        EditorView.editable.of(false),
-        EditorView.lineWrapping,
-        this.htmlEditorTheme.of(this.getRenderedHtmlEditorTheme()),
-        syntaxHighlighting(defaultHighlightStyle),
-        html(),
-      ],
-    });
-
-    if (this.htmlEditor === null) {
-      this.htmlEditor = new EditorView({
-        state: editorState,
-        parent: this.htmlContainer,
-      });
-      return;
-    }
-
-    this.htmlEditor.setState(editorState);
-  }
-
-  updateRenderedHtmlEditorTheme() {
-    if (this.htmlEditor === null) {
-      return;
-    }
-
-    this.htmlEditor.dispatch({
-      effects: this.htmlEditorTheme.reconfigure(this.getRenderedHtmlEditorTheme()),
-    });
-  }
-
-  getRenderedHtmlEditorTheme() {
-    return this.isDarkModeEnabled() ? oneDark : [];
-  }
-
-  isDarkModeEnabled() {
-    const colorScheme = window.getComputedStyle(this.root).colorScheme;
-
-    if (colorScheme === 'light only' || colorScheme === 'light') {
-      return false;
-    }
-
-    if (colorScheme === 'dark only' || colorScheme === 'dark') {
-      return true;
-    }
-
-    return this.colorSchemeMediaQuery.matches;
+    this.htmlContainer.innerHTML = renderedHtml;
   }
 
   setRenderedHtmlStatus(message, isError = false) {

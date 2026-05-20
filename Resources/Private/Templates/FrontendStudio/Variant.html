@@ -213,15 +213,16 @@
                             data-frontend-studio-variant-tab-panel="html"
                         >
                             <div
-                                class="frontend-studio-variant-html-status"
+                                class="frontend-studio-variant-html-status{f:if(condition: renderedHtmlStatus, then: ' is-error')}"
                                 data-frontend-studio-variant-html-status
+                                hidden="{f:if(condition: renderedHtmlStatus, then: false, else: true)}"
                             >
-                                Open this tab to load the rendered HTML.
+                                {renderedHtmlStatus}
                             </div>
                             <div
                                 class="frontend-studio-variant-html"
                                 data-frontend-studio-variant-html
-                            ></div>
+                            >{renderedHtmlSource -> f:format.raw()}</div>
                         </div>
                     </div>
                 </aside>

@@ -151,17 +151,45 @@
     background: var(--frontend-studio-variant-surface-muted);
 }
 
-.frontend-studio-variant-html .cm-editor {
+.frontend-studio-variant-html-source {
     min-height: 24rem;
-    font-size: .8125rem;
-}
-
-.frontend-studio-variant-html .cm-content {
+    margin: 0;
+    padding: .5rem;
+    color: var(--typo3-text-color-base);
+    background: transparent;
     font-family: "Source Code Pro", Menlo, Consolas, monospace;
+    font-size: .8125rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
-.frontend-studio-variant-html .cm-line {
-    padding: 0 .5rem;
+.frontend-studio-variant-html-source__tag {
+    color: light-dark(#8b2f6b, #ff9fcf);
+}
+
+.frontend-studio-variant-html-source__attribute {
+    color: light-dark(#875f00, #ffd166);
+}
+
+.frontend-studio-variant-html-source__string {
+    color: light-dark(#0f6b4a, #7bd88f);
+}
+
+.frontend-studio-variant-html-source__comment {
+    color: var(--typo3-text-color-variant);
+}
+
+.frontend-studio-variant-html-source__doctype {
+    color: light-dark(#5b5fc7, #b8b9ff);
+}
+
+.frontend-studio-variant-html-source__punctuation {
+    color: var(--typo3-text-color-variant);
+}
+
+.frontend-studio-variant-html-source__text {
+    color: var(--typo3-text-color-base);
 }
 
 .frontend-studio-variant-save-state {
