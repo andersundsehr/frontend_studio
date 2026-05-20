@@ -1,19 +1,26 @@
 .frontend-studio-variant-view {
     --frontend-studio-variant-sidebar-width: 360px;
     --frontend-studio-variant-header-height: var(--module-docheader-bar-height, 3.28125rem);
+    --frontend-studio-variant-bg: var(--typo3-surface-base);
+    --frontend-studio-variant-surface: var(--typo3-surface-container-lowest);
+    --frontend-studio-variant-surface-muted: var(--typo3-surface-container-low);
+    --frontend-studio-variant-border-color: var(--typo3-component-border-color);
+    --frontend-studio-variant-resize-color: var(--typo3-component-border-color);
+    --frontend-studio-variant-resize-hover-color: var(--typo3-text-color-variant);
     display: flex;
     flex-direction: column;
     height: 100vh;
     min-height: 100vh;
-    background: #fff;
+    color: var(--typo3-text-color-base);
+    background: var(--frontend-studio-variant-bg);
 }
 
 .frontend-studio-variant-header {
     flex: 0 0 auto;
     min-height: var(--frontend-studio-variant-header-height);
     padding: .5rem .75rem;
-    border-bottom: 1px solid #d8dde6;
-    background: #fff;
+    border-bottom: 1px solid var(--frontend-studio-variant-border-color);
+    background: var(--frontend-studio-variant-surface);
 }
 
 .frontend-studio-variant-workspace {
@@ -21,7 +28,7 @@
     flex: 1 1 auto;
     height: 100vh;
     min-height: 0;
-    background: #fff;
+    background: var(--frontend-studio-variant-bg);
 }
 
 .frontend-studio-variant-preview-column {
@@ -30,14 +37,14 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-    background: #fff;
+    background: var(--frontend-studio-variant-bg);
 }
 
 .frontend-studio-variant-preview {
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    background: #fff;
+    background: var(--frontend-studio-variant-bg);
 }
 
 .frontend-studio-variant-preview iframe {
@@ -46,7 +53,7 @@
     height: 100%;
     min-height: 0;
     border: 0;
-    background: #fff;
+    background: transparent;
 }
 
 .frontend-studio-variant-sidebar-resize-handle {
@@ -54,7 +61,7 @@
     flex: 0 0 8px;
     width: 8px;
     cursor: col-resize;
-    background: #fff;
+    background: var(--frontend-studio-variant-bg);
 }
 
 .frontend-studio-variant-sidebar-resize-handle::before {
@@ -63,7 +70,7 @@
     bottom: 0;
     left: 3px;
     width: 1px;
-    background: #d8dde6;
+    background: var(--frontend-studio-variant-resize-color);
     content: "";
 }
 
@@ -71,7 +78,7 @@
 .frontend-studio-variant-view.is-resizing-sidebar .frontend-studio-variant-sidebar-resize-handle::before {
     left: 2px;
     width: 3px;
-    background: #7c8da5;
+    background: var(--frontend-studio-variant-resize-hover-color);
 }
 
 .frontend-studio-variant-view.is-resizing-sidebar {
@@ -84,7 +91,7 @@
     width: var(--frontend-studio-variant-sidebar-width);
     max-width: 70vw;
     overflow: auto;
-    background: #fff;
+    background: var(--frontend-studio-variant-surface);
 }
 
 .frontend-studio-variant-sidebar-header {
@@ -95,7 +102,7 @@
     align-items: stretch;
     min-height: var(--frontend-studio-variant-header-height);
     padding: 0;
-    background: #fff;
+    background: var(--frontend-studio-variant-surface);
 }
 
 .frontend-studio-variant-sidebar-body {
@@ -128,25 +135,23 @@
 
 .frontend-studio-variant-html-status {
     margin-bottom: .75rem;
-    color: #4f5b67;
+    color: var(--typo3-text-color-variant);
     font-size: .8125rem;
 }
 
 .frontend-studio-variant-html-status.is-error {
-    color: #a94442;
+    color: var(--typo3-text-color-danger);
 }
 
 .frontend-studio-variant-html {
     overflow: auto;
-    border: 1px solid #d8dde6;
+    border: 1px solid var(--frontend-studio-variant-border-color);
     border-radius: 2px;
-    background: #fff;
+    background: var(--frontend-studio-variant-surface-muted);
 }
 
 .frontend-studio-variant-html .cm-editor {
     min-height: 24rem;
-    background: #fff;
-    color: #212529;
     font-size: .8125rem;
 }
 
@@ -159,7 +164,7 @@
 }
 
 .frontend-studio-variant-save-state {
-    color: #8a6d3b;
+    color: var(--typo3-text-color-warning);
     font-size: .75rem;
     font-weight: 600;
     white-space: nowrap;
@@ -178,7 +183,7 @@
         max-width: none;
         max-height: 45vh;
         border-left: 0;
-        border-bottom: 1px solid #d8dde6;
+        border-bottom: 1px solid var(--frontend-studio-variant-border-color);
         order: -1;
     }
 

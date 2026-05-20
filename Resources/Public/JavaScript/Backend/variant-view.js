@@ -1,9 +1,10 @@
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
-import { EditorState } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { html } from '@codemirror/lang-html';
+import { oneDark } from '@codemirror/theme-one-dark';
 
 class FrontendStudioVariantView {
   static sidebarWidthStorageKey = 'frontend-studio.variant-view.sidebar-width';
@@ -36,11 +37,14 @@ class FrontendStudioVariantView {
     this.hasUnsavedChanges = false;
     this.activeTab = 'values';
     this.htmlEditor = null;
+    this.htmlEditorTheme = new Compartment();
     this.htmlRefreshTimeout = null;
     this.renderedHtmlPreviewUrl = '';
     this.renderedHtmlRequestId = 0;
     this.sidebarWidth = FrontendStudioVariantView.defaultSidebarWidth;
     this.isResizingSidebar = false;
+    this.colorSchemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    this.colorSchemeObserver = null;
   }
 
   initialize() {
@@ -52,6 +56,7 @@ class FrontendStudioVariantView {
     this.updateDirtyState();
     this.initializeTabs();
     this.initializeSidebarResize();
+    this.initializeColorSchemeSync();
 
     this.fields.forEach((field) => {
       field.addEventListener('input', () => {
@@ -193,6 +198,24 @@ class FrontendStudioVariantView {
     });
   }
 
+  initializeColorSchemeSync() {
+    const updateEditorTheme = () => {
+      this.updateRenderedHtmlEditorTheme();
+    };
+
+    this.colorSchemeMediaQuery.addEventListener('change', updateEditorTheme);
+
+    this.colorSchemeObserver = new MutationObserver((mutations) => {
+      if (mutations.some((mutation) => mutation.attributeName === 'data-color-scheme')) {
+        updateEditorTheme();
+      }
+    });
+    this.colorSchemeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-color-scheme'],
+    });
+  }
+
   activateTab(tabName) {
     this.activeTab = tabName;
 
@@ -315,6 +338,7 @@ class FrontendStudioVariantView {
         EditorState.readOnly.of(true),
         EditorView.editable.of(false),
         EditorView.lineWrapping,
+        this.htmlEditorTheme.of(this.getRenderedHtmlEditorTheme()),
         syntaxHighlighting(defaultHighlightStyle),
         html(),
       ],
@@ -329,6 +353,34 @@ class FrontendStudioVariantView {
     }
 
     this.htmlEditor.setState(editorState);
+  }
+
+  updateRenderedHtmlEditorTheme() {
+    if (this.htmlEditor === null) {
+      return;
+    }
+
+    this.htmlEditor.dispatch({
+      effects: this.htmlEditorTheme.reconfigure(this.getRenderedHtmlEditorTheme()),
+    });
+  }
+
+  getRenderedHtmlEditorTheme() {
+    return this.isDarkModeEnabled() ? oneDark : [];
+  }
+
+  isDarkModeEnabled() {
+    const colorScheme = window.getComputedStyle(this.root).colorScheme;
+
+    if (colorScheme === 'light only' || colorScheme === 'light') {
+      return false;
+    }
+
+    if (colorScheme === 'dark only' || colorScheme === 'dark') {
+      return true;
+    }
+
+    return this.colorSchemeMediaQuery.matches;
   }
 
   setRenderedHtmlStatus(message, isError = false) {
