@@ -3,8 +3,13 @@
 declare(strict_types=1);
 
 use Andersundsehr\FrontendStudio\Controller\ComponentTreeController;
+use Andersundsehr\FrontendStudio\Controller\ComponentChangeStreamController;
 
 return [
+    'frontend_studio_component_change_stream' => [
+        'path' => '/frontend-studio/component-changes/stream',
+        'target' => ComponentChangeStreamController::class . '::streamAction',
+    ],
     'frontend_studio_component_tree_data' => [
         'path' => '/frontend-studio/component-tree/fetch-data',
         'target' => ComponentTreeController::class . '::fetchDataAction',

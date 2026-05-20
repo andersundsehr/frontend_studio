@@ -14,6 +14,8 @@ import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.
 
 const componentTreeModuleStateType = 'frontend_studio_component_tree';
 const initialExpansionLevel = 10;
+const componentFileActionStartedEventName = 'frontend-studio:component-file-action-started';
+const componentFileActionCancelledEventName = 'frontend-studio:component-file-action-cancelled';
 
 class FrontendStudioComponentTree extends Tree {
   constructor() {
@@ -103,6 +105,8 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async createVariant(node, name) {
+    this.dispatchComponentFileActionStarted('create', node.componentIdentifier);
+
     try {
       const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_create_variant)
         .post({
@@ -124,6 +128,7 @@ class FrontendStudioComponentTree extends Tree {
         this.scrollNodeIntoViewIfNeeded(createdNode);
       }
     } catch (error) {
+      this.dispatchComponentFileActionCancelled('create', node.componentIdentifier);
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant creation failed', payload?.message || error?.message || 'The variant could not be created.');
       await this.loadData();
@@ -235,6 +240,8 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async deleteVariant(node) {
+    this.dispatchComponentFileActionStarted('delete', node.identifier);
+
     try {
       const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_delete_variant)
         .post({
@@ -255,6 +262,7 @@ class FrontendStudioComponentTree extends Tree {
         this.scrollNodeIntoViewIfNeeded(componentNode);
       }
     } catch (error) {
+      this.dispatchComponentFileActionCancelled('delete', node.identifier);
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant deletion failed', payload?.message || error?.message || 'The variant could not be deleted.');
       await this.loadData();
@@ -273,6 +281,40 @@ class FrontendStudioComponentTree extends Tree {
     document.body.append(downloadLink);
     downloadLink.click();
     downloadLink.remove();
+  }
+
+  dispatchComponentFileActionStarted(action, identifier) {
+    top.document.dispatchEvent(new CustomEvent(componentFileActionStartedEventName, {
+      detail: {
+        action,
+        identifier,
+      },
+    }));
+  }
+
+  dispatchComponentFileActionCancelled(action, identifier) {
+    top.document.dispatchEvent(new CustomEvent(componentFileActionCancelledEventName, {
+      detail: {
+        action,
+        identifier,
+      },
+    }));
+  }
+
+  async refreshOrFilterTree() {
+    if (this.searchTerm !== null && this.searchTerm !== '') {
+      this.filter(this.searchTerm);
+      await this.waitForRefreshToFinish();
+      return;
+    }
+
+    await this.loadData();
+  }
+
+  async waitForRefreshToFinish() {
+    while (this.loading === true || this.currentFilterRequest !== null) {
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
   }
 }
 
@@ -300,10 +342,12 @@ class FrontendStudioComponentTreeContainer extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     top.document.addEventListener('typo3-module-loaded', this.restoreTreeStateAfterModuleLoaded);
+    top.document.addEventListener('frontend-studio:component-files-changed', this.refreshTreeAfterComponentFilesChanged);
   }
 
   disconnectedCallback() {
     top.document.removeEventListener('typo3-module-loaded', this.restoreTreeStateAfterModuleLoaded);
+    top.document.removeEventListener('frontend-studio:component-files-changed', this.refreshTreeAfterComponentFilesChanged);
     super.disconnectedCallback();
   }
 
@@ -317,6 +361,25 @@ class FrontendStudioComponentTreeContainer extends LitElement {
 
   restoreTreeStateAfterModuleLoaded = async () => {
     if (this.treeInitialized !== true) {
+      return;
+    }
+
+    await this.restoreTreeStateFromCurrentContext();
+  };
+
+  refreshTreeAfterComponentFilesChanged = async () => {
+    if (this.treeInitialized !== true || this.tree === null) {
+      return;
+    }
+
+    const selectedIdentifier = this.getSelectedNode()?.identifier ?? null;
+    await this.tree.refreshOrFilterTree();
+
+    const selectedNode = selectedIdentifier !== null
+      ? this.tree.nodes.find((candidate) => candidate.identifier === selectedIdentifier) ?? null
+      : null;
+    if (selectedNode !== null) {
+      await this.selectNode(selectedNode, false);
       return;
     }
 

@@ -2,6 +2,9 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Notification from '@typo3/backend/notification.js';
 import PersistentStorage from '@typo3/backend/storage/persistent.js';
 
+const componentFileActionStartedEventName = 'frontend-studio:component-file-action-started';
+const componentFileActionCancelledEventName = 'frontend-studio:component-file-action-cancelled';
+
 class FrontendStudioVariantView {
   static sidebarWidthStorageKey = 'frontendStudio.variantView.sidebarWidth';
 
@@ -16,7 +19,9 @@ class FrontendStudioVariantView {
   constructor(root) {
     this.root = root;
     this.previewUri = root.dataset.previewUri || '';
+    this.componentChangeStreamUri = root.dataset.componentChangeStreamUri || '';
     this.variantIdentifier = root.dataset.variantIdentifier || '';
+    this.componentIdentifier = this.getComponentIdentifierFromVariantIdentifier(this.variantIdentifier);
     this.componentFilePath = root.dataset.componentFilePath || '';
     this.componentFluidTagName = root.dataset.componentFluidTagName || '';
     this.iframe = root.querySelector('[data-frontend-studio-variant-frame]');
@@ -45,6 +50,8 @@ class FrontendStudioVariantView {
     this.fluidUsageRequestId = 0;
     this.sidebarWidth = FrontendStudioVariantView.defaultSidebarWidth;
     this.isResizingSidebar = false;
+    this.componentChangeEventSource = null;
+    this.ignoreNextComponentFilesChanged = false;
   }
 
   initialize() {
@@ -59,6 +66,8 @@ class FrontendStudioVariantView {
     this.updateDirtyState();
     this.initializeTabs();
     this.initializeSidebarResize();
+    this.initializeComponentFileActionSuppression();
+    this.initializeComponentChangeStream();
 
     this.fields.forEach((field) => {
       const handleFieldChange = () => {
@@ -98,6 +107,88 @@ class FrontendStudioVariantView {
         this.saveValues();
       }
     });
+  }
+
+  initializeComponentChangeStream() {
+    if (this.componentChangeStreamUri === '' || typeof EventSource === 'undefined') {
+      return;
+    }
+
+    this.componentChangeEventSource = new EventSource(this.componentChangeStreamUri);
+    this.componentChangeEventSource.addEventListener('component-files-changed', (event) => {
+      this.handleComponentFilesChanged(event);
+    });
+
+    window.addEventListener('pagehide', () => {
+      this.componentChangeEventSource?.close();
+      this.componentChangeEventSource = null;
+    }, { once: true });
+  }
+
+  initializeComponentFileActionSuppression() {
+    top.document.addEventListener(componentFileActionStartedEventName, () => {
+      this.ignoreNextComponentFilesChanged = true;
+    });
+
+    top.document.addEventListener(componentFileActionCancelledEventName, () => {
+      this.ignoreNextComponentFilesChanged = false;
+    });
+  }
+
+  handleComponentFilesChanged(event) {
+    if (this.ignoreNextComponentFilesChanged) {
+      this.ignoreNextComponentFilesChanged = false;
+      return;
+    }
+
+    top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
+      detail: {
+        variantIdentifier: this.variantIdentifier,
+      },
+    }));
+
+    if (!this.isCurrentComponentAffected(event)) {
+      return;
+    }
+
+    this.updatePreview();
+    this.renderedHtmlPreviewUrl = '';
+    this.refreshRenderedHtml();
+    this.updateFluidUsageSnippet(true);
+
+    if (!this.hasUnsavedChanges) {
+      window.location.reload();
+    }
+  }
+
+  isCurrentComponentAffected(event) {
+    if (this.componentIdentifier === '') {
+      return false;
+    }
+
+    const payload = this.parseComponentFilesChangedPayload(event);
+    if (!Array.isArray(payload.componentIdentifiers)) {
+      return false;
+    }
+
+    return payload.componentIdentifiers.includes(this.componentIdentifier);
+  }
+
+  parseComponentFilesChangedPayload(event) {
+    try {
+      return JSON.parse(event?.data || '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  getComponentIdentifierFromVariantIdentifier(variantIdentifier) {
+    const identifierParts = variantIdentifier.split(':');
+    if (identifierParts.length < 3) {
+      return '';
+    }
+
+    return identifierParts.slice(0, -1).join(':');
   }
 
   initializeSidebarResize() {
@@ -418,6 +509,24 @@ class FrontendStudioVariantView {
       .replaceAll('>', '&gt;');
   }
 
+  dispatchComponentFileActionStarted() {
+    top.document.dispatchEvent(new CustomEvent(componentFileActionStartedEventName, {
+      detail: {
+        action: 'save',
+        variantIdentifier: this.variantIdentifier,
+      },
+    }));
+  }
+
+  dispatchComponentFileActionCancelled() {
+    top.document.dispatchEvent(new CustomEvent(componentFileActionCancelledEventName, {
+      detail: {
+        action: 'save',
+        variantIdentifier: this.variantIdentifier,
+      },
+    }));
+  }
+
   updatePreview() {
     this.iframe.src = this.buildPreviewUrl().toString();
   }
@@ -585,6 +694,7 @@ class FrontendStudioVariantView {
     }
 
     this.saveButton.disabled = true;
+    this.dispatchComponentFileActionStarted();
 
     try {
       const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_update_variant_values)
@@ -610,6 +720,7 @@ class FrontendStudioVariantView {
       this.renderedHtmlPreviewUrl = '';
       this.scheduleRenderedHtmlRefresh();
     } catch (error) {
+      this.dispatchComponentFileActionCancelled();
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant save failed', payload?.message || error?.message || 'The variant values could not be saved.');
     } finally {

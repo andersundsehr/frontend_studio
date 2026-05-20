@@ -11,6 +11,7 @@ use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use Throwable;
@@ -29,6 +30,7 @@ final readonly class FrontendStudioModuleController
         private ComponentPreviewRenderer $componentPreviewRenderer,
         private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
+        private UriBuilder $uriBuilder,
         private SiteFinder $siteFinder,
     ) {}
 
@@ -74,6 +76,7 @@ final readonly class FrontendStudioModuleController
             'renderedHtmlStatus' => $renderedHtmlStatus,
             'fluidTemplateSource' => $this->renderFluidTemplateSource($selectedComponentMetadata),
             'fluidUsageSource' => $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata),
+            'componentChangeStreamUri' => (string)$this->uriBuilder->buildUriFromRoute('ajax_frontend_studio_component_change_stream'),
         ];
     }
 
