@@ -95,6 +95,12 @@ final readonly class ComponentMetadataProvider
             } elseif ($metadata['fixture']['variants'] !== [] && $metadata['fixture']['selectedVariant'] === null) {
                 $metadata['errors'][] = 'Selected variant was not found in the fixture file.';
             }
+            if ($metadata['fixture']['selectedVariant'] !== null) {
+                $metadata['fixture']['selectedVariant']['values'] = $this->mergeVariantValuesWithArguments(
+                    $metadata['fixture']['selectedVariant']['values'],
+                    $metadata['arguments'],
+                );
+            }
             try {
                 $metadata['staticVariables'] = $this->normalizeStaticVariables(
                     $resolverDelegate->getAdditionalVariables($componentName),
@@ -107,6 +113,51 @@ final readonly class ComponentMetadataProvider
         }
 
         return $metadata;
+    }
+
+    /**
+     * @param list<array{name: string, type: string, value: string, isMultiline?: bool, isFixtureValue?: bool}> $variantValues
+     * @param list<array<string, mixed>> $arguments
+     * @return list<array{name: string, type: string, value: string, isMultiline: bool, isFixtureValue: bool}>
+     */
+    private function mergeVariantValuesWithArguments(array $variantValues, array $arguments): array
+    {
+        $variantValuesByName = [];
+        foreach ($variantValues as $variantValue) {
+            $variantValuesByName[$variantValue['name']] = [
+                ...$variantValue,
+                'isMultiline' => (bool)($variantValue['isMultiline'] ?? str_contains($variantValue['value'], "\n")),
+                'isFixtureValue' => (bool)($variantValue['isFixtureValue'] ?? true),
+            ];
+        }
+
+        $mergedValues = [];
+        foreach ($arguments as $argument) {
+            $name = isset($argument['name']) ? (string)$argument['name'] : '';
+            if ($name === '') {
+                continue;
+            }
+
+            if (isset($variantValuesByName[$name])) {
+                $mergedValues[] = $variantValuesByName[$name];
+                unset($variantValuesByName[$name]);
+                continue;
+            }
+
+            $value = isset($argument['defaultValue']) ? (string)$argument['defaultValue'] : '';
+            $mergedValues[] = [
+                'name' => $name,
+                'type' => isset($argument['type']) ? (string)$argument['type'] : 'string',
+                'value' => $value,
+                'isMultiline' => str_contains($value, "\n"),
+                'isFixtureValue' => false,
+            ];
+        }
+
+        return [
+            ...$mergedValues,
+            ...array_values($variantValuesByName),
+        ];
     }
 
     /**

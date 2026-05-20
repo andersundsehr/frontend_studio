@@ -70,6 +70,7 @@ final readonly class FrontendStudioModuleController
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
             'renderedHtmlSource' => $renderedHtmlSource,
             'renderedHtmlStatus' => $renderedHtmlStatus,
+            'fluidTemplateSource' => $this->renderFluidTemplateSource($selectedComponentMetadata),
         ];
     }
 
@@ -91,6 +92,19 @@ final readonly class FrontendStudioModuleController
                 'The rendered HTML could not be loaded. ' . $throwable->getMessage(),
             ];
         }
+    }
+
+    /**
+     * @param array<string, mixed>|null $selectedComponentMetadata
+     */
+    private function renderFluidTemplateSource(?array $selectedComponentMetadata): string
+    {
+        $templateContent = $selectedComponentMetadata['template']['content'] ?? null;
+        if (!is_string($templateContent) || $templateContent === '') {
+            return '';
+        }
+
+        return $this->htmlSourceHighlighter->highlightFluidTemplate($templateContent);
     }
 
     /**
@@ -120,7 +134,7 @@ final readonly class FrontendStudioModuleController
             self::VARIANT_ACTIVE_TAB_USER_SETTING,
         );
 
-        if (!is_string($configuredActiveTab) || !in_array($configuredActiveTab, ['values', 'html'], true)) {
+        if (!is_string($configuredActiveTab) || !in_array($configuredActiveTab, ['values', 'html', 'template', 'usage'], true)) {
             return 'values';
         }
 

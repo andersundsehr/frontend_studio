@@ -18,11 +18,13 @@ class FrontendStudioVariantView {
     this.previewUri = root.dataset.previewUri || '';
     this.variantIdentifier = root.dataset.variantIdentifier || '';
     this.componentFilePath = root.dataset.componentFilePath || '';
+    this.componentFluidTagName = root.dataset.componentFluidTagName || '';
     this.iframe = root.querySelector('[data-frontend-studio-variant-frame]');
     this.workspace = root.querySelector('.frontend-studio-variant-workspace');
     this.sidebar = root.querySelector('.frontend-studio-variant-sidebar');
     this.sidebarResizeHandle = root.querySelector('[data-frontend-studio-variant-sidebar-resize]');
     this.copyComponentPathButton = root.querySelector('[data-frontend-studio-copy-component-path]');
+    this.copyFluidUsageButton = root.querySelector('[data-frontend-studio-copy-fluid-usage]');
     this.saveButton = root.querySelector('[data-frontend-studio-variant-save]');
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
     this.saveState = root.querySelector('[data-frontend-studio-variant-save-state]');
@@ -30,9 +32,12 @@ class FrontendStudioVariantView {
     this.tabPanels = Array.from(root.querySelectorAll('[data-frontend-studio-variant-tab-panel]'));
     this.htmlContainer = root.querySelector('[data-frontend-studio-variant-html]');
     this.htmlStatus = root.querySelector('[data-frontend-studio-variant-html-status]');
+    this.fluidUsageCode = root.querySelector('[data-frontend-studio-fluid-usage-code]');
     this.fields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-value]'));
+    this.initialFieldValues = {};
     this.savedValues = {};
     this.hasUnsavedChanges = false;
+    this.fluidUsageSnippet = '';
     this.activeTab = this.readInitialActiveTab();
     this.htmlRefreshTimeout = null;
     this.renderedHtmlPreviewUrl = '';
@@ -46,18 +51,24 @@ class FrontendStudioVariantView {
       return;
     }
 
+    this.initialFieldValues = this.collectFieldValues();
     this.savedValues = this.collectValues();
     this.renderedHtmlPreviewUrl = this.buildRenderedHtmlUrl().toString();
+    this.updateFluidUsageSnippet();
     this.updateDirtyState();
     this.initializeTabs();
     this.initializeSidebarResize();
 
     this.fields.forEach((field) => {
-      field.addEventListener('input', () => {
+      const handleFieldChange = () => {
         this.updateDirtyState();
+        this.updateFluidUsageSnippet();
         this.updatePreview();
         this.scheduleRenderedHtmlRefresh();
-      });
+      };
+
+      field.addEventListener('input', handleFieldChange);
+      field.addEventListener('change', handleFieldChange);
     });
 
     this.saveButton?.addEventListener('click', (event) => {
@@ -73,6 +84,11 @@ class FrontendStudioVariantView {
     this.copyComponentPathButton?.addEventListener('click', (event) => {
       event.preventDefault();
       this.copyComponentFilePath();
+    });
+
+    this.copyFluidUsageButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.copyFluidUsageSnippet();
     });
 
     document.addEventListener('keydown', (event) => {
@@ -255,10 +271,73 @@ class FrontendStudioVariantView {
         return;
       }
 
-      values[name] = field.value;
+      const value = this.readFieldValue(field);
+      if (this.shouldSubmitField(field, name, value)) {
+        values[name] = value;
+      }
     });
 
     return values;
+  }
+
+  collectFieldValues() {
+    const values = {};
+
+    this.fields.forEach((field) => {
+      const name = field.dataset.fixtureName || field.name || '';
+      if (name === '') {
+        return;
+      }
+
+      values[name] = this.readFieldValue(field);
+    });
+
+    return values;
+  }
+
+  shouldSubmitField(field, name, value) {
+    if (field.dataset.fixtureValueDefined === 'true') {
+      return true;
+    }
+
+    return JSON.stringify(value) !== JSON.stringify(this.initialFieldValues[name]);
+  }
+
+  readFieldValue(field) {
+    const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
+
+    if (fixtureType === 'bool' || fixtureType === 'boolean') {
+      return field.checked === true;
+    }
+
+    if (fixtureType === 'int' || fixtureType === 'integer') {
+      return Number.isFinite(field.valueAsNumber) ? Math.trunc(field.valueAsNumber) : field.value;
+    }
+
+    if (fixtureType === 'float' || fixtureType === 'double') {
+      return Number.isFinite(field.valueAsNumber) ? field.valueAsNumber : field.value;
+    }
+
+    if (fixtureType === 'null') {
+      const value = field.value.trim();
+      return value === '' || value.toLowerCase() === 'null' ? null : field.value;
+    }
+
+    if (this.isCompoundFixtureType(fixtureType)) {
+      try {
+        return JSON.parse(field.value);
+      } catch {
+        return field.value;
+      }
+    }
+
+    return field.value;
+  }
+
+  isCompoundFixtureType(fixtureType) {
+    return ['array', 'object', 'stdclass'].includes(fixtureType)
+      || fixtureType.startsWith('array<')
+      || fixtureType.startsWith('object(');
   }
 
   buildPreviewUrl() {
@@ -276,6 +355,59 @@ class FrontendStudioVariantView {
     renderedHtmlUrl.searchParams.set('frontendStudioPreviewFormat', 'highlighted-fragment');
 
     return renderedHtmlUrl;
+  }
+
+  updateFluidUsageSnippet() {
+    this.fluidUsageSnippet = this.buildFluidUsageSnippet();
+
+    if (this.fluidUsageCode !== null) {
+      this.fluidUsageCode.textContent = this.fluidUsageSnippet;
+    }
+  }
+
+  buildFluidUsageSnippet() {
+    const tagName = this.componentFluidTagName.trim();
+    if (tagName === '') {
+      return '';
+    }
+
+    const attributes = Object.entries(this.collectValues())
+      .map(([name, value]) => ` ${name}="${this.escapeFluidAttributeValue(this.formatFluidAttributeValue(value))}"`)
+      .join('');
+
+    return `<${tagName}${attributes} />`;
+  }
+
+  formatFluidAttributeValue(value) {
+    if (value === null) {
+      return 'null';
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (typeof value === 'number') {
+      return String(value);
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  escapeFluidAttributeValue(value) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('"', '&quot;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
   }
 
   updatePreview() {
@@ -373,17 +505,39 @@ class FrontendStudioVariantView {
   resetValues() {
     this.fields.forEach((field) => {
       const name = field.dataset.fixtureName || field.name || '';
-      if (name === '' || this.savedValues[name] === undefined) {
+      if (name === '' || this.initialFieldValues[name] === undefined) {
         return;
       }
 
-      field.value = this.savedValues[name];
+      this.writeFieldValue(field, this.initialFieldValues[name]);
     });
 
     this.updateDirtyState();
+    this.updateFluidUsageSnippet();
     this.updatePreview();
     this.renderedHtmlPreviewUrl = '';
     this.scheduleRenderedHtmlRefresh();
+  }
+
+  writeFieldValue(field, value) {
+    const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
+
+    if (fixtureType === 'bool' || fixtureType === 'boolean') {
+      field.checked = value === true;
+      return;
+    }
+
+    if (value === null || value === undefined) {
+      field.value = '';
+      return;
+    }
+
+    if (this.isCompoundFixtureType(fixtureType) && typeof value !== 'string') {
+      field.value = JSON.stringify(value, null, 2);
+      return;
+    }
+
+    field.value = String(value);
   }
 
   async saveValues() {
@@ -406,7 +560,13 @@ class FrontendStudioVariantView {
       }
 
       Notification.success('Variant saved', 'The variant values were written to the fixture file.');
-      this.savedValues = this.collectValues();
+      const savedValues = this.collectValues();
+      this.savedValues = savedValues;
+      this.initialFieldValues = this.collectFieldValues();
+      this.fields.forEach((field) => {
+        const name = field.dataset.fixtureName || field.name || '';
+        field.dataset.fixtureValueDefined = Object.prototype.hasOwnProperty.call(savedValues, name) ? 'true' : 'false';
+      });
       this.updateDirtyState();
       this.renderedHtmlPreviewUrl = '';
       this.scheduleRenderedHtmlRefresh();
@@ -428,6 +588,19 @@ class FrontendStudioVariantView {
       Notification.success('File path copied', this.componentFilePath);
     } catch (error) {
       Notification.error('Copy failed', error?.message || 'The component file path could not be copied.');
+    }
+  }
+
+  async copyFluidUsageSnippet() {
+    if (this.fluidUsageSnippet === '') {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this.fluidUsageSnippet);
+      Notification.success('Fluid usage copied', this.fluidUsageSnippet);
+    } catch (error) {
+      Notification.error('Copy failed', error?.message || 'The Fluid usage snippet could not be copied.');
     }
   }
 

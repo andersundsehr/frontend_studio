@@ -109,9 +109,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
                 continue;
             }
 
-            $variantValueOverrides[$name] = is_scalar($value) || $value === null
-                ? $value
-                : (json_encode($value) ?: '');
+            $variantValueOverrides[$name] = $value;
         }
 
         return $variantValueOverrides;

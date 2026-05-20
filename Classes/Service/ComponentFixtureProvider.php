@@ -326,7 +326,7 @@ final readonly class ComponentFixtureProvider
 
     /**
      * @param array<string, mixed> $variantValues
-     * @return list<array{name: string, type: string, value: string}>
+     * @return list<array{name: string, type: string, value: string, isMultiline: bool, isFixtureValue: bool}>
      */
     private function normalizeVariantValues(array $variantValues): array
     {
@@ -336,6 +336,8 @@ final readonly class ComponentFixtureProvider
                 'name' => (string)$name,
                 'type' => get_debug_type($value),
                 'value' => $this->normalizeValue($value),
+                'isMultiline' => is_string($value) && str_contains($value, "\n"),
+                'isFixtureValue' => true,
             ];
         }
 
@@ -355,9 +357,7 @@ final readonly class ComponentFixtureProvider
                 continue;
             }
 
-            $normalizedValues[$name] = is_scalar($value) || $value === null
-                ? $value
-                : $this->normalizeValue($value);
+            $normalizedValues[$name] = $value;
         }
 
         return $normalizedValues;

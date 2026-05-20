@@ -8,6 +8,16 @@ final class HtmlSourceHighlighter
 {
     public function highlight(string $html): string
     {
+        return $this->highlightSource($html);
+    }
+
+    public function highlightFluidTemplate(string $template): string
+    {
+        return $this->highlightSource($template, true);
+    }
+
+    private function highlightSource(string $html, bool $highlightFluidExpressions = false): string
+    {
         $source = '';
         $offset = 0;
         $length = strlen($html);
@@ -15,12 +25,12 @@ final class HtmlSourceHighlighter
         while ($offset < $length) {
             $nextTagOffset = strpos($html, '<', $offset);
             if ($nextTagOffset === false) {
-                $source .= $this->wrapText(substr($html, $offset));
+                $source .= $this->wrapText(substr($html, $offset), $highlightFluidExpressions);
                 break;
             }
 
             if ($nextTagOffset > $offset) {
-                $source .= $this->wrapText(substr($html, $offset, $nextTagOffset - $offset));
+                $source .= $this->wrapText(substr($html, $offset, $nextTagOffset - $offset), $highlightFluidExpressions);
             }
 
             if (str_starts_with(substr($html, $nextTagOffset), '<!--')) {
@@ -33,12 +43,12 @@ final class HtmlSourceHighlighter
 
             $tagEndOffset = $this->findTagEndOffset($html, $nextTagOffset);
             if ($tagEndOffset === null) {
-                $source .= $this->wrapText(substr($html, $nextTagOffset));
+                $source .= $this->wrapText(substr($html, $nextTagOffset), $highlightFluidExpressions);
                 break;
             }
 
             $tag = substr($html, $nextTagOffset, $tagEndOffset - $nextTagOffset + 1);
-            $source .= $this->highlightTag($tag);
+            $source .= $this->highlightTag($tag, $highlightFluidExpressions);
             $offset = $tagEndOffset + 1;
         }
 
@@ -72,7 +82,7 @@ final class HtmlSourceHighlighter
         return null;
     }
 
-    private function highlightTag(string $tag): string
+    private function highlightTag(string $tag, bool $highlightFluidExpressions = false): string
     {
         if (preg_match('/^<![^>]*>$/s', $tag) === 1) {
             return $this->wrap('doctype', $tag);
@@ -84,11 +94,11 @@ final class HtmlSourceHighlighter
 
         return $this->wrap('punctuation', $matches[1])
             . $this->wrap('tag', $matches[2])
-            . $this->highlightAttributes($matches[3])
+            . $this->highlightAttributes($matches[3], $highlightFluidExpressions)
             . $this->wrap('punctuation', $matches[4]);
     }
 
-    private function highlightAttributes(string $attributes): string
+    private function highlightAttributes(string $attributes, bool $highlightFluidExpressions = false): string
     {
         $highlightedAttributes = '';
         $offset = 0;
@@ -108,7 +118,9 @@ final class HtmlSourceHighlighter
             }
 
             if (($match[3][0] ?? '') !== '') {
-                $highlightedAttributes .= $this->wrap('string', $match[3][0]);
+                $highlightedAttributes .= $highlightFluidExpressions
+                    ? $this->highlightFluidExpressions($match[3][0], 'string')
+                    : $this->wrap('string', $match[3][0]);
             }
 
             $offset = $attributeOffset + strlen($match[0][0]);
@@ -121,9 +133,40 @@ final class HtmlSourceHighlighter
         return $highlightedAttributes;
     }
 
-    private function wrapText(string $text): string
+    private function wrapText(string $text, bool $highlightFluidExpressions = false): string
     {
-        return $text === '' ? '' : $this->wrap('text', $text);
+        if ($text === '') {
+            return '';
+        }
+
+        if (!$highlightFluidExpressions) {
+            return $this->wrap('text', $text);
+        }
+
+        return $this->highlightFluidExpressions($text);
+    }
+
+    private function highlightFluidExpressions(string $text, string $plainToken = 'text'): string
+    {
+        $source = '';
+        $offset = 0;
+
+        preg_match_all('/\\{[^{}]*}/s', $text, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($matches as $match) {
+            $expressionOffset = $match[0][1];
+            if ($expressionOffset > $offset) {
+                $source .= $this->wrap($plainToken, substr($text, $offset, $expressionOffset - $offset));
+            }
+
+            $source .= $this->wrap('fluid-expression', $match[0][0]);
+            $offset = $expressionOffset + strlen($match[0][0]);
+        }
+
+        if ($offset < strlen($text)) {
+            $source .= $this->wrap($plainToken, substr($text, $offset));
+        }
+
+        return $source;
     }
 
     private function wrap(string $token, string $value): string

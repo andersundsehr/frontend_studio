@@ -20,6 +20,7 @@
         data-variant-identifier="{selectedVariantIdentifier}"
         data-preview-uri="{componentPreviewUri}"
         data-component-file-path="{selectedComponentMetadata.template.relativePath}"
+        data-component-fluid-tag-name="{selectedComponentMetadata.displayNamespace}:{selectedComponentMetadata.componentName}"
         data-active-tab="{variantActiveTab}"
         style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px"
     >
@@ -146,6 +147,32 @@
                                     Rendered HTML
                                 </button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button
+                                    type="button"
+                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'template\'', then: ' active is-active')}"
+                                    id="frontend-studio-variant-template-tab"
+                                    role="tab"
+                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'template\'', then: 'true', else: 'false')}"
+                                    aria-controls="frontend-studio-variant-template-panel"
+                                    data-frontend-studio-variant-tab="template"
+                                >
+                                    Fluid Template
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button
+                                    type="button"
+                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' active is-active')}"
+                                    id="frontend-studio-variant-usage-tab"
+                                    role="tab"
+                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'usage\'', then: 'true', else: 'false')}"
+                                    aria-controls="frontend-studio-variant-usage-panel"
+                                    data-frontend-studio-variant-tab="usage"
+                                >
+                                    Fluid Usage
+                                </button>
+                            </li>
                         </ul>
                     </div>
                     <div class="frontend-studio-variant-sidebar-body">
@@ -157,19 +184,13 @@
                             data-frontend-studio-variant-tab-panel="values"
                         >
                             <div class="frontend-studio-variant-values-actions">
-                                <span
-                                    class="frontend-studio-variant-save-state"
-                                    data-frontend-studio-variant-save-state
-                                    hidden
-                                >
-                                    Unsaved changes
-                                </span>
                                 <button
                                     type="button"
                                     class="btn btn-default btn-sm"
                                     data-frontend-studio-variant-reset
                                     disabled
                                 >
+                                  <core:icon identifier="actions-undo"/>
                                     Reset
                                 </button>
                                 <button
@@ -178,8 +199,16 @@
                                     data-frontend-studio-variant-save
                                     disabled
                                 >
+                                  <core:icon identifier="actions-save"/>
                                     Save
                                 </button>
+                                <span
+                                  class="frontend-studio-variant-save-state"
+                                  data-frontend-studio-variant-save-state
+                                  hidden
+                                >
+                                      Unsaved changes
+                                  </span>
                             </div>
                             <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
                                 <f:then>
@@ -189,14 +218,150 @@
                                                 {variantValue.name}
                                                 <span class="text-body-secondary">({variantValue.type})</span>
                                             </label>
-                                            <textarea
-                                                id="frontend-studio-variant-value-{variantValue.name}"
-                                                name="{variantValue.name}"
-                                                data-frontend-studio-variant-value
-                                                data-fixture-name="{variantValue.name}"
-                                                class="form-control"
-                                                rows="3"
-                                            >{variantValue.value}</textarea>
+                                            <f:switch expression="{variantValue.type}">
+                                                <f:case value="bool">
+                                                    <div class="form-check">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="frontend-studio-variant-value-{variantValue.name}"
+                                                            name="{variantValue.name}"
+                                                            data-frontend-studio-variant-value
+                                                            data-fixture-name="{variantValue.name}"
+                                                            data-fixture-type="{variantValue.type}"
+                                                            data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                            class="form-check-input"
+                                                            value="1"
+                                                            {f:if(condition: '{variantValue.value} == \'true\'', then: 'checked')}
+                                                        >
+                                                    </div>
+                                                </f:case>
+                                                <f:case value="boolean">
+                                                    <div class="form-check">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="frontend-studio-variant-value-{variantValue.name}"
+                                                            name="{variantValue.name}"
+                                                            data-frontend-studio-variant-value
+                                                            data-fixture-name="{variantValue.name}"
+                                                            data-fixture-type="{variantValue.type}"
+                                                            data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                            class="form-check-input"
+                                                            value="1"
+                                                            {f:if(condition: '{variantValue.value} == \'true\'', then: 'checked')}
+                                                        >
+                                                    </div>
+                                                </f:case>
+                                                <f:case value="int">
+                                                    <input
+                                                        type="number"
+                                                        step="1"
+                                                        id="frontend-studio-variant-value-{variantValue.name}"
+                                                        name="{variantValue.name}"
+                                                        data-frontend-studio-variant-value
+                                                        data-fixture-name="{variantValue.name}"
+                                                        data-fixture-type="{variantValue.type}"
+                                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                        class="form-control"
+                                                        value="{variantValue.value}"
+                                                    >
+                                                </f:case>
+                                                <f:case value="integer">
+                                                    <input
+                                                        type="number"
+                                                        step="1"
+                                                        id="frontend-studio-variant-value-{variantValue.name}"
+                                                        name="{variantValue.name}"
+                                                        data-frontend-studio-variant-value
+                                                        data-fixture-name="{variantValue.name}"
+                                                        data-fixture-type="{variantValue.type}"
+                                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                        class="form-control"
+                                                        value="{variantValue.value}"
+                                                    >
+                                                </f:case>
+                                                <f:case value="float">
+                                                    <input
+                                                        type="number"
+                                                        step="any"
+                                                        id="frontend-studio-variant-value-{variantValue.name}"
+                                                        name="{variantValue.name}"
+                                                        data-frontend-studio-variant-value
+                                                        data-fixture-name="{variantValue.name}"
+                                                        data-fixture-type="{variantValue.type}"
+                                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                        class="form-control"
+                                                        value="{variantValue.value}"
+                                                    >
+                                                </f:case>
+                                                <f:case value="double">
+                                                    <input
+                                                        type="number"
+                                                        step="any"
+                                                        id="frontend-studio-variant-value-{variantValue.name}"
+                                                        name="{variantValue.name}"
+                                                        data-frontend-studio-variant-value
+                                                        data-fixture-name="{variantValue.name}"
+                                                        data-fixture-type="{variantValue.type}"
+                                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                        class="form-control"
+                                                        value="{variantValue.value}"
+                                                    >
+                                                </f:case>
+                                                <f:case value="string">
+                                                    <f:if condition="{variantValue.isMultiline}">
+                                                        <f:then>
+                                                            <textarea
+                                                                id="frontend-studio-variant-value-{variantValue.name}"
+                                                                name="{variantValue.name}"
+                                                                data-frontend-studio-variant-value
+                                                                data-fixture-name="{variantValue.name}"
+                                                                data-fixture-type="{variantValue.type}"
+                                                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                                class="form-control"
+                                                                rows="3"
+                                                            >{variantValue.value}</textarea>
+                                                        </f:then>
+                                                        <f:else>
+                                                            <input
+                                                                type="text"
+                                                                id="frontend-studio-variant-value-{variantValue.name}"
+                                                                name="{variantValue.name}"
+                                                                data-frontend-studio-variant-value
+                                                                data-fixture-name="{variantValue.name}"
+                                                                data-fixture-type="{variantValue.type}"
+                                                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                                class="form-control"
+                                                                value="{variantValue.value}"
+                                                            >
+                                                        </f:else>
+                                                    </f:if>
+                                                </f:case>
+                                                <f:case value="null">
+                                                    <input
+                                                        type="text"
+                                                        id="frontend-studio-variant-value-{variantValue.name}"
+                                                        name="{variantValue.name}"
+                                                        data-frontend-studio-variant-value
+                                                        data-fixture-name="{variantValue.name}"
+                                                        data-fixture-type="{variantValue.type}"
+                                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                        class="form-control"
+                                                        value=""
+                                                    >
+                                                </f:case>
+                                                <f:defaultCase>
+                                                    <textarea
+                                                        id="frontend-studio-variant-value-{variantValue.name}"
+                                                        name="{variantValue.name}"
+                                                        data-frontend-studio-variant-value
+                                                        data-fixture-name="{variantValue.name}"
+                                                        data-fixture-type="{variantValue.type}"
+                                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                                                        class="form-control"
+                                                        rows="3"
+                                                    >{variantValue.value}</textarea>
+                                                </f:defaultCase>
+                                            </f:switch>
                                         </div>
                                     </f:for>
                                 </f:then>
@@ -223,6 +388,59 @@
                                 class="frontend-studio-variant-html"
                                 data-frontend-studio-variant-html
                             >{renderedHtmlSource -> f:format.raw()}</div>
+                        </div>
+                        <div
+                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'template\'', then: ' is-active', else: ' is-hidden')}"
+                            id="frontend-studio-variant-template-panel"
+                            role="tabpanel"
+                            aria-labelledby="frontend-studio-variant-template-tab"
+                            data-frontend-studio-variant-tab-panel="template"
+                        >
+                            <f:if condition="{selectedComponentMetadata.template.error}">
+                                <f:then>
+                                    <div class="frontend-studio-variant-template-status is-error">
+                                        The Fluid template could not be loaded. {selectedComponentMetadata.template.error}
+                                    </div>
+                                </f:then>
+                                <f:else>
+                                    <f:if condition="{selectedComponentMetadata.template.content}">
+                                        <f:then>
+                                            <div class="frontend-studio-variant-template">
+                                                {fluidTemplateSource -> f:format.raw()}
+                                            </div>
+                                        </f:then>
+                                        <f:else>
+                                            <div class="frontend-studio-variant-template-status">
+                                                The Fluid template content is not available.
+                                            </div>
+                                        </f:else>
+                                    </f:if>
+                                </f:else>
+                            </f:if>
+                        </div>
+                        <div
+                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' is-active', else: ' is-hidden')}"
+                            id="frontend-studio-variant-usage-panel"
+                            role="tabpanel"
+                            aria-labelledby="frontend-studio-variant-usage-tab"
+                            data-frontend-studio-variant-tab-panel="usage"
+                        >
+                            <div class="frontend-studio-variant-usage-actions">
+                                <button
+                                    type="button"
+                                    class="btn btn-default btn-sm"
+                                    data-frontend-studio-copy-fluid-usage
+                                >
+                                    Copy
+                                    <core:icon identifier="actions-edit-copy" size="small" />
+                                </button>
+                            </div>
+                            <div
+                                class="frontend-studio-variant-usage"
+                                data-frontend-studio-variant-usage
+                            >
+                                <pre class="frontend-studio-variant-html-source"><code data-frontend-studio-fluid-usage-code></code></pre>
+                            </div>
                         </div>
                     </div>
                 </aside>

@@ -126,25 +126,29 @@
     display: none;
 }
 
-.frontend-studio-variant-values-actions {
+.frontend-studio-variant-values-actions,
+.frontend-studio-variant-usage-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: .5rem;
     margin-bottom: .75rem;
 }
 
-.frontend-studio-variant-html-status {
+.frontend-studio-variant-html-status,
+.frontend-studio-variant-template-status {
     margin-bottom: .75rem;
     color: var(--typo3-text-color-variant);
     font-size: .8125rem;
 }
 
-.frontend-studio-variant-html-status.is-error {
+.frontend-studio-variant-html-status.is-error,
+.frontend-studio-variant-template-status.is-error {
     color: var(--typo3-text-color-danger);
 }
 
-.frontend-studio-variant-html {
+.frontend-studio-variant-html,
+.frontend-studio-variant-template,
+.frontend-studio-variant-usage {
     overflow: auto;
     border: 1px solid var(--frontend-studio-variant-border-color);
     border-radius: 2px;
@@ -152,7 +156,6 @@
 }
 
 .frontend-studio-variant-html-source {
-    min-height: 24rem;
     margin: 0;
     padding: .5rem;
     color: var(--typo3-text-color-base);
@@ -182,6 +185,10 @@
 
 .frontend-studio-variant-html-source__doctype {
     color: light-dark(#5b5fc7, #b8b9ff);
+}
+
+.frontend-studio-variant-html-source__fluid-expression {
+    color: light-dark(#1f63a8, #8cc8ff);
 }
 
 .frontend-studio-variant-html-source__punctuation {
