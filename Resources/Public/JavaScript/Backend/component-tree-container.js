@@ -297,13 +297,42 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     return this;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    top.document.addEventListener('typo3-module-loaded', this.restoreTreeStateAfterModuleLoaded);
+  }
+
+  disconnectedCallback() {
+    top.document.removeEventListener('typo3-module-loaded', this.restoreTreeStateAfterModuleLoaded);
+    super.disconnectedCallback();
+  }
+
   restoreTreeState = async (event) => {
     this.tree = event.currentTarget;
+    this.treeInitialized = true;
     this.connectToolbar();
 
+    await this.restoreTreeStateFromCurrentContext();
+  };
+
+  restoreTreeStateAfterModuleLoaded = async () => {
+    if (this.treeInitialized !== true) {
+      return;
+    }
+
+    await this.restoreTreeStateFromCurrentContext();
+  };
+
+  async restoreTreeStateFromCurrentContext() {
     const urlNode = this.getNodeFromCurrentContentUrl();
     if (urlNode !== null) {
       await this.selectNode(urlNode, false);
+      return;
+    }
+
+    const selectedNode = this.getSelectedNode();
+    if (selectedNode !== null) {
+      await this.selectNode(selectedNode);
       return;
     }
 
@@ -313,7 +342,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     if (storedNode !== null) {
       await this.selectNode(storedNode);
     }
-  };
+  }
 
   loadVariant = async (event) => {
     const { node, propagate } = event.detail;
@@ -372,6 +401,10 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     }
 
     return this.tree.nodes.find((candidate) => candidate.identifier === componentVariant) ?? null;
+  }
+
+  getSelectedNode() {
+    return this.tree.getSelectedNodes()[0] ?? null;
   }
 
   getNodeFromStoredState(storedState) {

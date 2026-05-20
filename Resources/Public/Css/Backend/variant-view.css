@@ -21,6 +21,7 @@
     padding: .5rem .75rem;
     border-bottom: 1px solid var(--frontend-studio-variant-border-color);
     background: var(--frontend-studio-variant-surface);
+    align-content: space-around;
 }
 
 .frontend-studio-variant-workspace {

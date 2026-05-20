@@ -12,6 +12,7 @@
         src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js"
         type="module"
     />
+    <f:be.pageRenderer includeJavaScriptModules="{0: '@typo3/backend/viewport/content-navigation-toggle.js'}" />
 
     <div
         class="frontend-studio-variant-view"
@@ -27,7 +28,13 @@
                     <f:if condition="{selectedVariantIdentifier}">
                         <f:then>
                             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="min-w-0">
+                                <div class="min-w-0 d-flex flex-wrap align-items-center gap-1">
+                                    <typo3-backend-content-navigation-toggle
+                                      class="btn btn-sm btn-icon btn-default btn-borderless"
+                                      action="expand"
+                                      hidden
+                                    ></typo3-backend-content-navigation-toggle>
+
                                     <h1 class="h6 mb-0">
                                         <f:if condition="{selectedComponentMetadata.variantLabel}">
                                             <f:then>{selectedComponentMetadata.variantLabel}</f:then>
