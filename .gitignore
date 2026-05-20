@@ -1,0 +1,8 @@
+/.idea/
+/.phpunit.cache/
+/var/
+/vendor/
+/composer.lock
+/public/
+/phpstan-baseline.neon
+/.codex

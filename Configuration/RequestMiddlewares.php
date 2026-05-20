@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
+
+return [
+    'frontend' => [
+        'andersundsehr/frontend-studio/component-preview' => [
+            'target' => ComponentPreviewMiddleware::class,
+            'after' => [
+                'typo3/cms-frontend/prepare-tsfe-rendering',
+            ],
+            'before' => [
+                'typo3/cms-frontend/shortcut-and-mountpoint-redirect',
+                'typo3/cms-frontend/content-length-headers',
+            ],
+        ],
+    ],
+];

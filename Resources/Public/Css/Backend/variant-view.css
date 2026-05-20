@@ -1,0 +1,192 @@
+.frontend-studio-variant-view {
+    --frontend-studio-variant-sidebar-width: 360px;
+    --frontend-studio-variant-header-height: var(--module-docheader-bar-height, 3.28125rem);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 100vh;
+    background: #fff;
+}
+
+.frontend-studio-variant-header {
+    flex: 0 0 auto;
+    min-height: var(--frontend-studio-variant-header-height);
+    padding: .5rem .75rem;
+    border-bottom: 1px solid #d8dde6;
+    background: #fff;
+}
+
+.frontend-studio-variant-workspace {
+    display: flex;
+    flex: 1 1 auto;
+    height: 100vh;
+    min-height: 0;
+    background: #fff;
+}
+
+.frontend-studio-variant-preview-column {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: #fff;
+}
+
+.frontend-studio-variant-preview {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    background: #fff;
+}
+
+.frontend-studio-variant-preview iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: #fff;
+}
+
+.frontend-studio-variant-sidebar-resize-handle {
+    position: relative;
+    flex: 0 0 8px;
+    width: 8px;
+    cursor: col-resize;
+    background: #fff;
+}
+
+.frontend-studio-variant-sidebar-resize-handle::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 1px;
+    background: #d8dde6;
+    content: "";
+}
+
+.frontend-studio-variant-sidebar-resize-handle:hover::before,
+.frontend-studio-variant-view.is-resizing-sidebar .frontend-studio-variant-sidebar-resize-handle::before {
+    left: 2px;
+    width: 3px;
+    background: #7c8da5;
+}
+
+.frontend-studio-variant-view.is-resizing-sidebar {
+    cursor: col-resize;
+    user-select: none;
+}
+
+.frontend-studio-variant-sidebar {
+    flex: 0 0 var(--frontend-studio-variant-sidebar-width);
+    width: var(--frontend-studio-variant-sidebar-width);
+    max-width: 70vw;
+    overflow: auto;
+    background: #fff;
+}
+
+.frontend-studio-variant-sidebar-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    min-height: var(--frontend-studio-variant-header-height);
+    padding: 0;
+    background: #fff;
+}
+
+.frontend-studio-variant-sidebar-body {
+    padding: .75rem;
+}
+
+.frontend-studio-variant-tabs {
+    flex: 1 1 auto;
+    align-items: stretch;
+    margin-bottom: 0;
+}
+
+.frontend-studio-variant-tab {
+    height: 100%;
+    min-height: var(--frontend-studio-variant-header-height);
+    white-space: nowrap;
+}
+
+.frontend-studio-variant-tab-panel[hidden] {
+    display: none;
+}
+
+.frontend-studio-variant-values-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+
+.frontend-studio-variant-html-status {
+    margin-bottom: .75rem;
+    color: #4f5b67;
+    font-size: .8125rem;
+}
+
+.frontend-studio-variant-html-status.is-error {
+    color: #a94442;
+}
+
+.frontend-studio-variant-html {
+    overflow: auto;
+    border: 1px solid #d8dde6;
+    border-radius: 2px;
+    background: #fff;
+}
+
+.frontend-studio-variant-html .cm-editor {
+    min-height: 24rem;
+    background: #fff;
+    color: #212529;
+    font-size: .8125rem;
+}
+
+.frontend-studio-variant-html .cm-content {
+    font-family: "Source Code Pro", Menlo, Consolas, monospace;
+}
+
+.frontend-studio-variant-html .cm-line {
+    padding: 0 .5rem;
+}
+
+.frontend-studio-variant-save-state {
+    color: #8a6d3b;
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+@media (max-width: 991.98px) {
+    .frontend-studio-variant-workspace {
+        height: auto;
+        min-height: 100vh;
+        flex-direction: column;
+    }
+
+    .frontend-studio-variant-sidebar {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+        max-height: 45vh;
+        border-left: 0;
+        border-bottom: 1px solid #d8dde6;
+        order: -1;
+    }
+
+    .frontend-studio-variant-sidebar-resize-handle {
+        display: none;
+    }
+
+    .frontend-studio-variant-preview iframe {
+        min-height: 55vh;
+    }
+}

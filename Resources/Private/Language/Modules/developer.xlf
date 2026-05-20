@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file source-language="en" datatype="plaintext" original="EXT:beuser/Resources/Private/Language/Modules/frontend_studio.xlf" date="2026-11-10T13:37:37Z" product-name="frontend_studio">
+    <header/>
+    <body>
+      <trans-unit id="title">
+        <source>Developer</source>
+      </trans-unit>
+      <trans-unit id="short_description">
+        <source>Developer Tools are found here</source>
+      </trans-unit>
+      <trans-unit id="description">
+        <source>TODO</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

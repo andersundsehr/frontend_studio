@@ -1,0 +1,112 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Andersundsehr\FrontendStudio\Service;
+
+use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
+use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
+use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
+use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
+use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
+use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
+use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperResolverDelegateInterface;
+
+final readonly class ComponentPreviewRenderer
+{
+    public function __construct(
+        private ViewHelperResolverDelegateRegistry $viewHelperResolverDelegateRegistry,
+        private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
+        private RenderingContextFactory $renderingContextFactory,
+        private ComponentFixtureProvider $componentFixtureProvider,
+    ) {}
+
+    /**
+     * @param array<string, mixed>|null $variantValueOverrides
+     */
+    public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?array $variantValueOverrides = null): string
+    {
+        [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
+        $resolverDelegate = $this->resolveComponent($namespace, $componentName);
+        $variantValues = $variantValueOverrides
+            ?? $this->componentFixtureProvider->getVariantValues($resolverDelegate, $componentName, $variantName);
+        $renderingContext = $this->renderingContextFactory->create([], $request);
+
+        return trim($resolverDelegate->getComponentRenderer()->renderComponent(
+            $componentName,
+            $variantValues,
+            [],
+            $renderingContext,
+        ));
+    }
+
+    /**
+     * @return array{string, string, string}
+     */
+    private function parseVariantIdentifier(string $variantIdentifier): array
+    {
+        $identifierParts = explode(':', trim($variantIdentifier), 3);
+        if (count($identifierParts) !== 3) {
+            throw new \InvalidArgumentException('The variant identifier is invalid.');
+        }
+
+        [$namespace, $componentName, $variantName] = $identifierParts;
+        if ($namespace === '' || $componentName === '' || $variantName === '') {
+            throw new \InvalidArgumentException('The variant identifier is invalid.');
+        }
+
+        return [$namespace, $componentName, $variantName];
+    }
+
+    private function resolveComponent(string $namespace, string $componentName): ViewHelperResolverDelegateInterface&ComponentDefinitionProviderInterface&ComponentTemplateResolverInterface
+    {
+        $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
+        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        ksort($resolverDelegates);
+
+        foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
+            if (
+                !$resolverDelegate instanceof ViewHelperResolverDelegateInterface
+                || !$resolverDelegate instanceof ComponentDefinitionProviderInterface
+                || !$resolverDelegate instanceof ComponentTemplateResolverInterface
+                || !$resolverDelegate instanceof ComponentListProviderInterface
+            ) {
+                continue;
+            }
+
+            $displayNamespace = $fluidNamespaceAliases[$classNamespace] ?? $classNamespace;
+            if ($displayNamespace !== $namespace) {
+                continue;
+            }
+
+            if (!in_array($componentName, $resolverDelegate->getAvailableComponents(), true)) {
+                continue;
+            }
+
+            return $resolverDelegate;
+        }
+
+        throw new \RuntimeException('The selected component could not be resolved.');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getFluidNamespaceAliasesByClassNamespace(): array
+    {
+        $aliasesByClassNamespace = [];
+
+        foreach ($this->viewHelperResolverFactory->create()->getNamespaces() as $alias => $classNamespaces) {
+            if ($classNamespaces === null) {
+                continue;
+            }
+
+            foreach ($classNamespaces as $classNamespace) {
+                $aliasesByClassNamespace[$classNamespace] ??= $alias;
+            }
+        }
+
+        return $aliasesByClassNamespace;
+    }
+}

@@ -1,0 +1,224 @@
+<html
+    xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+    xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+    data-namespace-typo3-fluid="true"
+>
+    <f:asset.css
+        identifier="frontend-studio-variant-view"
+        href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"
+    />
+    <f:asset.script
+        identifier="frontend-studio-variant-view"
+        src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js"
+        type="module"
+    />
+
+    <div
+        class="frontend-studio-variant-view"
+        data-frontend-studio-variant-view
+        data-variant-identifier="{selectedVariantIdentifier}"
+        data-preview-uri="{componentPreviewUri}"
+        data-component-file-path="{selectedComponentMetadata.template.relativePath}"
+    >
+        <div class="frontend-studio-variant-workspace">
+            <div class="frontend-studio-variant-preview-column">
+                <div class="frontend-studio-variant-header">
+                    <f:if condition="{selectedVariantIdentifier}">
+                        <f:then>
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <div class="min-w-0">
+                                    <h1 class="h6 mb-0">
+                                        <f:if condition="{selectedComponentMetadata.variantLabel}">
+                                            <f:then>{selectedComponentMetadata.variantLabel}</f:then>
+                                            <f:else>Selected component variant</f:else>
+                                        </f:if>
+                                    </h1>
+                                    <div class="small text-body-secondary text-truncate">
+                                        <code>{selectedVariantIdentifier}</code>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <f:if condition="{selectedComponentMetadata.template.relativePath}">
+                                        <button
+                                            type="button"
+                                            class="btn btn-default btn-sm"
+                                            title="Copy component file path"
+                                            data-frontend-studio-copy-component-path
+                                        >
+                                            Copy file path
+                                            <core:icon identifier="actions-edit-copy" size="small" />
+                                        </button>
+                                    </f:if>
+                                    <f:if condition="{componentPreviewUri}">
+                                        <a
+                                            href="{componentPreviewUri}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="btn btn-default btn-sm"
+                                        >
+                                            Open rendered variant
+                                            <core:icon identifier="actions-window-open" size="small" />
+                                        </a>
+                                    </f:if>
+                                </div>
+                            </div>
+
+                            <f:if condition="{selectedComponentMetadata.errors}">
+                                <div class="alert alert-warning mt-2 mb-0">
+                                    <ul class="mb-0">
+                                        <f:for each="{selectedComponentMetadata.errors}" as="error">
+                                            <li>{error}</li>
+                                        </f:for>
+                                    </ul>
+                                </div>
+                            </f:if>
+                        </f:then>
+                        <f:else>
+                            <h1 class="h4 mb-1">No component variant selected</h1>
+                            <p class="mb-0 text-body-secondary">Select a component variant from the tree to render it.</p>
+                        </f:else>
+                    </f:if>
+                </div>
+
+                <div class="frontend-studio-variant-preview">
+                    <f:if condition="{componentPreviewUri}">
+                        <f:then>
+                            <iframe
+                                src="{componentPreviewUri}"
+                                title="Rendered component variant preview"
+                                data-frontend-studio-variant-frame
+                            ></iframe>
+                        </f:then>
+                    <f:else>
+                        <div class="p-4 text-body-secondary">
+                            The rendered component preview is not available.
+                        </div>
+                    </f:else>
+                    </f:if>
+                </div>
+            </div>
+
+            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant}">
+                <div
+                    class="frontend-studio-variant-sidebar-resize-handle"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize variant side panel"
+                    tabindex="0"
+                    data-frontend-studio-variant-sidebar-resize
+                ></div>
+                <aside class="frontend-studio-variant-sidebar" aria-label="Variant tools">
+                    <div class="frontend-studio-variant-sidebar-header">
+                        <ul class="nav nav-tabs frontend-studio-variant-tabs" role="tablist" aria-label="Variant panel tabs">
+                            <li class="nav-item" role="presentation">
+                                <button
+                                    type="button"
+                                    class="nav-link frontend-studio-variant-tab active is-active"
+                                    id="frontend-studio-variant-values-tab"
+                                    role="tab"
+                                    aria-selected="true"
+                                    aria-controls="frontend-studio-variant-values-panel"
+                                    data-frontend-studio-variant-tab="values"
+                                >
+                                    Values
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button
+                                    type="button"
+                                    class="nav-link frontend-studio-variant-tab"
+                                    id="frontend-studio-variant-html-tab"
+                                    role="tab"
+                                    aria-selected="false"
+                                    aria-controls="frontend-studio-variant-html-panel"
+                                    data-frontend-studio-variant-tab="html"
+                                >
+                                    Rendered HTML
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="frontend-studio-variant-sidebar-body">
+                        <div
+                            class="frontend-studio-variant-tab-panel is-active"
+                            id="frontend-studio-variant-values-panel"
+                            role="tabpanel"
+                            aria-labelledby="frontend-studio-variant-values-tab"
+                            data-frontend-studio-variant-tab-panel="values"
+                        >
+                            <div class="frontend-studio-variant-values-actions">
+                                <span
+                                    class="frontend-studio-variant-save-state"
+                                    data-frontend-studio-variant-save-state
+                                    hidden
+                                >
+                                    Unsaved changes
+                                </span>
+                                <button
+                                    type="button"
+                                    class="btn btn-default btn-sm"
+                                    data-frontend-studio-variant-reset
+                                    disabled
+                                >
+                                    Reset
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-primary btn-sm"
+                                    data-frontend-studio-variant-save
+                                    disabled
+                                >
+                                    Save
+                                </button>
+                            </div>
+                            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
+                                <f:then>
+                                    <f:for each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="variantValue">
+                                        <div class="mb-3">
+                                            <label class="form-label" for="frontend-studio-variant-value-{variantValue.name}">
+                                                {variantValue.name}
+                                                <span class="text-body-secondary">({variantValue.type})</span>
+                                            </label>
+                                            <textarea
+                                                id="frontend-studio-variant-value-{variantValue.name}"
+                                                name="{variantValue.name}"
+                                                data-frontend-studio-variant-value
+                                                data-fixture-name="{variantValue.name}"
+                                                class="form-control"
+                                                rows="3"
+                                            >{variantValue.value}</textarea>
+                                        </div>
+                                    </f:for>
+                                </f:then>
+                                <f:else>
+                                    <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>
+                                </f:else>
+                            </f:if>
+                        </div>
+                        <div
+                            class="frontend-studio-variant-tab-panel"
+                            id="frontend-studio-variant-html-panel"
+                            role="tabpanel"
+                            aria-labelledby="frontend-studio-variant-html-tab"
+                            data-frontend-studio-variant-tab-panel="html"
+                            hidden
+                        >
+                            <div
+                                class="frontend-studio-variant-html-status"
+                                data-frontend-studio-variant-html-status
+                            >
+                                Open this tab to load the rendered HTML.
+                            </div>
+                            <div
+                                class="frontend-studio-variant-html"
+                                data-frontend-studio-variant-html
+                            ></div>
+                        </div>
+                    </div>
+                </aside>
+            </f:if>
+        </div>
+    </div>
+
+</html>
