@@ -10,6 +10,8 @@ import { oneDark } from '@codemirror/theme-one-dark';
 class FrontendStudioVariantView {
   static sidebarWidthStorageKey = 'frontendStudio.variantView.sidebarWidth';
 
+  static activeTabStorageKey = 'frontendStudio.variantView.activeTab';
+
   static defaultSidebarWidth = 360;
 
   static minimumSidebarWidth = 280;
@@ -36,7 +38,7 @@ class FrontendStudioVariantView {
     this.fields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-value]'));
     this.savedValues = {};
     this.hasUnsavedChanges = false;
-    this.activeTab = 'values';
+    this.activeTab = this.readInitialActiveTab();
     this.htmlEditor = null;
     this.htmlEditorTheme = new Compartment();
     this.htmlRefreshTimeout = null;
@@ -195,11 +197,20 @@ class FrontendStudioVariantView {
   }
 
   initializeTabs() {
+    this.activateTab(this.activeTab, false);
+
     this.tabButtons.forEach((button) => {
       button.addEventListener('click', () => {
         this.activateTab(button.dataset.frontendStudioVariantTab || 'values');
       });
     });
+  }
+
+  readInitialActiveTab() {
+    const activeButton = this.tabButtons.find((button) => button.classList.contains('is-active'));
+    const activeTab = activeButton?.dataset.frontendStudioVariantTab || this.root.dataset.activeTab || 'values';
+
+    return this.isValidTabName(activeTab) ? activeTab : 'values';
   }
 
   initializeColorSchemeSync() {
@@ -220,7 +231,11 @@ class FrontendStudioVariantView {
     });
   }
 
-  activateTab(tabName) {
+  activateTab(tabName, persist = true) {
+    if (!this.isValidTabName(tabName)) {
+      tabName = 'values';
+    }
+
     this.activeTab = tabName;
 
     this.tabButtons.forEach((button) => {
@@ -233,11 +248,28 @@ class FrontendStudioVariantView {
     this.tabPanels.forEach((panel) => {
       const isActive = panel.dataset.frontendStudioVariantTabPanel === tabName;
       panel.classList.toggle('is-active', isActive);
+      panel.classList.toggle('is-hidden', !isActive);
       panel.hidden = !isActive;
     });
 
     if (tabName === 'html') {
       this.refreshRenderedHtml();
+    }
+
+    if (persist) {
+      this.persistActiveTab(tabName);
+    }
+  }
+
+  isValidTabName(tabName) {
+    return this.tabButtons.some((button) => button.dataset.frontendStudioVariantTab === tabName);
+  }
+
+  async persistActiveTab(tabName) {
+    try {
+      await PersistentStorage.set(FrontendStudioVariantView.activeTabStorageKey, tabName);
+    } catch {
+      // Ignore persistence failures; switching tabs still works for the current page load.
     }
   }
 

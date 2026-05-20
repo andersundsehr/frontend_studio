@@ -20,6 +20,7 @@
         data-variant-identifier="{selectedVariantIdentifier}"
         data-preview-uri="{componentPreviewUri}"
         data-component-file-path="{selectedComponentMetadata.template.relativePath}"
+        data-active-tab="{variantActiveTab}"
         style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px"
     >
         <div class="frontend-studio-variant-workspace">
@@ -122,10 +123,10 @@
                             <li class="nav-item" role="presentation">
                                 <button
                                     type="button"
-                                    class="nav-link frontend-studio-variant-tab active is-active"
+                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'values\'', then: ' active is-active')}"
                                     id="frontend-studio-variant-values-tab"
                                     role="tab"
-                                    aria-selected="true"
+                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'values\'', then: 'true', else: 'false')}"
                                     aria-controls="frontend-studio-variant-values-panel"
                                     data-frontend-studio-variant-tab="values"
                                 >
@@ -135,10 +136,10 @@
                             <li class="nav-item" role="presentation">
                                 <button
                                     type="button"
-                                    class="nav-link frontend-studio-variant-tab"
+                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'html\'', then: ' active is-active')}"
                                     id="frontend-studio-variant-html-tab"
                                     role="tab"
-                                    aria-selected="false"
+                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'html\'', then: 'true', else: 'false')}"
                                     aria-controls="frontend-studio-variant-html-panel"
                                     data-frontend-studio-variant-tab="html"
                                 >
@@ -149,7 +150,7 @@
                     </div>
                     <div class="frontend-studio-variant-sidebar-body">
                         <div
-                            class="frontend-studio-variant-tab-panel is-active"
+                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'values\'', then: ' is-active', else: ' is-hidden')}"
                             id="frontend-studio-variant-values-panel"
                             role="tabpanel"
                             aria-labelledby="frontend-studio-variant-values-tab"
@@ -205,12 +206,11 @@
                             </f:if>
                         </div>
                         <div
-                            class="frontend-studio-variant-tab-panel"
+                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'html\'', then: ' is-active', else: ' is-hidden')}"
                             id="frontend-studio-variant-html-panel"
                             role="tabpanel"
                             aria-labelledby="frontend-studio-variant-html-tab"
                             data-frontend-studio-variant-tab-panel="html"
-                            hidden
                         >
                             <div
                                 class="frontend-studio-variant-html-status"

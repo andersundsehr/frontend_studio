@@ -17,7 +17,7 @@
 
 .frontend-studio-variant-header {
     flex: 0 0 auto;
-    min-height: var(--frontend-studio-variant-header-height);
+    min-height: calc(var(--module-docheader-bar-height) + var(--module-docheader-border-width));
     padding: .5rem .75rem;
     border-bottom: 1px solid var(--frontend-studio-variant-border-color);
     background: var(--frontend-studio-variant-surface);
@@ -102,7 +102,7 @@
     display: flex;
     align-items: flex-end;
     margin: 0 .75rem;
-    min-height: var(--frontend-studio-variant-header-height);
+    min-height: calc(var(--module-docheader-bar-height) + var(--module-docheader-border-width));
     padding: 0;
     background: var(--frontend-studio-variant-surface);
 }
@@ -121,7 +121,8 @@
     white-space: nowrap;
 }
 
-.frontend-studio-variant-tab-panel[hidden] {
+.frontend-studio-variant-tab-panel[hidden],
+.frontend-studio-variant-tab-panel.is-hidden {
     display: none;
 }
 

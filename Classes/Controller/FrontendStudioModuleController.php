@@ -16,6 +16,7 @@ use Throwable;
 final readonly class FrontendStudioModuleController
 {
     private const VARIANT_SIDEBAR_WIDTH_USER_SETTING = 'frontendStudio.variantView.sidebarWidth';
+    private const VARIANT_ACTIVE_TAB_USER_SETTING = 'frontendStudio.variantView.activeTab';
     private const DEFAULT_VARIANT_SIDEBAR_WIDTH = 360;
     private const MINIMUM_VARIANT_SIDEBAR_WIDTH = 280;
 
@@ -59,6 +60,7 @@ final readonly class FrontendStudioModuleController
                 ? $this->buildComponentPreviewUri($selectedVariantIdentifier)
                 : null,
             'variantSidebarWidth' => $this->getVariantSidebarWidth($GLOBALS['BE_USER']->uc ?? []),
+            'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
         ];
     }
 
@@ -77,6 +79,23 @@ final readonly class FrontendStudioModuleController
         }
 
         return max((int)$configuredWidth, self::MINIMUM_VARIANT_SIDEBAR_WIDTH);
+    }
+
+    /**
+     * @param array<string, mixed> $backendUserSettings
+     */
+    private function getVariantActiveTab(array $backendUserSettings): string
+    {
+        $configuredActiveTab = $this->getBackendUserSettingByDottedPath(
+            $backendUserSettings,
+            self::VARIANT_ACTIVE_TAB_USER_SETTING,
+        );
+
+        if (!is_string($configuredActiveTab) || !in_array($configuredActiveTab, ['values', 'html'], true)) {
+            return 'values';
+        }
+
+        return $configuredActiveTab;
     }
 
     /**
