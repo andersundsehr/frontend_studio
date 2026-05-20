@@ -13,6 +13,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use Throwable;
 
@@ -76,7 +77,9 @@ final readonly class FrontendStudioModuleController
             'renderedHtmlStatus' => $renderedHtmlStatus,
             'fluidTemplateSource' => $this->renderFluidTemplateSource($selectedComponentMetadata),
             'fluidUsageSource' => $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata),
-            'componentChangeStreamUri' => (string)$this->uriBuilder->buildUriFromRoute('ajax_frontend_studio_component_change_stream'),
+            'componentChangeStreamUri' => Environment::getContext()->isDevelopment()
+                ? (string)$this->uriBuilder->buildUriFromRoute('ajax_frontend_studio_component_change_stream')
+                : '',
         ];
     }
 

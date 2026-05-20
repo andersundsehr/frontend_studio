@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Core\Core\Environment;
 
 #[AsController]
 final readonly class ComponentChangeStreamController
@@ -21,6 +22,11 @@ final readonly class ComponentChangeStreamController
 
     public function streamAction(ServerRequestInterface $request): ResponseInterface
     {
+        if (!Environment::getContext()->isDevelopment()) {
+            return $this->responseFactory->createResponse(404)
+                ->withHeader('Content-Type', 'text/plain; charset=utf-8');
+        }
+
         return $this->responseFactory->createResponse()
             ->withHeader('Content-Type', 'text/event-stream')
             ->withHeader('Cache-Control', 'no-cache, no-store')
