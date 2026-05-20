@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Middleware;
 
+use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
+use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Andersundsehr\FrontendStudio\Service\PreviewAssetRenderer;
 use Psr\Http\Message\ResponseInterface;
@@ -20,10 +22,13 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
     private const PREVIEW_FORMAT_PARAMETER = 'frontendStudioPreviewFormat';
     private const PREVIEW_FORMAT_FRAGMENT = 'fragment';
     private const PREVIEW_FORMAT_HIGHLIGHTED_FRAGMENT = 'highlighted-fragment';
+    private const PREVIEW_FORMAT_FLUID_USAGE = 'fluid-usage';
     private const VARIANT_VALUES_PARAMETER = 'componentVariantValues';
 
     public function __construct(
         private ComponentPreviewRenderer $componentPreviewRenderer,
+        private ComponentMetadataProvider $componentMetadataProvider,
+        private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private PreviewAssetRenderer $previewAssetRenderer,
     ) {}
@@ -38,6 +43,15 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         $variantIdentifier = isset($queryParams['componentVariant']) ? (string)$queryParams['componentVariant'] : '';
         $variantValueOverrides = $this->getVariantValueOverrides($queryParams);
         $isFragmentRequest = $this->isFragmentRequest($queryParams) || $this->isHighlightedFragmentRequest($queryParams);
+
+        if ($this->isFluidUsageRequest($queryParams)) {
+            return $this->createHtmlResponse(
+                $this->fluidUsageSnippetRenderer->render(
+                    $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($variantIdentifier),
+                    $variantValueOverrides,
+                ),
+            );
+        }
 
         try {
             $content = $this->componentPreviewRenderer->renderVariant($variantIdentifier, $request, $variantValueOverrides);
@@ -79,6 +93,14 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
     private function isHighlightedFragmentRequest(array $queryParams): bool
     {
         return ($queryParams[self::PREVIEW_FORMAT_PARAMETER] ?? null) === self::PREVIEW_FORMAT_HIGHLIGHTED_FRAGMENT;
+    }
+
+    /**
+     * @param array<string, mixed> $queryParams
+     */
+    private function isFluidUsageRequest(array $queryParams): bool
+    {
+        return ($queryParams[self::PREVIEW_FORMAT_PARAMETER] ?? null) === self::PREVIEW_FORMAT_FLUID_USAGE;
     }
 
     /**

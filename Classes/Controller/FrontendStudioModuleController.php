@@ -6,6 +6,7 @@ namespace Andersundsehr\FrontendStudio\Controller;
 
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
+use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -26,6 +27,7 @@ final readonly class FrontendStudioModuleController
         private ModuleTemplateFactory $moduleTemplateFactory,
         private ComponentMetadataProvider $componentMetadataProvider,
         private ComponentPreviewRenderer $componentPreviewRenderer,
+        private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private SiteFinder $siteFinder,
     ) {}
@@ -71,6 +73,7 @@ final readonly class FrontendStudioModuleController
             'renderedHtmlSource' => $renderedHtmlSource,
             'renderedHtmlStatus' => $renderedHtmlStatus,
             'fluidTemplateSource' => $this->renderFluidTemplateSource($selectedComponentMetadata),
+            'fluidUsageSource' => $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata),
         ];
     }
 

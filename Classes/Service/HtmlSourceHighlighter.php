@@ -16,6 +16,11 @@ final class HtmlSourceHighlighter
         return $this->highlightSource($template, true);
     }
 
+    public function highlightFluidUsage(string $fluidUsage): string
+    {
+        return $this->highlightTag($fluidUsage, true);
+    }
+
     private function highlightSource(string $html, bool $highlightFluidExpressions = false): string
     {
         $source = '';

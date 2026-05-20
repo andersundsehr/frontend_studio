@@ -42,6 +42,7 @@ class FrontendStudioVariantView {
     this.htmlRefreshTimeout = null;
     this.renderedHtmlPreviewUrl = '';
     this.renderedHtmlRequestId = 0;
+    this.fluidUsageRequestId = 0;
     this.sidebarWidth = FrontendStudioVariantView.defaultSidebarWidth;
     this.isResizingSidebar = false;
   }
@@ -62,7 +63,7 @@ class FrontendStudioVariantView {
     this.fields.forEach((field) => {
       const handleFieldChange = () => {
         this.updateDirtyState();
-        this.updateFluidUsageSnippet();
+        this.updateFluidUsageSnippet(true);
         this.updatePreview();
         this.scheduleRenderedHtmlRefresh();
       };
@@ -357,11 +358,18 @@ class FrontendStudioVariantView {
     return renderedHtmlUrl;
   }
 
-  updateFluidUsageSnippet() {
+  buildFluidUsageUrl() {
+    const fluidUsageUrl = this.buildPreviewUrl();
+    fluidUsageUrl.searchParams.set('frontendStudioPreviewFormat', 'fluid-usage');
+
+    return fluidUsageUrl;
+  }
+
+  updateFluidUsageSnippet(refreshHighlightedSnippet = false) {
     this.fluidUsageSnippet = this.buildFluidUsageSnippet();
 
-    if (this.fluidUsageCode !== null) {
-      this.fluidUsageCode.textContent = this.fluidUsageSnippet;
+    if (refreshHighlightedSnippet) {
+      this.refreshFluidUsageSnippet();
     }
   }
 
@@ -412,6 +420,37 @@ class FrontendStudioVariantView {
 
   updatePreview() {
     this.iframe.src = this.buildPreviewUrl().toString();
+  }
+
+  async refreshFluidUsageSnippet() {
+    if (this.fluidUsageCode === null) {
+      return;
+    }
+
+    const requestId = ++this.fluidUsageRequestId;
+
+    try {
+      const response = await fetch(this.buildFluidUsageUrl().toString(), {
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      const fluidUsageSource = await response.text();
+      if (requestId !== this.fluidUsageRequestId) {
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(fluidUsageSource || `The Fluid usage request failed with status ${response.status}.`);
+      }
+
+      this.fluidUsageCode.innerHTML = fluidUsageSource;
+    } catch {
+      if (requestId === this.fluidUsageRequestId) {
+        this.fluidUsageCode.textContent = this.fluidUsageSnippet;
+      }
+    }
   }
 
   scheduleRenderedHtmlRefresh() {
@@ -513,7 +552,7 @@ class FrontendStudioVariantView {
     });
 
     this.updateDirtyState();
-    this.updateFluidUsageSnippet();
+    this.updateFluidUsageSnippet(true);
     this.updatePreview();
     this.renderedHtmlPreviewUrl = '';
     this.scheduleRenderedHtmlRefresh();
