@@ -118,7 +118,7 @@ final readonly class ComponentMetadataProvider
     /**
      * @param list<array{name: string, type: string, value: string, isMultiline?: bool, isFixtureValue?: bool}> $variantValues
      * @param list<array<string, mixed>> $arguments
-     * @return list<array{name: string, type: string, value: string, isMultiline: bool, isFixtureValue: bool}>
+     * @return list<array{name: string, type: string, description: string, value: string, isMultiline: bool, isFixtureValue: bool}>
      */
     private function mergeVariantValuesWithArguments(array $variantValues, array $arguments): array
     {
@@ -138,26 +138,34 @@ final readonly class ComponentMetadataProvider
                 continue;
             }
 
+            $type = isset($argument['type']) ? (string)$argument['type'] : 'string';
+            $description = isset($argument['description']) ? (string)$argument['description'] : '';
             if (isset($variantValuesByName[$name])) {
-                $mergedValues[] = $variantValuesByName[$name];
-                unset($variantValuesByName[$name]);
+                $variantValue = $variantValuesByName[$name];
+                $value = isset($variantValue['value']) ? (string)$variantValue['value'] : '';
+                $mergedValues[] = [
+                    'name' => $name,
+                    'type' => $type,
+                    'description' => $description,
+                    'value' => $value,
+                    'isMultiline' => (bool)($variantValue['isMultiline'] ?? str_contains($value, "\n")),
+                    'isFixtureValue' => (bool)($variantValue['isFixtureValue'] ?? true),
+                ];
                 continue;
             }
 
             $value = isset($argument['defaultValue']) ? (string)$argument['defaultValue'] : '';
             $mergedValues[] = [
                 'name' => $name,
-                'type' => isset($argument['type']) ? (string)$argument['type'] : 'string',
+                'type' => $type,
+                'description' => $description,
                 'value' => $value,
                 'isMultiline' => str_contains($value, "\n"),
                 'isFixtureValue' => false,
             ];
         }
 
-        return [
-            ...$mergedValues,
-            ...array_values($variantValuesByName),
-        ];
+        return $mergedValues;
     }
 
     /**

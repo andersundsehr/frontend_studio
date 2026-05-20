@@ -134,6 +134,16 @@
     margin-bottom: .75rem;
 }
 
+.frontend-studio-variant-value-type {
+    display: inline-block;
+    padding: .0625rem .25rem;
+    border-radius: 2px;
+    color: var(--typo3-text-color-base);
+    background: var(--frontend-studio-variant-surface-muted);
+    font-size: .75rem;
+    font-weight: 400;
+}
+
 .frontend-studio-variant-html-status,
 .frontend-studio-variant-template-status {
     margin-bottom: .75rem;

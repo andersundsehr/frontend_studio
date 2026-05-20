@@ -216,7 +216,7 @@
                                         <div class="mb-3">
                                             <label class="form-label" for="frontend-studio-variant-value-{variantValue.name}">
                                                 {variantValue.name}
-                                                <span class="text-body-secondary">({variantValue.type})</span>
+                                                <code class="frontend-studio-variant-value-type">{variantValue.type}</code>
                                             </label>
                                             <f:switch expression="{variantValue.type}">
                                                 <f:case value="bool">
@@ -362,6 +362,9 @@
                                                     >{variantValue.value}</textarea>
                                                 </f:defaultCase>
                                             </f:switch>
+                                            <f:if condition="{variantValue.description}">
+                                                <div class="form-text">{variantValue.description}</div>
+                                            </f:if>
                                         </div>
                                     </f:for>
                                 </f:then>
