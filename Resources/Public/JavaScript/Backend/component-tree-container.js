@@ -13,6 +13,7 @@ import ClientStorage from '@typo3/backend/storage/client.js';
 import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.js';
 
 const componentTreeModuleStateType = 'frontend_studio_component_tree';
+const frontendStudioModuleName = 'developer_frontendstudio';
 const initialExpansionLevel = 10;
 const componentFileActionStartedEventName = 'frontend-studio:component-file-action-started';
 const componentFileActionCancelledEventName = 'frontend-studio:component-file-action-cancelled';
@@ -359,8 +360,8 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     await this.restoreTreeStateFromCurrentContext();
   };
 
-  restoreTreeStateAfterModuleLoaded = async () => {
-    if (this.treeInitialized !== true) {
+  restoreTreeStateAfterModuleLoaded = async (event) => {
+    if (this.treeInitialized !== true || event.detail?.module !== frontendStudioModuleName) {
       return;
     }
 
