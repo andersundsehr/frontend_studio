@@ -15,6 +15,7 @@ import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.
 const componentTreeModuleStateType = 'frontend_studio_component_tree';
 const frontendStudioModuleName = 'developer_frontendstudio';
 const initialExpansionLevel = 10;
+const editableNodeSelectionDelay = 200;
 const componentFileActionStartedEventName = 'frontend-studio:component-file-action-started';
 const componentFileActionCancelledEventName = 'frontend-studio:component-file-action-cancelled';
 
@@ -36,6 +37,12 @@ class FrontendStudioComponentTree extends Tree {
       suffix: '',
       tooltip: '',
     };
+    this.pendingNodeSelectionTimeout = null;
+  }
+
+  disconnectedCallback() {
+    this.clearPendingNodeSelection();
+    super.disconnectedCallback();
   }
 
   getNodeStatus(node) {
@@ -75,6 +82,50 @@ class FrontendStudioComponentTree extends Tree {
     }
 
     await this.renameVariant(node, name);
+  }
+
+  handleNodeClick(event, node) {
+    if (event.detail !== 1) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.clearPendingNodeSelection();
+
+    if (this.isNodeEditable(node)) {
+      this.pendingNodeSelectionTimeout = window.setTimeout(() => {
+        this.pendingNodeSelectionTimeout = null;
+
+        if (this.nodes.includes(node) && this.editingNode !== node) {
+          this.selectNode(node, true);
+        }
+      }, editableNodeSelectionDelay);
+      return;
+    }
+
+    if (this.editingNode !== node) {
+      this.selectNode(node, true);
+    }
+  }
+
+  handleNodeDoubleClick(event, node) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.clearPendingNodeSelection();
+
+    if (this.editingNode !== node) {
+      this.editNode(node);
+    }
+  }
+
+  clearPendingNodeSelection() {
+    if (this.pendingNodeSelectionTimeout === null) {
+      return;
+    }
+
+    window.clearTimeout(this.pendingNodeSelectionTimeout);
+    this.pendingNodeSelectionTimeout = null;
   }
 
   async renameVariant(node, name) {
