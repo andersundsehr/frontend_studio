@@ -249,6 +249,7 @@ final readonly class ComponentTreeDataProvider
             $componentName,
             $variantName,
             $variantValues,
+            $this->getArgumentTypes($resolverDelegate, $componentName),
         );
 
         return [
@@ -393,6 +394,33 @@ final readonly class ComponentTreeDataProvider
         }
 
         return $defaults;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getArgumentTypes(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): array
+    {
+        if (!$resolverDelegate instanceof ComponentDefinitionProviderInterface) {
+            return [];
+        }
+
+        try {
+            $argumentDefinitions = $resolverDelegate->getComponentDefinition($componentName)->getArgumentDefinitions();
+        } catch (Throwable) {
+            return [];
+        }
+
+        $types = [];
+        foreach ($argumentDefinitions as $argumentDefinition) {
+            if (!$argumentDefinition instanceof ArgumentDefinition) {
+                continue;
+            }
+
+            $types[$argumentDefinition->getName()] = $argumentDefinition->getType();
+        }
+
+        return $types;
     }
 
     private function getDefaultValueForArgumentType(string $type): mixed

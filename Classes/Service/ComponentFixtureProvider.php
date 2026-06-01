@@ -218,6 +218,7 @@ final readonly class ComponentFixtureProvider
 
     /**
      * @param array<string, mixed> $variantValues
+     * @param array<string, string> $argumentTypes
      * @return array{fixturePath: string, fixtureExtensionPath: string|null, values: array<string, mixed>}
      */
     public function updateVariantValues(
@@ -225,6 +226,7 @@ final readonly class ComponentFixtureProvider
         string $componentName,
         string $variantName,
         array $variantValues,
+        array $argumentTypes = [],
     ): array {
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
@@ -240,7 +242,7 @@ final readonly class ComponentFixtureProvider
             throw new \RuntimeException('The variant "' . $variantName . '" does not exist.');
         }
 
-        $fixture['variants'][$variantName] = $this->normalizeSubmittedVariantValues($variantValues);
+        $fixture['variants'][$variantName] = $this->normalizeSubmittedVariantValues($variantValues, $argumentTypes);
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
@@ -346,9 +348,10 @@ final readonly class ComponentFixtureProvider
 
     /**
      * @param array<string, mixed> $variantValues
+     * @param array<string, string> $argumentTypes
      * @return array<string, mixed>
      */
-    private function normalizeSubmittedVariantValues(array $variantValues): array
+    private function normalizeSubmittedVariantValues(array $variantValues, array $argumentTypes = []): array
     {
         $normalizedValues = [];
         foreach ($variantValues as $name => $value) {
@@ -357,10 +360,83 @@ final readonly class ComponentFixtureProvider
                 continue;
             }
 
-            $normalizedValues[$name] = $value;
+            $argumentType = $argumentTypes[$name] ?? null;
+            if ($this->isBooleanArgumentType($argumentType)) {
+                $normalizedValues[$name] = $this->normalizeSubmittedBooleanValue($value);
+                continue;
+            }
+            if ($this->isCompoundArgumentType($argumentType)) {
+                $normalizedValues[$name] = $this->normalizeSubmittedCompoundValue($value);
+                continue;
+            }
+
+            $normalizedValues[$name] = $this->normalizeValue($value);
         }
 
         return $normalizedValues;
+    }
+
+    private function isBooleanArgumentType(?string $type): bool
+    {
+        return $type !== null && preg_match('/\bbool(ean)?\b/i', $type) === 1;
+    }
+
+    private function isCompoundArgumentType(?string $type): bool
+    {
+        return $type !== null && preg_match('/\b(array|iterable|list|map|object|stdclass)\b/i', $type) === 1;
+    }
+
+    private function normalizeSubmittedBooleanValue(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return (bool)$value;
+    }
+
+    private function normalizeSubmittedCompoundValue(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return $this->normalizeYamlValue($value);
+        }
+
+        if (is_object($value)) {
+            return $this->normalizeYamlValue(get_object_vars($value));
+        }
+
+        if (is_string($value)) {
+            try {
+                $decodedValue = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decodedValue)) {
+                    return $this->normalizeYamlValue($decodedValue);
+                }
+            } catch (Throwable) {
+            }
+        }
+
+        return $this->normalizeValue($value);
+    }
+
+    private function normalizeYamlValue(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $key => $nestedValue) {
+                $value[$key] = $this->normalizeYamlValue($nestedValue);
+            }
+
+            return $value;
+        }
+
+        if (is_object($value)) {
+            return $this->normalizeYamlValue(get_object_vars($value));
+        }
+
+        return $value;
     }
 
     private function normalizeValue(mixed $value): string
