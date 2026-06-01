@@ -52,7 +52,7 @@ final readonly class FluidUsageSnippetRenderer
                 continue;
             }
 
-            $attributes .= ' ' . $name . '="' . $this->escapeFluidAttributeValue($this->formatFluidAttributeValue($value)) . '"';
+            $attributes .= ' ' . $name . '="' . $this->escapeFluidAttributeValue($this->formatFluidAttributeValue($name, $value)) . '"';
         }
 
         return '<' . $displayNamespace . ':' . $componentName . $attributes . ' />';
@@ -86,14 +86,14 @@ final readonly class FluidUsageSnippetRenderer
         return $values;
     }
 
-    private function formatFluidAttributeValue(mixed $value): string
+    private function formatFluidAttributeValue(string $name, mixed $value): string
     {
         if ($value === null) {
-            return 'null';
+            return '{null}';
         }
 
         if (is_bool($value)) {
-            return $value ? 'true' : 'false';
+            return $value ? '{true}' : '{false}';
         }
 
         if (is_int($value) || is_float($value)) {
@@ -104,11 +104,7 @@ final readonly class FluidUsageSnippetRenderer
             return $value;
         }
 
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return (string)$value;
-        }
+        return '{' . $name . '}';
     }
 
     private function escapeFluidAttributeValue(string $value): string
