@@ -208,6 +208,36 @@ final readonly class ComponentTreeDataProvider
     }
 
     /**
+     * @param array<string, mixed>|null $variantValues
+     * @return array{identifier: string, componentIdentifier: string, name: string, fixturePath: string, fixtureExtensionPath: string|null}
+     */
+    public function copyVariant(string $sourceVariantIdentifier, string $newVariantName, ?array $variantValues = null): array
+    {
+        [$namespace, $componentName, $sourceVariantName] = $this->parseVariantIdentifier($sourceVariantIdentifier);
+        $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
+        if ($resolverDelegate === null) {
+            throw new \RuntimeException('The selected component could not be resolved.');
+        }
+
+        $copyResult = $this->componentFixtureProvider->copyVariant(
+            $resolverDelegate,
+            $componentName,
+            $sourceVariantName,
+            $newVariantName,
+            $variantValues,
+            $this->getArgumentTypes($resolverDelegate, $componentName),
+        );
+        $newVariantName = trim($newVariantName);
+
+        return [
+            'identifier' => $namespace . ':' . $componentName . ':' . $newVariantName,
+            'componentIdentifier' => $namespace . ':' . $componentName,
+            'name' => $newVariantName,
+            ...$copyResult,
+        ];
+    }
+
+    /**
      * @return array{identifier: string, componentIdentifier: string, name: string, fixturePath: string, fixtureExtensionPath: string|null}
      */
     public function deleteVariant(string $variantIdentifier): array

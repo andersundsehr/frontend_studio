@@ -31,6 +31,7 @@ class FrontendStudioVariantView {
     this.copyComponentPathButton = root.querySelector('[data-frontend-studio-copy-component-path]');
     this.copyFluidUsageButton = root.querySelector('[data-frontend-studio-copy-fluid-usage]');
     this.saveButton = root.querySelector('[data-frontend-studio-variant-save]');
+    this.copyVariantButton = root.querySelector('[data-frontend-studio-variant-copy]');
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
     this.saveState = root.querySelector('[data-frontend-studio-variant-save-state]');
     this.tabButtons = Array.from(root.querySelectorAll('[data-frontend-studio-variant-tab]'));
@@ -84,6 +85,11 @@ class FrontendStudioVariantView {
     this.saveButton?.addEventListener('click', (event) => {
       event.preventDefault();
       this.saveValues();
+    });
+
+    this.copyVariantButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.promptCopyVariant();
     });
 
     this.resetButton?.addEventListener('click', (event) => {
@@ -509,19 +515,19 @@ class FrontendStudioVariantView {
       .replaceAll('>', '&gt;');
   }
 
-  dispatchComponentFileActionStarted() {
+  dispatchComponentFileActionStarted(action = 'save') {
     top.document.dispatchEvent(new CustomEvent(componentFileActionStartedEventName, {
       detail: {
-        action: 'save',
+        action,
         variantIdentifier: this.variantIdentifier,
       },
     }));
   }
 
-  dispatchComponentFileActionCancelled() {
+  dispatchComponentFileActionCancelled(action = 'save') {
     top.document.dispatchEvent(new CustomEvent(componentFileActionCancelledEventName, {
       detail: {
-        action: 'save',
+        action,
         variantIdentifier: this.variantIdentifier,
       },
     }));
@@ -725,6 +731,59 @@ class FrontendStudioVariantView {
       Notification.error('Variant save failed', payload?.message || error?.message || 'The variant values could not be saved.');
     } finally {
       this.updateDirtyState();
+    }
+  }
+
+  promptCopyVariant() {
+    if (this.variantIdentifier === '') {
+      return;
+    }
+
+    const variantName = this.variantIdentifier.split(':').pop() || '';
+    const name = window.prompt('New variant name', `${variantName} copy`);
+    if (name === null) {
+      return;
+    }
+
+    this.copyVariant(name);
+  }
+
+  async copyVariant(name) {
+    if (this.variantIdentifier === '' || this.copyVariantButton === null) {
+      return;
+    }
+
+    this.copyVariantButton.disabled = true;
+    this.dispatchComponentFileActionStarted('copy');
+
+    try {
+      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_copy_variant)
+        .post({
+          identifier: this.variantIdentifier,
+          name,
+          values: this.collectValues(),
+        });
+      const payload = await response.resolve();
+
+      if (payload.success !== true || payload.variant === undefined) {
+        throw new Error(payload.message || 'The variant could not be copied.');
+      }
+
+      Notification.success('Variant copied', 'The variant values were written to a new fixture variant.');
+      top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
+        detail: {
+          variantIdentifier: payload.variant.identifier,
+        },
+      }));
+
+      const variantUrl = new URL(window.location.href);
+      variantUrl.searchParams.set('componentVariant', payload.variant.identifier);
+      window.location.href = variantUrl.toString();
+    } catch (error) {
+      this.dispatchComponentFileActionCancelled('copy');
+      const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
+      Notification.error('Variant copy failed', payload?.message || error?.message || 'The variant could not be copied.');
+      this.copyVariantButton.disabled = false;
     }
   }
 

@@ -182,6 +182,58 @@ final readonly class ComponentFixtureProvider
     }
 
     /**
+     * @param array<string, mixed>|null $variantValues
+     * @param array<string, string> $argumentTypes
+     * @return array{fixturePath: string, fixtureExtensionPath: string|null}
+     */
+    public function copyVariant(
+        ComponentTemplateResolverInterface $resolverDelegate,
+        string $componentName,
+        string $sourceVariantName,
+        string $newVariantName,
+        ?array $variantValues = null,
+        array $argumentTypes = [],
+    ): array {
+        $newVariantName = trim($newVariantName);
+        if ($newVariantName === '') {
+            throw new \InvalidArgumentException('The variant title must not be empty.');
+        }
+
+        $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
+        if (!is_file($fixturePath)) {
+            throw new \RuntimeException('Fixture file does not exist.');
+        }
+
+        $fixture = Yaml::parseFile($fixturePath);
+        if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
+            throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+        }
+
+        if (!array_key_exists($sourceVariantName, $fixture['variants'])) {
+            throw new \RuntimeException('The variant "' . $sourceVariantName . '" does not exist.');
+        }
+
+        if (array_key_exists($newVariantName, $fixture['variants'])) {
+            throw new \RuntimeException('The variant "' . $newVariantName . '" already exists.');
+        }
+
+        $sourceVariantValues = $fixture['variants'][$sourceVariantName];
+        $fixture['variants'][$newVariantName] = $variantValues !== null
+            ? $this->normalizeSubmittedVariantValues($variantValues, $argumentTypes)
+            : (is_array($sourceVariantValues) ? $sourceVariantValues : []);
+
+        $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
+        if ($bytesWritten === false) {
+            throw new \RuntimeException('Fixture file could not be written.');
+        }
+
+        return [
+            'fixturePath' => $fixturePath,
+            'fixtureExtensionPath' => $this->getExtensionPath($fixturePath),
+        ];
+    }
+
+    /**
      * @return array{fixturePath: string, fixtureExtensionPath: string|null}
      */
     public function deleteVariant(

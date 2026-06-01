@@ -136,6 +136,37 @@ class FrontendStudioComponentTree extends Tree {
     }
   }
 
+  async copyVariant(node, name) {
+    this.dispatchComponentFileActionStarted('copy', node.identifier);
+
+    try {
+      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_copy_variant)
+        .post({
+          identifier: node.identifier,
+          name,
+        });
+      const payload = await response.resolve();
+
+      if (payload.success !== true || payload.variant === undefined) {
+        throw new Error(payload.message || 'The variant could not be copied.');
+      }
+
+      await this.loadData();
+      const copiedNode = this.nodes.find((candidate) => candidate.identifier === payload.variant.identifier) ?? null;
+      if (copiedNode !== null) {
+        await this.expandNodeParents(copiedNode);
+        this.selectNode(copiedNode);
+        this.focusNode(copiedNode);
+        this.scrollNodeIntoViewIfNeeded(copiedNode);
+      }
+    } catch (error) {
+      this.dispatchComponentFileActionCancelled('copy', node.identifier);
+      const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
+      Notification.error('Variant copy failed', payload?.message || error?.message || 'The variant could not be copied.');
+      await this.loadData();
+    }
+  }
+
   createNodeContentAction(node) {
     if (node.nodeType === 'component') {
       return html`
@@ -170,18 +201,32 @@ class FrontendStudioComponentTree extends Tree {
 
     if (node.nodeType === 'variant' && !node.identifier.startsWith('NEW')) {
       return html`
-        <button
-          type="button"
-          class="btn btn-default btn-sm btn-icon btn-borderless node-action"
-          title="Delete variant"
-          @click=${(event) => {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            this.confirmDeleteVariant(node);
-          }}
-        >
-          <typo3-backend-icon identifier="actions-delete" size="small"></typo3-backend-icon>
-        </button>
+        <span class="node-action">
+          <button
+            type="button"
+            class="btn btn-default btn-sm btn-icon btn-borderless"
+            title="Copy variant"
+            @click=${(event) => {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              this.promptCopyVariant(node);
+            }}
+          >
+            <typo3-backend-icon identifier="actions-edit-copy" size="small"></typo3-backend-icon>
+          </button>
+          <button
+            type="button"
+            class="btn btn-default btn-sm btn-icon btn-borderless"
+            title="Delete variant"
+            @click=${(event) => {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              this.confirmDeleteVariant(node);
+            }}
+          >
+            <typo3-backend-icon identifier="actions-delete" size="small"></typo3-backend-icon>
+          </button>
+        </span>
       `;
     }
 
@@ -211,6 +256,15 @@ class FrontendStudioComponentTree extends Tree {
 
   async handleNodeAdd() {
     // Variant creation is persisted once the temporary node title is submitted.
+  }
+
+  promptCopyVariant(node) {
+    const name = window.prompt('New variant name', `${node.name} copy`);
+    if (name === null) {
+      return;
+    }
+
+    this.copyVariant(node, name);
   }
 
   confirmDeleteVariant(node) {

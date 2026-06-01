@@ -100,6 +100,38 @@ final readonly class ComponentTreeController
         }
     }
 
+    public function copyVariantAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $body = $request->getParsedBody();
+        if (!is_array($body)) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'The request body is invalid.',
+            ], 400);
+        }
+
+        $identifier = isset($body['identifier']) ? (string)$body['identifier'] : '';
+        $name = isset($body['name']) ? (string)$body['name'] : '';
+        $values = isset($body['values']) && is_array($body['values']) ? $body['values'] : null;
+
+        try {
+            return new JsonResponse([
+                'success' => true,
+                'variant' => $this->componentTreeDataProvider->copyVariant($identifier, $name, $values),
+            ]);
+        } catch (InvalidArgumentException $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 400);
+        } catch (Throwable $throwable) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $throwable->getMessage(),
+            ], 500);
+        }
+    }
+
     public function deleteVariantAction(ServerRequestInterface $request): ResponseInterface
     {
         $body = $request->getParsedBody();

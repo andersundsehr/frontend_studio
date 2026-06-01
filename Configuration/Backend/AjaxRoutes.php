@@ -26,6 +26,10 @@ return [
         'path' => '/frontend-studio/component-tree/create-variant',
         'target' => ComponentTreeController::class . '::createVariantAction',
     ],
+    'frontend_studio_component_tree_copy_variant' => [
+        'path' => '/frontend-studio/component-tree/copy-variant',
+        'target' => ComponentTreeController::class . '::copyVariantAction',
+    ],
     'frontend_studio_component_tree_delete_variant' => [
         'path' => '/frontend-studio/component-tree/delete-variant',
         'target' => ComponentTreeController::class . '::deleteVariantAction',
