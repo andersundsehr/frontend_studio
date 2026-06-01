@@ -116,9 +116,9 @@ final readonly class ComponentMetadataProvider
     }
 
     /**
-     * @param list<array{name: string, type: string, value: string, isMultiline?: bool, isFixtureValue?: bool}> $variantValues
+     * @param list<array{name: string, type: string, value: string, nativeValue?: mixed, isMultiline?: bool, isFixtureValue?: bool}> $variantValues
      * @param list<array<string, mixed>> $arguments
-     * @return list<array{name: string, type: string, description: string, value: string, isMultiline: bool, isFixtureValue: bool}>
+     * @return list<array{name: string, type: string, description: string, value: string, nativeValue?: mixed, isMultiline: bool, isFixtureValue: bool}>
      */
     private function mergeVariantValuesWithArguments(array $variantValues, array $arguments): array
     {
@@ -148,6 +148,7 @@ final readonly class ComponentMetadataProvider
                     'type' => $type,
                     'description' => $description,
                     'value' => $value,
+                    'nativeValue' => array_key_exists('nativeValue', $variantValue) ? $variantValue['nativeValue'] : $value,
                     'isMultiline' => (bool)($variantValue['isMultiline'] ?? str_contains($value, "\n")),
                     'isFixtureValue' => (bool)($variantValue['isFixtureValue'] ?? true),
                 ];

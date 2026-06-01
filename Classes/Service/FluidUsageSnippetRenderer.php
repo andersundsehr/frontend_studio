@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+
 final readonly class FluidUsageSnippetRenderer
 {
     public function __construct(
@@ -12,9 +14,8 @@ final readonly class FluidUsageSnippetRenderer
 
     /**
      * @param array<string, mixed>|null $selectedComponentMetadata
-     * @param array<string, mixed>|null $variantValueOverrides
      */
-    public function render(?array $selectedComponentMetadata, ?array $variantValueOverrides = null): string
+    public function render(?array $selectedComponentMetadata, ?ComponentVariantValues $variantValueOverrides = null): string
     {
         $snippet = $this->build($selectedComponentMetadata, $variantValueOverrides);
         if ($snippet === '') {
@@ -26,9 +27,8 @@ final readonly class FluidUsageSnippetRenderer
 
     /**
      * @param array<string, mixed>|null $selectedComponentMetadata
-     * @param array<string, mixed>|null $variantValueOverrides
      */
-    public function build(?array $selectedComponentMetadata, ?array $variantValueOverrides = null): string
+    public function build(?array $selectedComponentMetadata, ?ComponentVariantValues $variantValueOverrides = null): string
     {
         if ($selectedComponentMetadata === null) {
             return '';
@@ -44,7 +44,7 @@ final readonly class FluidUsageSnippetRenderer
             return '';
         }
 
-        $values = $variantValueOverrides ?? $this->collectFixtureValues($selectedComponentMetadata);
+        $values = $variantValueOverrides?->toArray() ?? $this->collectFixtureValues($selectedComponentMetadata);
         $attributes = '';
         foreach ($values as $name => $value) {
             $name = trim((string)$name);
@@ -80,7 +80,9 @@ final readonly class FluidUsageSnippetRenderer
                 continue;
             }
 
-            $values[$name] = isset($variantValue['value']) ? (string)$variantValue['value'] : '';
+            $values[$name] = array_key_exists('nativeValue', $variantValue)
+                ? $variantValue['nativeValue']
+                : (isset($variantValue['value']) ? (string)$variantValue['value'] : '');
         }
 
         return $values;

@@ -43,7 +43,6 @@ class FrontendStudioVariantView {
     this.initialFieldValues = {};
     this.savedValues = {};
     this.hasUnsavedChanges = false;
-    this.fluidUsageSnippet = '';
     this.activeTab = this.readInitialActiveTab();
     this.htmlRefreshTimeout = null;
     this.renderedHtmlPreviewUrl = '';
@@ -63,7 +62,6 @@ class FrontendStudioVariantView {
     this.initialFieldValues = this.collectFieldValues();
     this.savedValues = this.collectValues();
     this.renderedHtmlPreviewUrl = this.buildRenderedHtmlUrl().toString();
-    this.updateFluidUsageSnippet();
     this.updateDirtyState();
     this.initializeTabs();
     this.initializeSidebarResize();
@@ -73,7 +71,7 @@ class FrontendStudioVariantView {
     this.fields.forEach((field) => {
       const handleFieldChange = () => {
         this.updateDirtyState();
-        this.updateFluidUsageSnippet(true);
+        this.refreshFluidUsageSnippet();
         this.updatePreview();
         this.scheduleRenderedHtmlRefresh();
       };
@@ -160,7 +158,6 @@ class FrontendStudioVariantView {
     this.updatePreview();
     this.renderedHtmlPreviewUrl = '';
     this.refreshRenderedHtml();
-    this.updateFluidUsageSnippet(true);
 
     if (!this.hasUnsavedChanges) {
       window.location.reload();
@@ -462,34 +459,13 @@ class FrontendStudioVariantView {
     return fluidUsageUrl;
   }
 
-  updateFluidUsageSnippet(refreshHighlightedSnippet = false) {
-    this.fluidUsageSnippet = this.buildFluidUsageSnippet();
-
-    if (refreshHighlightedSnippet) {
-      this.refreshFluidUsageSnippet();
-    }
-  }
-
-  buildFluidUsageSnippet() {
-    const tagName = this.componentFluidTagName.trim();
-    if (tagName === '') {
-      return '';
-    }
-
-    const attributes = Object.entries(this.collectValues())
-      .map(([name, value]) => ` ${name}="${this.escapeFluidAttributeValue(this.formatFluidAttributeValue(value))}"`)
-      .join('');
-
-    return `<${tagName}${attributes} />`;
-  }
-
-  formatFluidAttributeValue(value) {
+  formatFluidAttributeValue(name, value) {
     if (value === null) {
-      return 'null';
+      return '{null}';
     }
 
     if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
+      return value ? '{true}' : '{false}';
     }
 
     if (typeof value === 'number') {
@@ -500,11 +476,7 @@ class FrontendStudioVariantView {
       return value;
     }
 
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
+    return `{${name}}`;
   }
 
   escapeFluidAttributeValue(value) {
@@ -544,28 +516,22 @@ class FrontendStudioVariantView {
 
     const requestId = ++this.fluidUsageRequestId;
 
-    try {
-      const response = await fetch(this.buildFluidUsageUrl().toString(), {
-        credentials: 'same-origin',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      });
-      const fluidUsageSource = await response.text();
-      if (requestId !== this.fluidUsageRequestId) {
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(fluidUsageSource || `The Fluid usage request failed with status ${response.status}.`);
-      }
-
-      this.fluidUsageCode.innerHTML = fluidUsageSource;
-    } catch {
-      if (requestId === this.fluidUsageRequestId) {
-        this.fluidUsageCode.textContent = this.fluidUsageSnippet;
-      }
+    const response = await fetch(this.buildFluidUsageUrl().toString(), {
+      credentials: 'same-origin',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+    const fluidUsageSource = await response.text();
+    if (requestId !== this.fluidUsageRequestId) {
+      return;
     }
+
+    if (!response.ok) {
+      throw new Error(fluidUsageSource || `The Fluid usage request failed with status ${response.status}.`);
+    }
+
+    this.fluidUsageCode.innerHTML = fluidUsageSource;
   }
 
   scheduleRenderedHtmlRefresh() {
@@ -667,7 +633,7 @@ class FrontendStudioVariantView {
     });
 
     this.updateDirtyState();
-    this.updateFluidUsageSnippet(true);
+    this.refreshFluidUsageSnippet();
     this.updatePreview();
     this.renderedHtmlPreviewUrl = '';
     this.scheduleRenderedHtmlRefresh();
@@ -801,13 +767,14 @@ class FrontendStudioVariantView {
   }
 
   async copyFluidUsageSnippet() {
-    if (this.fluidUsageSnippet === '') {
+    const usageSnippet = this.fluidUsageCode.textContent || '';
+    if (usageSnippet === '') {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(this.fluidUsageSnippet);
-      Notification.success('Fluid usage copied', this.fluidUsageSnippet);
+      await navigator.clipboard.writeText(usageSnippet);
+      Notification.success('Fluid usage copied', usageSnippet);
     } catch (error) {
       Notification.error('Copy failed', error?.message || 'The Fluid usage snippet could not be copied.');
     }

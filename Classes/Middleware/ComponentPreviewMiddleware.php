@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Middleware;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
@@ -105,9 +106,8 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
     /**
      * @param array<string, mixed> $queryParams
-     * @return array<string, mixed>|null
      */
-    private function getVariantValueOverrides(array $queryParams): ?array
+    private function getVariantValueOverrides(array $queryParams): ?ComponentVariantValues
     {
         $encodedValues = $queryParams[self::VARIANT_VALUES_PARAMETER] ?? null;
         if (!is_string($encodedValues) || $encodedValues === '') {
@@ -124,17 +124,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
             return null;
         }
 
-        $variantValueOverrides = [];
-        foreach ($decodedValues as $name => $value) {
-            $name = trim((string)$name);
-            if ($name === '') {
-                continue;
-            }
-
-            $variantValueOverrides[$name] = $value;
-        }
-
-        return $variantValueOverrides;
+        return ComponentVariantValues::fromSubmittedValues($decodedValues);
     }
 
     private function createErrorResponse(string $title, string $message, int $status, bool $isFragmentRequest): HtmlResponse

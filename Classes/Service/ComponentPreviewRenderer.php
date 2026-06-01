@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
@@ -22,10 +23,7 @@ final readonly class ComponentPreviewRenderer
         private ComponentFixtureProvider $componentFixtureProvider,
     ) {}
 
-    /**
-     * @param array<string, mixed>|null $variantValueOverrides
-     */
-    public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?array $variantValueOverrides = null): string
+    public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?ComponentVariantValues $variantValueOverrides = null): string
     {
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponent($namespace, $componentName);
@@ -35,7 +33,7 @@ final readonly class ComponentPreviewRenderer
 
         return trim($resolverDelegate->getComponentRenderer()->renderComponent(
             $componentName,
-            $variantValues,
+            $variantValues->toArray(),
             [],
             $renderingContext,
         ));

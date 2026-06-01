@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Controller;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentFolderArchiveProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentTreeDataProvider;
 use InvalidArgumentException;
@@ -112,7 +113,9 @@ final readonly class ComponentTreeController
 
         $identifier = isset($body['identifier']) ? (string)$body['identifier'] : '';
         $name = isset($body['name']) ? (string)$body['name'] : '';
-        $values = isset($body['values']) && is_array($body['values']) ? $body['values'] : null;
+        $values = isset($body['values']) && is_array($body['values'])
+            ? ComponentVariantValues::fromSubmittedValues($body['values'])
+            : null;
 
         try {
             return new JsonResponse([
@@ -204,7 +207,9 @@ final readonly class ComponentTreeController
         }
 
         $identifier = isset($body['identifier']) ? (string)$body['identifier'] : '';
-        $values = isset($body['values']) && is_array($body['values']) ? $body['values'] : [];
+        $values = isset($body['values']) && is_array($body['values'])
+            ? ComponentVariantValues::fromSubmittedValues($body['values'])
+            : ComponentVariantValues::empty();
 
         try {
             return new JsonResponse([

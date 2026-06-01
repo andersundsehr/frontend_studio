@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Throwable;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
@@ -208,10 +209,9 @@ final readonly class ComponentTreeDataProvider
     }
 
     /**
-     * @param array<string, mixed>|null $variantValues
      * @return array{identifier: string, componentIdentifier: string, name: string, fixturePath: string, fixtureExtensionPath: string|null}
      */
-    public function copyVariant(string $sourceVariantIdentifier, string $newVariantName, ?array $variantValues = null): array
+    public function copyVariant(string $sourceVariantIdentifier, string $newVariantName, ?ComponentVariantValues $variantValues = null): array
     {
         [$namespace, $componentName, $sourceVariantName] = $this->parseVariantIdentifier($sourceVariantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
@@ -224,8 +224,7 @@ final readonly class ComponentTreeDataProvider
             $componentName,
             $sourceVariantName,
             $newVariantName,
-            $variantValues,
-            $this->getArgumentTypes($resolverDelegate, $componentName),
+            $variantValues?->normalizeForArgumentTypes($this->getArgumentTypes($resolverDelegate, $componentName)),
         );
         $newVariantName = trim($newVariantName);
 
@@ -263,10 +262,9 @@ final readonly class ComponentTreeDataProvider
     }
 
     /**
-     * @param array<string, mixed> $variantValues
      * @return array{identifier: string, componentIdentifier: string, name: string, fixturePath: string, fixtureExtensionPath: string|null, values: array<string, mixed>}
      */
-    public function updateVariantValues(string $variantIdentifier, array $variantValues): array
+    public function updateVariantValues(string $variantIdentifier, ComponentVariantValues $variantValues): array
     {
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
@@ -278,8 +276,7 @@ final readonly class ComponentTreeDataProvider
             $resolverDelegate,
             $componentName,
             $variantName,
-            $variantValues,
-            $this->getArgumentTypes($resolverDelegate, $componentName),
+            $variantValues->normalizeForArgumentTypes($this->getArgumentTypes($resolverDelegate, $componentName)),
         );
 
         return [
