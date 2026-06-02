@@ -6,10 +6,8 @@ namespace Andersundsehr\FrontendStudio\Service;
 
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Throwable;
-use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
-use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
@@ -23,9 +21,10 @@ final readonly class ComponentTreeDataProvider
     ];
 
     public function __construct(
-        private ViewHelperResolverDelegateRegistry $viewHelperResolverDelegateRegistry,
+        private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private ComponentFixtureProvider $componentFixtureProvider,
+        private ComponentDiscoveryProvider $componentDiscoveryProvider,
     )
     {
     }
@@ -38,17 +37,11 @@ final readonly class ComponentTreeDataProvider
         $nodes = [];
         $componentsByNamespace = [];
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
-        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        $resolverDelegates = $this->componentResolverDelegateProvider->getAll();
         ksort($resolverDelegates);
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
-            if (!$resolverDelegate instanceof ComponentListProviderInterface) {
-                continue;
-            }
-
-            $components = array_values(array_unique($resolverDelegate->getAvailableComponents()));
-            sort($components, SORT_NATURAL | SORT_FLAG_CASE);
-
+            $components = $this->componentDiscoveryProvider->getAvailableComponents($resolverDelegate);
             if ($components === []) {
                 continue;
             }
@@ -373,11 +366,11 @@ final readonly class ComponentTreeDataProvider
     private function resolveComponentTemplateResolver(string $namespace, string $componentName): ?ComponentTemplateResolverInterface
     {
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
-        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        $resolverDelegates = $this->componentResolverDelegateProvider->getAll();
         ksort($resolverDelegates);
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
-            if (!$resolverDelegate instanceof ComponentListProviderInterface || !$resolverDelegate instanceof ComponentTemplateResolverInterface) {
+            if (!$resolverDelegate instanceof ComponentTemplateResolverInterface) {
                 continue;
             }
 
@@ -386,7 +379,7 @@ final readonly class ComponentTreeDataProvider
                 continue;
             }
 
-            if (!in_array($componentName, $resolverDelegate->getAvailableComponents(), true)) {
+            if (!$this->componentDiscoveryProvider->hasComponent($resolverDelegate, $componentName)) {
                 continue;
             }
 

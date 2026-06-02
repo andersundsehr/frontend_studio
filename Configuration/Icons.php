@@ -11,6 +11,10 @@ return [
         'provider' => TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider::class,
         'source' => 'EXT:frontend_studio/Resources/Public/Icons/Extension.svg',
     ],
+    'actions-bookmark' => [
+        'provider' => TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider::class,
+        'source' => 'EXT:frontend_studio/Resources/Public/Icons/ActionsBookmark.svg',
+    ],
     'frontend-studio-atoms' => [
         'provider' => TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider::class,
         'source' => 'EXT:frontend_studio/Resources/Public/Icons/folder/atoms.svg',

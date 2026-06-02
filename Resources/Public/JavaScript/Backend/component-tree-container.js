@@ -7,7 +7,6 @@ import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
 import Modal from '@typo3/backend/modal.js';
 import Notification from '@typo3/backend/notification.js';
 import { SeverityEnum } from '@typo3/backend/enum/severity.js';
-import { UrlFactory } from '@typo3/core/factory/url-factory.js';
 import { TreeToolbar } from '@typo3/backend/tree/tree-toolbar.js';
 import ClientStorage from '@typo3/backend/storage/client.js';
 import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.js';
@@ -18,6 +17,20 @@ const initialExpansionLevel = 10;
 const editableNodeSelectionDelay = 200;
 const componentFileActionStartedEventName = 'frontend-studio:component-file-action-started';
 const componentFileActionCancelledEventName = 'frontend-studio:component-file-action-cancelled';
+
+function createUrl(url, parameters = {}) {
+  const resolvedUrl = new URL(url, window.location.origin);
+
+  Object.entries(parameters).forEach(([name, value]) => {
+    if (value === null || value === undefined) {
+      return;
+    }
+
+    resolvedUrl.searchParams.set(name, String(value));
+  });
+
+  return resolvedUrl;
+}
 
 class FrontendStudioComponentTree extends Tree {
   constructor() {
@@ -376,7 +389,7 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   downloadComponentFolder(node) {
-    const downloadUrl = UrlFactory.createUrl(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_download_component, {
+    const downloadUrl = createUrl(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_download_component, {
       identifier: node.identifier,
     });
     const downloadLink = document.createElement('a');
@@ -545,7 +558,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
 
     const moduleMenu = top.TYPO3.ModuleMenu.App;
     const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
-    const contentUrl = UrlFactory.createUrl(moduleConfiguration.link, {
+    const contentUrl = createUrl(moduleConfiguration.link, {
       componentVariant: node.identifier,
     });
 
@@ -556,7 +569,10 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     await this.tree.expandNodeParents(node);
     this.tree.selectNode(node, propagate);
     this.tree.focusNode(node);
-    this.tree.scrollNodeIntoViewIfNeeded(node);
+    if (typeof this.tree.scrollNodeIntoViewIfNeeded === 'function') {
+      // only present in TYPO3 >=14
+      this.tree.scrollNodeIntoViewIfNeeded(node);
+    }
   }
 
   getNodeFromCurrentContentUrl() {

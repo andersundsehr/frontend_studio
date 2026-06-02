@@ -7,17 +7,16 @@ namespace Andersundsehr\FrontendStudio\Service;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
-use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
-use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use ZipArchive;
 
 final readonly class ComponentFolderArchiveProvider
 {
     public function __construct(
-        private ViewHelperResolverDelegateRegistry $viewHelperResolverDelegateRegistry,
+        private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
+        private ComponentDiscoveryProvider $componentDiscoveryProvider,
     ) {}
 
     /**
@@ -84,11 +83,11 @@ final readonly class ComponentFolderArchiveProvider
     private function resolveComponentTemplateResolver(string $namespace, string $componentName): ?ComponentTemplateResolverInterface
     {
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
-        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        $resolverDelegates = $this->componentResolverDelegateProvider->getAll();
         ksort($resolverDelegates);
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
-            if (!$resolverDelegate instanceof ComponentListProviderInterface || !$resolverDelegate instanceof ComponentTemplateResolverInterface) {
+            if (!$resolverDelegate instanceof ComponentTemplateResolverInterface) {
                 continue;
             }
 
@@ -97,7 +96,7 @@ final readonly class ComponentFolderArchiveProvider
                 continue;
             }
 
-            if (!in_array($componentName, $resolverDelegate->getAvailableComponents(), true)) {
+            if (!$this->componentDiscoveryProvider->hasComponent($resolverDelegate, $componentName)) {
                 continue;
             }
 

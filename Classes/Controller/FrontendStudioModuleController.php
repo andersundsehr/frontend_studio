@@ -14,6 +14,8 @@ use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Information\Typo3Version;
+use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use Throwable;
 
@@ -33,6 +35,8 @@ final readonly class FrontendStudioModuleController
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private UriBuilder $uriBuilder,
         private SiteFinder $siteFinder,
+        private Typo3Version $typo3Version,
+        private AssetCollector $assetCollector,
     ) {}
 
     public function handleRequest(ServerRequestInterface $request): ResponseInterface
@@ -52,6 +56,10 @@ final readonly class FrontendStudioModuleController
         $moduleTemplate->getDocHeaderComponent()->disable();
         $moduleTemplate->assignMultiple($this->getVariantAssignments($selectedVariantIdentifier, $request));
 
+        if ($this->typo3Version->getMajorVersion() >= 14) {
+            $this->assetCollector->addJavaScriptModule('@typo3/backend/viewport/content-navigation-toggle.js');
+        }
+
         return $moduleTemplate->renderResponse('FrontendStudio/Variant');
     }
 
@@ -69,7 +77,7 @@ final readonly class FrontendStudioModuleController
             'selectedVariantIdentifier' => $selectedVariantIdentifier,
             'selectedComponentMetadata' => $selectedComponentMetadata,
             'componentPreviewUri' => $selectedComponentMetadata !== null
-                ? $this->buildComponentPreviewUri($selectedVariantIdentifier)
+                ? $this->buildComponentPreviewUri($selectedVariantIdentifier, $request)
                 : null,
             'variantSidebarWidth' => $this->getVariantSidebarWidth($GLOBALS['BE_USER']->uc ?? []),
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
@@ -166,13 +174,24 @@ final readonly class FrontendStudioModuleController
         return $value;
     }
 
-    private function buildComponentPreviewUri(string $selectedVariantIdentifier): ?string
+    private function buildComponentPreviewUri(string $selectedVariantIdentifier, ServerRequestInterface $request): ?string
     {
         try {
             $sites = $this->siteFinder->getAllSites();
             $site = reset($sites);
             if ($site === false) {
                 return null;
+            }
+
+            $requestOrigin = $this->getRequestOrigin($request);
+            if ($requestOrigin !== null) {
+                foreach ($sites as $candidateSite) {
+                    $candidateBase = (string)$candidateSite->getDefaultLanguage()->getBase();
+                    if ($this->getUrlOrigin($candidateBase) === $requestOrigin) {
+                        $site = $candidateSite;
+                        break;
+                    }
+                }
             }
 
             return rtrim((string)$site->getDefaultLanguage()->getBase(), '/') . '/?'
@@ -183,5 +202,40 @@ final readonly class FrontendStudioModuleController
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function getRequestOrigin(ServerRequestInterface $request): ?string
+    {
+        $uri = $request->getUri();
+        return $this->buildOrigin($uri->getScheme(), $uri->getHost(), $uri->getPort());
+    }
+
+    private function getUrlOrigin(string $url): ?string
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return null;
+        }
+
+        $scheme = isset($parts['scheme']) ? (string)$parts['scheme'] : '';
+        $host = isset($parts['host']) ? (string)$parts['host'] : '';
+        $port = isset($parts['port']) && is_int($parts['port']) ? $parts['port'] : null;
+
+        return $this->buildOrigin($scheme, $host, $port);
+    }
+
+    private function buildOrigin(string $scheme, string $host, ?int $port): ?string
+    {
+        $scheme = strtolower($scheme);
+        $host = strtolower($host);
+        if ($scheme === '' || $host === '') {
+            return null;
+        }
+
+        if (($scheme === 'http' && $port === 80) || ($scheme === 'https' && $port === 443)) {
+            $port = null;
+        }
+
+        return $scheme . '://' . $host . ($port !== null ? ':' . $port : '');
     }
 }

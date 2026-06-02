@@ -11,9 +11,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 use Throwable;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
-use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 
 final readonly class ComponentTemplateRootWatcher
@@ -27,8 +25,9 @@ final readonly class ComponentTemplateRootWatcher
     ];
 
     public function __construct(
-        private ViewHelperResolverDelegateRegistry $viewHelperResolverDelegateRegistry,
+        private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
+        private ComponentDiscoveryProvider $componentDiscoveryProvider,
     ) {}
 
     /**
@@ -93,17 +92,16 @@ final readonly class ComponentTemplateRootWatcher
     {
         $componentIdentifiersByPath = [];
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
-        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        $resolverDelegates = $this->componentResolverDelegateProvider->getAll();
         ksort($resolverDelegates);
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
-            if (!$resolverDelegate instanceof ComponentListProviderInterface || !$resolverDelegate instanceof ComponentTemplateResolverInterface) {
+            if (!$resolverDelegate instanceof ComponentTemplateResolverInterface) {
                 continue;
             }
 
             $namespace = $fluidNamespaceAliases[$classNamespace] ?? $classNamespace;
-            $components = array_values(array_unique($resolverDelegate->getAvailableComponents()));
-            sort($components, SORT_NATURAL | SORT_FLAG_CASE);
+            $components = $this->componentDiscoveryProvider->getAvailableComponents($resolverDelegate);
 
             foreach ($components as $componentName) {
                 $componentIdentifier = $namespace . ':' . $componentName;
@@ -181,7 +179,7 @@ final readonly class ComponentTemplateRootWatcher
     private function getTemplateRootPaths(): array
     {
         $templateRootPaths = [];
-        foreach ($this->viewHelperResolverDelegateRegistry->getAll() as $resolverDelegate) {
+        foreach ($this->componentResolverDelegateProvider->getAll() as $resolverDelegate) {
             if (!$resolverDelegate instanceof ComponentTemplateResolverInterface) {
                 continue;
             }

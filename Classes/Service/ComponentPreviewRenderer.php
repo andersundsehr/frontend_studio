@@ -7,20 +7,19 @@ namespace Andersundsehr\FrontendStudio\Service;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
-use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
-use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperResolverDelegateInterface;
 
 final readonly class ComponentPreviewRenderer
 {
     public function __construct(
-        private ViewHelperResolverDelegateRegistry $viewHelperResolverDelegateRegistry,
+        private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private RenderingContextFactory $renderingContextFactory,
         private ComponentFixtureProvider $componentFixtureProvider,
+        private ComponentDiscoveryProvider $componentDiscoveryProvider,
     ) {}
 
     public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?ComponentVariantValues $variantValueOverrides = null): string
@@ -60,7 +59,7 @@ final readonly class ComponentPreviewRenderer
     private function resolveComponent(string $namespace, string $componentName): ViewHelperResolverDelegateInterface&ComponentDefinitionProviderInterface&ComponentTemplateResolverInterface
     {
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
-        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        $resolverDelegates = $this->componentResolverDelegateProvider->getAll();
         ksort($resolverDelegates);
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
@@ -68,7 +67,6 @@ final readonly class ComponentPreviewRenderer
                 !$resolverDelegate instanceof ViewHelperResolverDelegateInterface
                 || !$resolverDelegate instanceof ComponentDefinitionProviderInterface
                 || !$resolverDelegate instanceof ComponentTemplateResolverInterface
-                || !$resolverDelegate instanceof ComponentListProviderInterface
             ) {
                 continue;
             }
@@ -78,7 +76,7 @@ final readonly class ComponentPreviewRenderer
                 continue;
             }
 
-            if (!in_array($componentName, $resolverDelegate->getAvailableComponents(), true)) {
+            if (!$this->componentDiscoveryProvider->hasComponent($resolverDelegate, $componentName)) {
                 continue;
             }
 

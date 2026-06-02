@@ -8,20 +8,19 @@ use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
-use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverDelegateRegistry;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
-use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
 final readonly class ComponentMetadataProvider
 {
     public function __construct(
-        private ViewHelperResolverDelegateRegistry $viewHelperResolverDelegateRegistry,
+        private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private PackageManager $packageManager,
         private ComponentFixtureProvider $componentFixtureProvider,
+        private ComponentDiscoveryProvider $componentDiscoveryProvider,
     ) {}
 
     /**
@@ -175,20 +174,16 @@ final readonly class ComponentMetadataProvider
     private function resolveComponent(string $namespace, string $componentName): ?array
     {
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
-        $resolverDelegates = $this->viewHelperResolverDelegateRegistry->getAll();
+        $resolverDelegates = $this->componentResolverDelegateProvider->getAll();
         ksort($resolverDelegates);
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
-            if (!$resolverDelegate instanceof ComponentListProviderInterface) {
-                continue;
-            }
-
             $displayNamespace = $fluidNamespaceAliases[$classNamespace] ?? $classNamespace;
             if ($displayNamespace !== $namespace) {
                 continue;
             }
 
-            if (!in_array($componentName, $resolverDelegate->getAvailableComponents(), true)) {
+            if (!$this->componentDiscoveryProvider->hasComponent($resolverDelegate, $componentName)) {
                 continue;
             }
 
