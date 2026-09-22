@@ -230,6 +230,9 @@
                                             <label class="form-label" for="frontend-studio-variant-value-{variantValue.name}">
                                                 {variantValue.name}
                                                 <code class="frontend-studio-variant-value-type">{variantValue.type}</code>
+                                                <f:if condition="{variantValue.required} == false">
+                                                    <span class="text-body-secondary">*</span>
+                                                </f:if>
                                             </label>
                                             <f:switch expression="{variantValue.type}">
                                                 <f:case value="bool">
@@ -380,6 +383,9 @@
                                             </f:if>
                                         </div>
                                     </f:for>
+                                    <p class="mb-0 text-body-secondary">
+                                        * optional argument
+                                    </p>
                                 </f:then>
                                 <f:else>
                                     <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>
