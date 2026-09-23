@@ -134,6 +134,14 @@
     margin-bottom: .75rem;
 }
 
+.frontend-studio-variant-values-actions {
+    position: sticky;
+    top: calc(var(--module-docheader-bar-height) + var(--module-docheader-border-width));
+    z-index: 1;
+    padding: .75rem 0;
+    background: var(--frontend-studio-variant-surface);
+}
+
 .frontend-studio-variant-transformer-group {
     margin: 0 0 .75rem;
     padding: .75rem;

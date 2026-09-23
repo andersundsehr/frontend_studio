@@ -9,6 +9,7 @@ use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use InvalidArgumentException;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinition;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
@@ -92,7 +93,8 @@ final readonly class ComponentVariantTransformer
             if (!is_string($value)) {
                 throw new InvalidArgumentException('Date transformer input must be an ISO-8601 string.', 1768901559);
             }
-            return $type === DateTime::class ? new DateTime($value) : new DateTimeImmutable($value);
+            $value = preg_replace('/(?:Z|[+-]\d{2}:?\d{2})$/', '', $value) ?: $value;
+            return $type === DateTime::class ? new DateTime($value, new DateTimeZone(date_default_timezone_get())) : new DateTimeImmutable($value, new DateTimeZone(date_default_timezone_get()));
         }
 
         return match ($type) {

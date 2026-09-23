@@ -442,8 +442,7 @@ class FrontendStudioVariantView {
     }
 
     if (fixtureType === 'datetime') {
-      const date = new Date(field.value);
-      return Number.isNaN(date.getTime()) ? field.value : date.toISOString();
+      return field.value;
     }
 
     if (this.isCompoundFixtureType(fixtureType)) {
