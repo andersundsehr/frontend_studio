@@ -8,6 +8,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use RuntimeException;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinition;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
@@ -76,7 +77,7 @@ final readonly class TransformersFactory
             if (isset($argumentTransformers->arguments[$argumentName])) {
                 $transformers[$argumentName] = $this->transformerFactory->fromCallable(
                     $argumentTransformers->arguments[$argumentName],
-                    $pdaFileName . ':' . $argumentName
+                    str_replace(Environment::getProjectPath() . '/', '', $pdaFileName) . ':' . $argumentName,
                 );
                 continue;
             }
@@ -134,14 +135,7 @@ final readonly class TransformersFactory
     private function isTypeAssignable(string $resultType, string $targetType): bool
     {
         foreach ($this->splitUnionType($resultType) as $resultTypePart) {
-            $isCompatible = false;
-            foreach ($this->splitUnionType($targetType) as $targetTypePart) {
-                if ($this->isSingleTypeAssignable($resultTypePart, $targetTypePart)) {
-                    $isCompatible = true;
-                    break;
-                }
-            }
-
+            $isCompatible = array_any($this->splitUnionType($targetType), fn(string $targetTypePart): bool => $this->isSingleTypeAssignable($resultTypePart, $targetTypePart));
             if (!$isCompatible) {
                 return false;
             }
@@ -152,13 +146,7 @@ final readonly class TransformersFactory
 
     private function isDefaultSupportedType(string $type): bool
     {
-        foreach ($this->splitUnionType(ltrim($type, '?')) as $typePart) {
-            if (!in_array($typePart, self::DEFAULT_SUPPORTED_TYPES, true) && $typePart !== 'null') {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($this->splitUnionType(ltrim($type, '?')), fn(string $typePart): bool => in_array($typePart, self::DEFAULT_SUPPORTED_TYPES, true) || $typePart === 'null');
     }
 
     /**

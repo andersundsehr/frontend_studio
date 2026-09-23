@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Service;
 
 use Andersundsehr\FrontendStudio\Service\ComponentVariantTransformer;
+use Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use DateTime;
@@ -22,26 +23,26 @@ final class ComponentVariantTransformerTest extends TestCase
             'result' => new ArgumentDefinition('result', 'string', '', true, null, false),
         ], false, []);
         $transformer = new Transformer(
-            static fn(int $count, DateTimeImmutable $date, TransformerTestEnum $status): string => $count . $date->format('YH') . $date->getTimezone()->getName() . $status->name,
+            static fn(int $count, DateTimeImmutable $date, TypolinkTargetEnum $status): string => $count . $date->format('YH') . $date->getTimezone()->getName() . $status->value,
             'test',
             'string',
             [
                 'count' => new ArgumentDefinition('count', 'int', '', true, null, false),
                 'date' => new ArgumentDefinition('date', DateTimeImmutable::class, '', true, null, false),
-                'status' => new ArgumentDefinition('status', TransformerTestEnum::class, '', true, null, false),
+                'status' => new ArgumentDefinition('status', TypolinkTargetEnum::class, '', true, null, false),
             ],
             [],
         );
 
-        $result = (new ComponentVariantTransformer())->transform($definition, new Transformers(['result' => $transformer], 'test'), [
+        $result = new ComponentVariantTransformer()->transform($definition, new Transformers(['result' => $transformer], 'test'), [
             'result' => [
                 'count' => '3',
                 'date' => '2026-09-23T10:00:00+02:00',
-                'status' => 'Published',
+                'status' => '_blank',
             ],
         ]);
 
-        self::assertSame('3202610' . date_default_timezone_get() . 'Published', $result['result']);
+        self::assertSame('3202610' . date_default_timezone_get() . '_blank', $result['result']);
     }
 
     public function testDateTimeInputPreservesFixtureHourInPhpTimezone(): void
@@ -57,7 +58,7 @@ final class ComponentVariantTransformerTest extends TestCase
             [],
         );
 
-        $result = (new ComponentVariantTransformer())->transform($definition, new Transformers(['result' => $transformer], 'test'), [
+        $result = new ComponentVariantTransformer()->transform($definition, new Transformers(['result' => $transformer], 'test'), [
             'result' => ['date' => '2026-09-23T10:00:00Z'],
         ]);
 
@@ -81,11 +82,6 @@ final class ComponentVariantTransformerTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionCode(1768901555);
 
-        (new ComponentVariantTransformer())->transform($definition, new Transformers(['result' => $transformer], 'test'), ['result' => 'invalid']);
+        new ComponentVariantTransformer()->transform($definition, new Transformers(['result' => $transformer], 'test'), ['result' => 'invalid']);
     }
-}
-
-enum TransformerTestEnum
-{
-    case Published;
 }

@@ -41,6 +41,7 @@ final readonly class ComponentVariantTransformer
                 if ($componentDefinition->getArgumentDefinitions()[$argumentName]->isRequired()) {
                     throw new InvalidArgumentException('Missing fixture inputs for required transformer-backed argument "' . $argumentName . '".', 1768901556);
                 }
+
                 continue;
             }
 
@@ -50,6 +51,7 @@ final readonly class ComponentVariantTransformer
                     if ($definition->isRequired()) {
                         throw new InvalidArgumentException('Missing transformer input "' . $argumentName . '.' . $inputName . '".', 1768901557);
                     }
+
                     continue;
                 }
 
@@ -64,13 +66,7 @@ final readonly class ComponentVariantTransformer
 
     private function hasRequiredInput(Transformer $transformer): bool
     {
-        foreach ($transformer->arguments as $argument) {
-            if ($argument->isRequired()) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($transformer->arguments, fn(ArgumentDefinition $argument): bool => $argument->isRequired());
     }
 
     private function normalize(ArgumentDefinition $definition, mixed $value): mixed
@@ -86,6 +82,7 @@ final readonly class ComponentVariantTransformer
                     return $case;
                 }
             }
+
             throw new InvalidArgumentException('Invalid enum case "' . $value . '" for "' . $type . '".', 1768901558);
         }
 
@@ -93,6 +90,7 @@ final readonly class ComponentVariantTransformer
             if (!is_string($value)) {
                 throw new InvalidArgumentException('Date transformer input must be an ISO-8601 string.', 1768901559);
             }
+
             $value = preg_replace('/(?:Z|[+-]\d{2}:?\d{2})$/', '', $value) ?: $value;
             return $type === DateTime::class ? new DateTime($value, new DateTimeZone(date_default_timezone_get())) : new DateTimeImmutable($value, new DateTimeZone(date_default_timezone_get()));
         }

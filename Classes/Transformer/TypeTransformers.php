@@ -7,7 +7,6 @@ namespace Andersundsehr\FrontendStudio\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use RuntimeException;
 
-use function array_keys;
 use function explode;
 use function is_a;
 use function sort;

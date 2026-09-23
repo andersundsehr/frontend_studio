@@ -6,14 +6,9 @@ namespace Andersundsehr\FrontendStudio\Transformer;
 
 use ArgumentCountError;
 use Closure;
-use InvalidArgumentException;
-use ReflectionFunction;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
-use function class_exists;
-use function in_array;
 use function sprintf;
-use function str_contains;
 
 final readonly class Transformer
 {

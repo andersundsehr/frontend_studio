@@ -225,18 +225,48 @@
                             </div>
                             <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
                                 <f:then>
-                                    <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
+                                    <div class="panel-group">
+                                        <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
                                         <f:if condition="{parentName}">
                                             <f:then>
-                                                <fieldset class="frontend-studio-variant-transformer-group">
-                                                    <legend>{parentName}</legend>
-                                                    <f:for each="{groupValues}" as="variantValue" iteration="iterator">
-                                                        <f:if condition="{iterator.isFirst}">
-                                                            <div class="form-text mb-3">transformed via: <code>{variantValue.transformerSource}</code></div>
-                                                        </f:if>
-                                                        <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}" />
-                                                    </f:for>
-                                                </fieldset>
+                                                <details class="frontend-studio-variant-argument-group panel panel-default" open>
+                                                    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+                                                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                                                            <f:if condition="{argument.name} == {parentName}">
+                                                                <strong>{argument.name}</strong>
+                                                                <code class="frontend-studio-variant-value-type">{argument.type}</code>
+                                                                <f:if condition="{argument.required} == false">
+                                                                    <span class="text-body-secondary">*</span>
+                                                                </f:if>
+                                                            </f:if>
+                                                        </f:for>
+                                                        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+                                                            <core:icon identifier="actions-chevron-end" />
+                                                        </span>
+                                                        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+                                                            <core:icon identifier="actions-chevron-down" />
+                                                        </span>
+                                                    </summary>
+                                                    <div class="frontend-studio-variant-argument-group-content panel-body">
+                                                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                                                            <f:if condition="{argument.name} == {parentName}">
+                                                                <f:if condition="{argument.description}">
+                                                                    <div class="form-text mb-0">{argument.description}</div>
+                                                                </f:if>
+                                                            </f:if>
+                                                        </f:for>
+                                                        <div class="panel-group">
+                                                            <f:for each="{groupValues}" as="variantValue">
+                                                                <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}" />
+                                                            </f:for>
+                                                        </div>
+                                                        <f:for each="{groupValues}" as="variantValue" iteration="iterator">
+                                                            <f:if condition="{iterator.isLast}">
+                                                                <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
+                                                            </f:if>
+                                                        </f:for>
+                                                    </div>
+                                                </details>
                                             </f:then>
                                             <f:else>
                                                 <f:for each="{groupValues}" as="variantValue">
@@ -244,7 +274,8 @@
                                                 </f:for>
                                             </f:else>
                                         </f:if>
-                                    </f:groupedFor>
+                                        </f:groupedFor>
+                                    </div>
                                     <p class="mb-0 text-body-secondary">
                                         * optional argument
                                     </p>

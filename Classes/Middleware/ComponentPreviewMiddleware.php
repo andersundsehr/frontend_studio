@@ -18,7 +18,10 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Throwable;
+use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\HtmlResponse;
+use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
+use TYPO3\CMS\Frontend\Resource\PublicUrlPrefixer;
 
 final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 {
@@ -40,6 +43,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private PreviewAssetRenderer $previewAssetRenderer,
+        private ListenerProvider $listenerProvider,
     ) {
     }
 
@@ -50,6 +54,11 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         }
 
         $GLOBALS['TYPO3_REQUEST'] = $request;
+        $this->listenerProvider->addListener(
+            GeneratePublicUrlForResourceEvent::class,
+            PublicUrlPrefixer::class,
+            'prefixWithAbsRefPrefix',
+        );
 
         $queryParams = $request->getQueryParams();
         $variantIdentifier = isset($queryParams['componentVariant']) ? (string)$queryParams['componentVariant'] : '';

@@ -21,7 +21,7 @@ final readonly class DefaultTransformer
     #[TypeTransformer(priority: 100)]
     public function stringable(string $string): Stringable
     {
-        return new class($string) implements Stringable {
+        return new readonly class ($string) implements Stringable {
             public function __construct(private string $string)
             {
             }

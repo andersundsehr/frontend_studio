@@ -1,12 +1,22 @@
-<div class="mb-3">
-    <label class="form-label" for="frontend-studio-variant-value-{variantValue.fixtureName}">
-        {variantValue.name}
+<details class="frontend-studio-variant-argument-group panel panel-default" open>
+    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+        <strong>{variantValue.name}</strong>
         <code class="frontend-studio-variant-value-type">{variantValue.type}</code>
         <f:if condition="{variantValue.required} == false">
             <span class="text-body-secondary">*</span>
         </f:if>
-    </label>
-    <f:if condition="{variantValue.options}">
+        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+            <core:icon identifier="actions-chevron-end" />
+        </span>
+        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+            <core:icon identifier="actions-chevron-down" />
+        </span>
+    </summary>
+    <div class="frontend-studio-variant-argument-group-content panel-body">
+        <f:if condition="{variantValue.description}">
+            <div class="form-text mb-0">{variantValue.description}</div>
+        </f:if>
+        <f:if condition="{variantValue.options}">
         <f:then>
             <select
                 id="frontend-studio-variant-value-{variantValue.fixtureName}"
@@ -18,7 +28,7 @@
                 class="form-select"
             >
                 <f:for each="{variantValue.options}" as="label" key="value">
-                    <option value="{value}" {f:if(condition: '{variantValue.value} == \'{value}\'', then: 'selected')}>{label}</option>
+                    <option value="{value}" {f:if(condition: '{variantValue.value} == {value}', then: 'selected')}>{label}</option>
                 </f:for>
             </select>
         </f:then>
@@ -185,8 +195,6 @@
                 </f:else>
             </f:if>
         </f:else>
-    </f:if>
-    <f:if condition="{variantValue.description}">
-        <div class="form-text">{variantValue.description}</div>
-    </f:if>
-</div>
+        </f:if>
+    </div>
+</details>

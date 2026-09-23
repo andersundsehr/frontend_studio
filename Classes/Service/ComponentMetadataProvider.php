@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use DateTime;
+use DateTimeInterface;
 use Andersundsehr\FrontendStudio\Dto\ComponentArgumentMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentFixtureMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
@@ -167,6 +169,7 @@ final readonly class ComponentMetadataProvider
                         $transformer->from,
                     );
                 }
+
                 continue;
             }
 
@@ -389,7 +392,7 @@ final readonly class ComponentMetadataProvider
 
     private function isDateType(string $type): bool
     {
-        return in_array($type, [\DateTime::class, DateTimeImmutable::class, \DateTimeInterface::class], true);
+        return in_array($type, [DateTime::class, DateTimeImmutable::class, DateTimeInterface::class], true);
     }
 
     /**
