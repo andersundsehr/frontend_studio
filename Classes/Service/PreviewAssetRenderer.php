@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
-use Andersundsehr\Storybook\Dto\RenderJob;
-use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Page\AssetRenderer;
 
