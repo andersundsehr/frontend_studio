@@ -161,8 +161,10 @@ body {
     transition: none;
     transform: scaleX(1) scaleY(1) scaleZ(1);
 }
-:where(body > *) {
-    background: white;
+@layer defaults {
+    :where(body > *) {
+        background: white;
+    }
 }
 EOF;
         $body .= $this->previewAssetRenderer->renderAssets();
