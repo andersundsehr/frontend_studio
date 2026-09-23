@@ -225,7 +225,7 @@
                             </div>
                             <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
                                 <f:then>
-                                    <div class="panel-group">
+                                    <div class="panel-group mb-0">
                                         <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
                                         <f:if condition="{parentName}">
                                             <f:then>
@@ -255,7 +255,7 @@
                                                                 </f:if>
                                                             </f:if>
                                                         </f:for>
-                                                        <div class="panel-group">
+                                                        <div class="panel-group mb-0">
                                                             <f:for each="{groupValues}" as="variantValue">
                                                                 <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}" />
                                                             </f:for>
