@@ -10,12 +10,14 @@
     }
   ],
   "require": {
-    "typo3/cms-core": "^13 || ^14.3.0"
+    "php": "~8.4.0 || ~8.5.0",
+    "typo3/cms-core": "^14.3.0"
   },
   "require-dev": {
     "pluswerk/grumphp-config": "^11.1",
     "saschaegerer/phpstan-typo3": "^2.0.0 || ^3.0.1",
-    "ssch/typo3-rector": "^3.1.0"
+    "ssch/typo3-rector": "^3.1.0",
+    "typo3/testing-framework": "^9.7"
   },
   "autoload": {
     "psr-4": {

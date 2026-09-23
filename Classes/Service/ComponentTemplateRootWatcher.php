@@ -286,6 +286,10 @@ final readonly class ComponentTemplateRootWatcher
             }
 
             foreach ($classNamespaces as $classNamespace) {
+                if (!is_string($classNamespace)) {
+                    continue;
+                }
+
                 $aliasesByClassNamespace[$classNamespace] ??= $alias;
             }
         }

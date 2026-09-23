@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 
 final readonly class FluidUsageSnippetRenderer
@@ -13,10 +14,7 @@ final readonly class FluidUsageSnippetRenderer
     ) {
     }
 
-    /**
-     * @param array<string, mixed>|null $selectedComponentMetadata
-     */
-    public function render(?array $selectedComponentMetadata, ?ComponentVariantValues $variantValueOverrides = null): string
+    public function render(?ComponentMetadata $selectedComponentMetadata, ?ComponentVariantValues $variantValueOverrides = null): string
     {
         $snippet = $this->build($selectedComponentMetadata, $variantValueOverrides);
         if ($snippet === '') {
@@ -26,21 +24,14 @@ final readonly class FluidUsageSnippetRenderer
         return $this->htmlSourceHighlighter->highlightFluidUsage($snippet);
     }
 
-    /**
-     * @param array<string, mixed>|null $selectedComponentMetadata
-     */
-    public function build(?array $selectedComponentMetadata, ?ComponentVariantValues $variantValueOverrides = null): string
+    public function build(?ComponentMetadata $selectedComponentMetadata, ?ComponentVariantValues $variantValueOverrides = null): string
     {
         if ($selectedComponentMetadata === null) {
             return '';
         }
 
-        $displayNamespace = isset($selectedComponentMetadata['displayNamespace'])
-            ? trim((string)$selectedComponentMetadata['displayNamespace'])
-            : '';
-        $componentName = isset($selectedComponentMetadata['componentName'])
-            ? trim((string)$selectedComponentMetadata['componentName'])
-            : '';
+        $displayNamespace = trim($selectedComponentMetadata->displayNamespace);
+        $componentName = trim($selectedComponentMetadata->componentName);
         if ($displayNamespace === '' || $componentName === '') {
             return '';
         }
@@ -60,30 +51,27 @@ final readonly class FluidUsageSnippetRenderer
     }
 
     /**
-     * @param array<string, mixed> $selectedComponentMetadata
      * @return array<string, mixed>
      */
-    private function collectFixtureValues(array $selectedComponentMetadata): array
+    private function collectFixtureValues(ComponentMetadata $selectedComponentMetadata): array
     {
-        $variantValues = $selectedComponentMetadata['fixture']['selectedVariant']['values'] ?? null;
-        if (!is_array($variantValues)) {
+        $variantValues = $selectedComponentMetadata->fixture?->selectedVariant?->values;
+        if ($variantValues === null) {
             return [];
         }
 
         $values = [];
         foreach ($variantValues as $variantValue) {
-            if (!is_array($variantValue) || ($variantValue['isFixtureValue'] ?? false) !== true) {
+            if (!$variantValue->isFixtureValue) {
                 continue;
             }
 
-            $name = isset($variantValue['name']) ? trim((string)$variantValue['name']) : '';
+            $name = trim($variantValue->name);
             if ($name === '') {
                 continue;
             }
 
-            $values[$name] = array_key_exists('nativeValue', $variantValue)
-                ? $variantValue['nativeValue']
-                : (isset($variantValue['value']) ? (string)$variantValue['value'] : '');
+            $values[$name] = $variantValue->nativeValue;
         }
 
         return $values;

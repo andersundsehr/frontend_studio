@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentArgumentMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentFixtureMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentStaticVariableMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentTemplateMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentTemplateRootPathMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
@@ -24,10 +31,7 @@ final readonly class ComponentMetadataProvider
     ) {
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function getComponentMetadataForVariantIdentifier(string $variantIdentifier): ?array
+    public function getComponentMetadataForVariantIdentifier(string $variantIdentifier): ?ComponentMetadata
     {
         $variantIdentifier = trim($variantIdentifier);
         if ($variantIdentifier === '') {
@@ -49,129 +53,134 @@ final readonly class ComponentMetadataProvider
             return null;
         }
 
-        $metadata = [
-            'selectedVariantIdentifier' => $variantIdentifier,
-            'variantName' => $variantName,
-            'variantLabel' => $this->getVariantLabel($variantName),
-            'componentIdentifier' => $namespace . ':' . $componentName,
-            'componentName' => $componentName,
-            'displayNamespace' => $namespace,
-            'sourceNamespace' => $component['sourceNamespace'],
-            'usesNamespaceAlias' => $namespace !== $component['sourceNamespace'],
-            'collectionClass' => $component['collectionClass'],
-            'arguments' => [],
-            'additionalArgumentsAllowed' => false,
-            'slots' => [],
-            'annotations' => [],
-            'template' => null,
-            'fixture' => null,
-            'staticVariables' => [],
-            'errors' => [],
-        ];
-
+        $arguments = [];
+        $additionalArgumentsAllowed = false;
+        $slots = [];
+        $annotations = [];
+        $template = null;
+        $fixture = null;
+        $staticVariables = [];
+        $errors = [];
         $resolverDelegate = $component['resolverDelegate'];
+
         if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
             try {
                 $componentDefinition = $resolverDelegate->getComponentDefinition($componentName);
-                $metadata['arguments'] = $this->normalizeArgumentDefinitions($componentDefinition->getArgumentDefinitions());
-                $metadata['additionalArgumentsAllowed'] = $componentDefinition->additionalArgumentsAllowed();
-                $metadata['slots'] = array_values($componentDefinition->getAvailableSlots());
-                $metadata['annotations'] = array_map(
-                    static fn(object $annotation): string => $annotation::class,
-                    $componentDefinition->getAnnotations(),
-                );
+                $arguments = $this->normalizeArgumentDefinitions($componentDefinition->getArgumentDefinitions());
+                $additionalArgumentsAllowed = $componentDefinition->additionalArgumentsAllowed();
+                $slots = array_values($componentDefinition->getAvailableSlots());
+                $annotations = array_values(array_map(static fn(object $annotation): string => $annotation::class, $componentDefinition->getAnnotations()));
             } catch (Throwable $throwable) {
-                $metadata['errors'][] = 'Component definition could not be loaded: ' . $throwable->getMessage();
+                $errors[] = 'Component definition could not be loaded: ' . $throwable->getMessage();
             }
         } else {
-            $metadata['errors'][] = 'The component collection does not provide component definitions.';
+            $errors[] = 'The component collection does not provide component definitions.';
         }
 
         if ($resolverDelegate instanceof ComponentTemplateResolverInterface) {
-            $metadata['template'] = $this->getTemplateMetadata($resolverDelegate, $componentName);
-            $metadata['fixture'] = $this->getFixtureMetadata($resolverDelegate, $componentName, $variantName);
-            if ($metadata['fixture']['error'] !== null) {
-                $metadata['errors'][] = 'Fixture file could not be loaded: ' . $metadata['fixture']['error'];
-            } elseif ($metadata['fixture']['variants'] !== [] && $metadata['fixture']['selectedVariant'] === null) {
-                $metadata['errors'][] = 'Selected variant was not found in the fixture file.';
+            $template = $this->getTemplateMetadata($resolverDelegate, $componentName);
+            $fixture = $this->getFixtureMetadata($resolverDelegate, $componentName, $variantName);
+            if ($fixture->error !== null) {
+                $errors[] = 'Fixture file could not be loaded: ' . $fixture->error;
+            } elseif ($fixture->variants !== [] && $fixture->selectedVariant === null) {
+                $errors[] = 'Selected variant was not found in the fixture file.';
             }
 
-            if ($metadata['fixture']['selectedVariant'] !== null) {
-                $metadata['fixture']['selectedVariant']['values'] = $this->mergeVariantValuesWithArguments(
-                    $metadata['fixture']['selectedVariant']['values'],
-                    $metadata['arguments'],
-                );
-            }
-
+            $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments);
             try {
-                $metadata['staticVariables'] = $this->normalizeStaticVariables(
-                    $resolverDelegate->getAdditionalVariables($componentName),
-                );
+                $staticVariables = $this->normalizeStaticVariables($resolverDelegate->getAdditionalVariables($componentName));
             } catch (Throwable $throwable) {
-                $metadata['errors'][] = 'Static variables could not be loaded: ' . $throwable->getMessage();
+                $errors[] = 'Static variables could not be loaded: ' . $throwable->getMessage();
             }
         } else {
-            $metadata['errors'][] = 'The component collection does not provide template metadata.';
+            $errors[] = 'The component collection does not provide template metadata.';
         }
 
-        return $metadata;
+        return new ComponentMetadata(
+            $variantIdentifier,
+            $variantName,
+            $this->getVariantLabel($variantName),
+            $namespace . ':' . $componentName,
+            $componentName,
+            $namespace,
+            $component['sourceNamespace'],
+            $namespace !== $component['sourceNamespace'],
+            $component['collectionClass'],
+            $arguments,
+            $additionalArgumentsAllowed,
+            $slots,
+            $annotations,
+            $template,
+            $fixture,
+            $staticVariables,
+            $errors,
+        );
     }
 
     /**
-     * @param list<array{name: string, type: string, value: string, nativeValue?: mixed, isMultiline?: bool, isFixtureValue?: bool}> $variantValues
-     * @param list<array<string, mixed>> $arguments
-     * @return list<array{name: string, type: string, description: string, value: string, nativeValue?: mixed, isMultiline: bool, isFixtureValue: bool, required: bool}>
+     * @param list<ComponentVariantValueMetadata> $variantValues
+     * @param list<ComponentArgumentMetadata> $arguments
+     * @return list<ComponentVariantValueMetadata>
      */
     private function mergeVariantValuesWithArguments(array $variantValues, array $arguments): array
     {
         $variantValuesByName = [];
         foreach ($variantValues as $variantValue) {
-            $variantValuesByName[$variantValue['name']] = [
-                ...$variantValue,
-                'isMultiline' => (bool)($variantValue['isMultiline'] ?? str_contains($variantValue['value'], "\n")),
-                'isFixtureValue' => (bool)($variantValue['isFixtureValue'] ?? true),
-            ];
+            $variantValuesByName[$variantValue->name] = $variantValue;
         }
 
         $mergedValues = [];
         foreach ($arguments as $argument) {
-            $name = isset($argument['name']) ? (string)$argument['name'] : '';
-            if ($name === '') {
+            $variantValue = $variantValuesByName[$argument->name] ?? null;
+            if ($variantValue === null) {
+                $mergedValues[] = new ComponentVariantValueMetadata(
+                    $argument->name,
+                    $argument->type,
+                    $argument->description,
+                    $argument->defaultValue,
+                    $argument->defaultValue,
+                    str_contains($argument->defaultValue, "\n"),
+                    false,
+                    $argument->required,
+                );
                 continue;
             }
 
-            $type = isset($argument['type']) ? (string)$argument['type'] : 'string';
-            $description = isset($argument['description']) ? (string)$argument['description'] : '';
-            $required = (bool)($argument['required'] ?? false);
-            if (isset($variantValuesByName[$name])) {
-                $variantValue = $variantValuesByName[$name];
-                $value = isset($variantValue['value']) ? (string)$variantValue['value'] : '';
-                $mergedValues[] = [
-                    'name' => $name,
-                    'type' => $type,
-                    'description' => $description,
-                    'value' => $value,
-                    'nativeValue' => array_key_exists('nativeValue', $variantValue) ? $variantValue['nativeValue'] : $value,
-                    'isMultiline' => (bool)($variantValue['isMultiline'] ?? str_contains($value, "\n")),
-                    'isFixtureValue' => (bool)($variantValue['isFixtureValue'] ?? true),
-                    'required' => $required,
-                ];
-                continue;
-            }
-
-            $value = isset($argument['defaultValue']) ? (string)$argument['defaultValue'] : '';
-            $mergedValues[] = [
-                'name' => $name,
-                'type' => $type,
-                'description' => $description,
-                'value' => $value,
-                'isMultiline' => str_contains($value, "\n"),
-                'isFixtureValue' => false,
-                'required' => $required,
-            ];
+            $mergedValues[] = new ComponentVariantValueMetadata(
+                $argument->name,
+                $argument->type,
+                $argument->description,
+                $variantValue->value,
+                $variantValue->nativeValue,
+                $variantValue->isMultiline,
+                $variantValue->isFixtureValue,
+                $argument->required,
+            );
         }
 
         return $mergedValues;
+    }
+
+    /**
+     * @param list<ComponentArgumentMetadata> $arguments
+     */
+    private function mergeFixtureValuesWithArguments(ComponentFixtureMetadata $fixture, array $arguments): ComponentFixtureMetadata
+    {
+        if ($fixture->selectedVariant === null) {
+            return $fixture;
+        }
+
+        return new ComponentFixtureMetadata(
+            $fixture->absolutePath,
+            $fixture->extensionPath,
+            $fixture->content,
+            $fixture->variants,
+            $fixture->error,
+            new ComponentVariantMetadata(
+                $fixture->selectedVariant->name,
+                $this->mergeVariantValuesWithArguments($fixture->selectedVariant->values, $arguments),
+            ),
+        );
     }
 
     /**
@@ -185,11 +194,7 @@ final readonly class ComponentMetadataProvider
 
         foreach ($resolverDelegates as $classNamespace => $resolverDelegate) {
             $displayNamespace = $fluidNamespaceAliases[$classNamespace] ?? $classNamespace;
-            if ($displayNamespace !== $namespace) {
-                continue;
-            }
-
-            if (!$this->componentDiscoveryProvider->hasComponent($resolverDelegate, $componentName)) {
+            if ($displayNamespace !== $namespace || !$this->componentDiscoveryProvider->hasComponent($resolverDelegate, $componentName)) {
                 continue;
             }
 
@@ -205,37 +210,31 @@ final readonly class ComponentMetadataProvider
 
     /**
      * @param array<string, ArgumentDefinition> $argumentDefinitions
-     * @return list<array<string, mixed>>
+     * @return list<ComponentArgumentMetadata>
      */
     private function normalizeArgumentDefinitions(array $argumentDefinitions): array
     {
         $arguments = [];
         foreach ($argumentDefinitions as $argumentDefinition) {
-            $arguments[] = [
-                'name' => $argumentDefinition->getName(),
-                'type' => $argumentDefinition->getType(),
-                'description' => $argumentDefinition->getDescription(),
-                'required' => $argumentDefinition->isRequired(),
-                'defaultValue' => $this->normalizeValue($argumentDefinition->getDefaultValue()),
-                'escape' => match ($argumentDefinition->getEscape()) {
+            $arguments[] = new ComponentArgumentMetadata(
+                $argumentDefinition->getName(),
+                $argumentDefinition->getType(),
+                $argumentDefinition->getDescription(),
+                $argumentDefinition->isRequired(),
+                $this->normalizeValue($argumentDefinition->getDefaultValue()),
+                match ($argumentDefinition->getEscape()) {
                     true => 'enabled',
                     false => 'disabled',
                     null => 'default',
                 },
-                'annotations' => array_map(
-                    static fn(object $annotation): string => $annotation::class,
-                    $argumentDefinition->getAnnotations(),
-                ),
-            ];
+                array_values(array_map(static fn(object $annotation): string => $annotation::class, $argumentDefinition->getAnnotations())),
+            );
         }
 
         return $arguments;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function getTemplateMetadata(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): array
+    private function getTemplateMetadata(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): ComponentTemplateMetadata
     {
         $templateName = $resolverDelegate->resolveTemplateName($componentName);
         $templatePaths = $resolverDelegate->getTemplatePaths();
@@ -244,12 +243,7 @@ final readonly class ComponentMetadataProvider
         $error = null;
 
         try {
-            $absolutePath = $templatePaths->resolveTemplateFileForControllerAndActionAndFormat(
-                'Default',
-                $templateName,
-                null,
-                true,
-            );
+            $absolutePath = $templatePaths->resolveTemplateFileForControllerAndActionAndFormat('Default', $templateName, null, true);
             $content = $absolutePath !== null ? file_get_contents($absolutePath) : null;
             if ($content === false) {
                 $content = null;
@@ -259,53 +253,41 @@ final readonly class ComponentMetadataProvider
             $error = $throwable->getMessage();
         }
 
-        return [
-            'name' => $templateName,
-            'absolutePath' => $absolutePath,
-            'extensionPath' => is_string($absolutePath) ? $this->getExtensionPath($absolutePath) : null,
-            'relativePath' => is_string($absolutePath) ? $this->getRelativePath($absolutePath) : null,
-            'rootPaths' => $this->normalizeTemplateRootPaths($templatePaths->getTemplateRootPaths()),
-            'content' => $content,
-            'error' => $error,
-        ];
+        return new ComponentTemplateMetadata(
+            $templateName,
+            $absolutePath,
+            is_string($absolutePath) ? $this->getExtensionPath($absolutePath) : null,
+            is_string($absolutePath) ? $this->getRelativePath($absolutePath) : null,
+            $this->normalizeTemplateRootPaths($templatePaths->getTemplateRootPaths()),
+            $content,
+            $error,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function getFixtureMetadata(ComponentTemplateResolverInterface $resolverDelegate, string $componentName, string $variantName): array
+    private function getFixtureMetadata(ComponentTemplateResolverInterface $resolverDelegate, string $componentName, string $variantName): ComponentFixtureMetadata
     {
         $fixture = $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $componentName);
-        $selectedVariant = null;
+        $selectedVariant = array_find($fixture->variants, fn($variant): bool => $variant->name === $variantName);
 
-        foreach ($fixture['variants'] as $variant) {
-            if ($variant['name'] !== $variantName) {
-                continue;
-            }
-
-            $selectedVariant = $variant;
-            break;
-        }
-
-        return [
-            ...$fixture,
-            'selectedVariant' => $selectedVariant,
-        ];
+        return new ComponentFixtureMetadata(
+            $fixture->absolutePath,
+            $fixture->extensionPath,
+            $fixture->content,
+            $fixture->variants,
+            $fixture->error,
+            $selectedVariant,
+        );
     }
 
     /**
      * @param array<string|int, string> $templateRootPaths
-     * @return list<array{priority: string|int, absolutePath: string, extensionPath: string|null}>
+     * @return list<ComponentTemplateRootPathMetadata>
      */
     private function normalizeTemplateRootPaths(array $templateRootPaths): array
     {
         $rootPaths = [];
         foreach ($templateRootPaths as $priority => $rootPath) {
-            $rootPaths[] = [
-                'priority' => $priority,
-                'absolutePath' => $rootPath,
-                'extensionPath' => $this->getExtensionPath($rootPath),
-            ];
+            $rootPaths[] = new ComponentTemplateRootPathMetadata($priority, $rootPath, $this->getExtensionPath($rootPath));
         }
 
         return $rootPaths;
@@ -313,17 +295,13 @@ final readonly class ComponentMetadataProvider
 
     /**
      * @param array<string, mixed> $staticVariables
-     * @return list<array{name: string, type: string, value: string}>
+     * @return list<ComponentStaticVariableMetadata>
      */
     private function normalizeStaticVariables(array $staticVariables): array
     {
         $variables = [];
         foreach ($staticVariables as $name => $value) {
-            $variables[] = [
-                'name' => (string)$name,
-                'type' => get_debug_type($value),
-                'value' => $this->normalizeValue($value),
-            ];
+            $variables[] = new ComponentStaticVariableMetadata((string)$name, get_debug_type($value), $this->normalizeValue($value));
         }
 
         return $variables;
@@ -358,10 +336,6 @@ final readonly class ComponentMetadataProvider
     {
         $absolutePath = rtrim($absolutePath, '/');
         foreach ($this->packageManager->getActivePackages() as $package) {
-            if (!$package instanceof PackageInterface) {
-                continue;
-            }
-
             $packagePath = rtrim($package->getPackagePath(), '/');
             if ($packagePath === '' || ($absolutePath !== $packagePath && !str_starts_with($absolutePath, $packagePath . '/'))) {
                 continue;
@@ -391,13 +365,16 @@ final readonly class ComponentMetadataProvider
     private function getFluidNamespaceAliasesByClassNamespace(): array
     {
         $aliasesByClassNamespace = [];
-
         foreach ($this->viewHelperResolverFactory->create()->getNamespaces() as $alias => $classNamespaces) {
             if ($classNamespaces === null) {
                 continue;
             }
 
             foreach ($classNamespaces as $classNamespace) {
+                if (!is_string($classNamespace)) {
+                    continue;
+                }
+
                 $aliasesByClassNamespace[$classNamespace] ??= $alias;
             }
         }

@@ -28,10 +28,6 @@ final readonly class ComponentResolverDelegateProvider
             }
 
             foreach ((array)$classNamespaces as $classNamespace) {
-                if ($classNamespace instanceof ViewHelperResolverDelegateInterface) {
-                    $classNamespace = $classNamespace->getNamespace();
-                }
-
                 if (!is_string($classNamespace) || $classNamespace === '') {
                     continue;
                 }

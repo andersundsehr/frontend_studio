@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Controller;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
@@ -115,12 +116,9 @@ final readonly class FrontendStudioModuleController
         }
     }
 
-    /**
-     * @param array<string, mixed>|null $selectedComponentMetadata
-     */
-    private function renderFluidTemplateSource(?array $selectedComponentMetadata): string
+    private function renderFluidTemplateSource(?ComponentMetadata $selectedComponentMetadata): string
     {
-        $templateContent = $selectedComponentMetadata['template']['content'] ?? null;
+        $templateContent = $selectedComponentMetadata?->template?->content;
         if (!is_string($templateContent) || $templateContent === '') {
             return '';
         }

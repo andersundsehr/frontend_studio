@@ -89,13 +89,13 @@ final readonly class ComponentTreeDataProvider
                 $componentIdentifier = $namespace . ':' . $component;
                 $componentDepth = count($folderFragments) + 1;
                 $variants = $resolverDelegate instanceof ComponentTemplateResolverInterface
-                    ? $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $component)['variants']
+                    ? $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $component)->variants
                     : [];
 
                 $nodes[] = $this->createNode($componentIdentifier, $componentIdentifier, $componentDepth, $variants !== [], 'component');
 
                 foreach ($variants as $variant) {
-                    $variantName = $variant['name'];
+                    $variantName = $variant->name;
                     $nodes[] = $this->createNode($componentIdentifier . ':' . $variantName, $variantName, $componentDepth + 1, false, 'variant');
                 }
             }
@@ -324,6 +324,10 @@ final readonly class ComponentTreeDataProvider
             }
 
             foreach ($classNamespaces as $classNamespace) {
+                if (!is_string($classNamespace)) {
+                    continue;
+                }
+
                 $aliasesByClassNamespace[$classNamespace] ??= $alias;
             }
         }

@@ -102,6 +102,10 @@ final readonly class ComponentPreviewRenderer
             }
 
             foreach ($classNamespaces as $classNamespace) {
+                if (!is_string($classNamespace)) {
+                    continue;
+                }
+
                 $aliasesByClassNamespace[$classNamespace] ??= $alias;
             }
         }

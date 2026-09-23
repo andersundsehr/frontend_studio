@@ -7,9 +7,10 @@ namespace Andersundsehr\FrontendStudio\Service;
 use RuntimeException;
 use InvalidArgumentException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Dto\ComponentFixtureMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Symfony\Component\Yaml\Yaml;
 use Throwable;
-use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 
@@ -20,16 +21,7 @@ final readonly class ComponentFixtureProvider
     ) {
     }
 
-    /**
-     * @return array{
-     *     absolutePath: string|null,
-     *     extensionPath: string|null,
-     *     content: string|null,
-     *     variants: list<array{name: string, values: list<array{name: string, type: string, value: string, nativeValue: mixed, isMultiline: bool, isFixtureValue: bool}>}>,
-     *     error: string|null
-     * }
-     */
-    public function getFixtureMetadata(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): array
+    public function getFixtureMetadata(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): ComponentFixtureMetadata
     {
         $absolutePath = null;
         $content = null;
@@ -48,19 +40,15 @@ final readonly class ComponentFixtureProvider
             }
 
             if (!is_file($absolutePath)) {
-                return [
-                    'absolutePath' => $absolutePath,
-                    'extensionPath' => $this->getExtensionPath($absolutePath),
-                    'content' => null,
-                    'variants' => [],
-                    'error' => null,
-                ];
+                return new ComponentFixtureMetadata($absolutePath, $this->getExtensionPath($absolutePath), null, [], null);
             }
 
-            $content = file_get_contents($absolutePath);
-            if ($content === false) {
+            $fixtureContent = file_get_contents($absolutePath);
+            if (!is_string($fixtureContent)) {
                 throw new RuntimeException('Fixture file could not be read.', 2483720305);
             }
+
+            $content = $fixtureContent;
 
             $fixture = Yaml::parseFile($absolutePath);
             if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
@@ -68,22 +56,22 @@ final readonly class ComponentFixtureProvider
             }
 
             foreach ($fixture['variants'] as $variantName => $variantValues) {
-                $variants[] = [
-                    'name' => (string)$variantName,
-                    'values' => ComponentVariantValues::fromYamlValues($variantValues)->toMetadataList(),
-                ];
+                $variants[] = new ComponentVariantMetadata(
+                    (string)$variantName,
+                    ComponentVariantValues::fromYamlValues($variantValues)->toMetadataList(),
+                );
             }
         } catch (Throwable $throwable) {
             $error = $throwable->getMessage();
         }
 
-        return [
-            'absolutePath' => $absolutePath,
-            'extensionPath' => is_string($absolutePath) ? $this->getExtensionPath($absolutePath) : null,
-            'content' => $content,
-            'variants' => $variants,
-            'error' => $error,
-        ];
+        return new ComponentFixtureMetadata(
+            $absolutePath,
+            is_string($absolutePath) ? $this->getExtensionPath($absolutePath) : null,
+            $content,
+            $variants,
+            $error,
+        );
     }
 
     /**
@@ -374,10 +362,6 @@ final readonly class ComponentFixtureProvider
     {
         $absolutePath = rtrim($absolutePath, '/');
         foreach ($this->packageManager->getActivePackages() as $package) {
-            if (!$package instanceof PackageInterface) {
-                continue;
-            }
-
             $packagePath = rtrim($package->getPackagePath(), '/');
             if ($packagePath === '' || ($absolutePath !== $packagePath && !str_starts_with($absolutePath, $packagePath . '/'))) {
                 continue;

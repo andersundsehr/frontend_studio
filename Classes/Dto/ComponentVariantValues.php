@@ -80,20 +80,22 @@ final readonly class ComponentVariantValues
     }
 
     /**
-     * @return list<array{name: string, type: string, value: string, nativeValue: mixed, isMultiline: bool, isFixtureValue: bool}>
+     * @return list<ComponentVariantValueMetadata>
      */
     public function toMetadataList(): array
     {
         $values = [];
         foreach ($this->values as $name => $value) {
-            $values[] = [
-                'name' => $name,
-                'type' => get_debug_type($value),
-                'value' => $this->formatDisplayValue($value),
-                'nativeValue' => $value,
-                'isMultiline' => is_string($value) && str_contains($value, "\n"),
-                'isFixtureValue' => true,
-            ];
+            $values[] = new ComponentVariantValueMetadata(
+                $name,
+                get_debug_type($value),
+                '',
+                self::formatDisplayValue($value),
+                $value,
+                is_string($value) && str_contains($value, "\n"),
+                true,
+                false,
+            );
         }
 
         return $values;
