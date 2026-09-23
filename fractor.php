@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use a9f\Fractor\Configuration\FractorConfiguration;
+use a9f\FractorXml\XmlFileProcessor;
 use PLUS\GrumPHPConfig\FractorSettings;
 
 return FractorConfiguration::configure()
@@ -15,4 +16,7 @@ return FractorConfiguration::configure()
     ])
     ->withOptions([
         ...FractorSettings::options(),
+    ])
+    ->withSkip([
+        XmlFileProcessor::class,
     ]);

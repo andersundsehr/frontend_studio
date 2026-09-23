@@ -1,0 +1,31 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Constant ORIGINAL_ROOT not found\.$#'
+			identifier: constant.notFound
+			count: 2
+			path: Build/phpunit/FunctionalTestsBootstrap.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: Classes/Controller/FrontendStudioModuleController.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: Classes/Service/ComponentDiscoveryProvider.php
+
+		-
+			message: '#^Instanceof between TYPO3Fluid\\Fluid\\Core\\ViewHelper\\ViewHelperResolverDelegateInterface and TYPO3Fluid\\Fluid\\Core\\ViewHelper\\ViewHelperResolverDelegateInterface will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: Classes/Service/ComponentPreviewRenderer.php
+
+		-
+			message: '#^Instanceof between TYPO3Fluid\\Fluid\\Core\\ViewHelper\\ArgumentDefinition and TYPO3Fluid\\Fluid\\Core\\ViewHelper\\ArgumentDefinition will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 2
+			path: Classes/Service/ComponentTreeDataProvider.php
