@@ -40,6 +40,8 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
+        $GLOBALS['TYPO3_REQUEST'] = $request;
+
         $queryParams = $request->getQueryParams();
         $variantIdentifier = isset($queryParams['componentVariant']) ? (string)$queryParams['componentVariant'] : '';
         $variantValueOverrides = $this->getVariantValueOverrides($queryParams);
