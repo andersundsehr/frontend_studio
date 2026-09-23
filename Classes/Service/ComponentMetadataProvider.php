@@ -21,7 +21,8 @@ final readonly class ComponentMetadataProvider
         private PackageManager $packageManager,
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, mixed>|null
@@ -94,12 +95,14 @@ final readonly class ComponentMetadataProvider
             } elseif ($metadata['fixture']['variants'] !== [] && $metadata['fixture']['selectedVariant'] === null) {
                 $metadata['errors'][] = 'Selected variant was not found in the fixture file.';
             }
+
             if ($metadata['fixture']['selectedVariant'] !== null) {
                 $metadata['fixture']['selectedVariant']['values'] = $this->mergeVariantValuesWithArguments(
                     $metadata['fixture']['selectedVariant']['values'],
                     $metadata['arguments'],
                 );
             }
+
             try {
                 $metadata['staticVariables'] = $this->normalizeStaticVariables(
                     $resolverDelegate->getAdditionalVariables($componentName),
@@ -331,12 +334,15 @@ final readonly class ComponentMetadataProvider
         if ($value === null) {
             return 'null';
         }
+
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
+
         if (is_scalar($value)) {
             return (string)$value;
         }
+
         if (is_object($value)) {
             return 'object(' . $value::class . ')';
         }

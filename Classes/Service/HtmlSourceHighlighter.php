@@ -71,6 +71,7 @@ final class HtmlSourceHighlighter
                 if ($character === $quote) {
                     $quote = null;
                 }
+
                 continue;
             }
 

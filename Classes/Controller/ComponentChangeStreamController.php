@@ -18,9 +18,10 @@ final readonly class ComponentChangeStreamController
     public function __construct(
         private ComponentTemplateRootWatcher $componentTemplateRootWatcher,
         private ResponseFactoryInterface $responseFactory,
-    ) {}
+    ) {
+    }
 
-    public function streamAction(ServerRequestInterface $request): ResponseInterface
+    public function streamAction(): ResponseInterface
     {
         if (!Environment::getContext()->isDevelopment()) {
             return $this->responseFactory->createResponse(404)

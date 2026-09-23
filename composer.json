@@ -1,25 +1,41 @@
 {
-    "name": "andersundsehr/frontend_studio",
-    "description": "Frontend Studio - Build, test, and document frontend components in a project-specific styleguide.",
-    "type": "typo3-cms-extension",
-    "license": "GPL-2.0-or-later",
-    "autoload": {
-        "psr-4": {
-            "Andersundsehr\\FrontendStudio\\": "Classes/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Matthias Vogel",
-            "email": "m.vogel@andersundsehr.com"
-        }
-    ],
-    "require": {
-        "typo3/cms-core": "^13 || ^14.3.0"
-    },
-    "extra": {
-        "typo3/cms": {
-            "extension-key": "frontend_studio"
-        }
+  "name": "andersundsehr/frontend_studio",
+  "description": "Frontend Studio - Build, test, and document frontend components in a project-specific styleguide.",
+  "license": "GPL-2.0-or-later",
+  "type": "typo3-cms-extension",
+  "authors": [
+    {
+      "name": "Matthias Vogel",
+      "email": "m.vogel@andersundsehr.com"
     }
+  ],
+  "require": {
+    "typo3/cms-core": "^13 || ^14.3.0"
+  },
+  "require-dev": {
+    "pluswerk/grumphp-config": "^11.1",
+    "saschaegerer/phpstan-typo3": "^2.0.0 || ^3.0.1",
+    "ssch/typo3-rector": "^3.1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Andersundsehr\\FrontendStudio\\": "Classes/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "a9f/fractor-extension-installer": true,
+      "ergebnis/composer-normalize": true,
+      "phpro/grumphp": true,
+      "phpstan/extension-installer": true,
+      "pluswerk/grumphp-config": true,
+      "typo3/class-alias-loader": true,
+      "typo3/cms-composer-installers": true
+    }
+  },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "frontend_studio"
+    }
+  }
 }

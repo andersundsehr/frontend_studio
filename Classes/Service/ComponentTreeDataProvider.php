@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use RuntimeException;
+use InvalidArgumentException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Throwable;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
@@ -13,7 +15,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
 final readonly class ComponentTreeDataProvider
 {
-    private const ICONS = [
+    private const array ICONS = [
         'namespace' => 'frontend-studio-global',
         'folder' => 'frontend-studio-folder',
         'component' => 'actions-code',
@@ -25,8 +27,7 @@ final readonly class ComponentTreeDataProvider
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
-    )
-    {
+    ) {
     }
 
     /**
@@ -66,6 +67,7 @@ final readonly class ComponentTreeDataProvider
                 $label = 'You should set a Global Fluid namespace';
                 $name .= ' (' . $label . ')';
             }
+
             $nodes[] = $this->createNode($namespace . ':', $name, 0, true, 'namespace', $label);
             $createdFolders = [];
 
@@ -80,6 +82,7 @@ final readonly class ComponentTreeDataProvider
                         $nodes[] = $this->createNode($folderIdentifier, $fragment, $depth + 1, true, 'folder');
                         $createdFolders[$folderIdentifier] = true;
                     }
+
                     $parentIdentifier = $folderIdentifier;
                 }
 
@@ -157,7 +160,7 @@ final readonly class ComponentTreeDataProvider
         [$namespace, $componentName, $currentVariantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
         if ($resolverDelegate === null) {
-            throw new \RuntimeException('The selected component could not be resolved.');
+            throw new RuntimeException('The selected component could not be resolved.', 6749987960);
         }
 
         $renameResult = $this->componentFixtureProvider->renameVariant(
@@ -183,7 +186,7 @@ final readonly class ComponentTreeDataProvider
         [$namespace, $componentName] = $this->parseComponentIdentifier($componentIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
         if ($resolverDelegate === null) {
-            throw new \RuntimeException('The selected component could not be resolved.');
+            throw new RuntimeException('The selected component could not be resolved.', 3592001973);
         }
 
         $createResult = $this->componentFixtureProvider->createVariant(
@@ -209,7 +212,7 @@ final readonly class ComponentTreeDataProvider
         [$namespace, $componentName, $sourceVariantName] = $this->parseVariantIdentifier($sourceVariantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
         if ($resolverDelegate === null) {
-            throw new \RuntimeException('The selected component could not be resolved.');
+            throw new RuntimeException('The selected component could not be resolved.', 9264046266);
         }
 
         $copyResult = $this->componentFixtureProvider->copyVariant(
@@ -237,7 +240,7 @@ final readonly class ComponentTreeDataProvider
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
         if ($resolverDelegate === null) {
-            throw new \RuntimeException('The selected component could not be resolved.');
+            throw new RuntimeException('The selected component could not be resolved.', 1549498001);
         }
 
         $deleteResult = $this->componentFixtureProvider->deleteVariant(
@@ -262,7 +265,7 @@ final readonly class ComponentTreeDataProvider
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
         if ($resolverDelegate === null) {
-            throw new \RuntimeException('The selected component could not be resolved.');
+            throw new RuntimeException('The selected component could not be resolved.', 7084891228);
         }
 
         $updateResult = $this->componentFixtureProvider->updateVariantValues(
@@ -294,6 +297,7 @@ final readonly class ComponentTreeDataProvider
                 'inheritByChildren' => false,
             ];
         }
+
         return [
             'identifier' => $identifier,
             'name' => $name,
@@ -334,12 +338,12 @@ final readonly class ComponentTreeDataProvider
     {
         $identifierParts = explode(':', trim($variantIdentifier), 3);
         if (count($identifierParts) !== 3) {
-            throw new \InvalidArgumentException('The variant identifier is invalid.');
+            throw new InvalidArgumentException('The variant identifier is invalid.', 5044672354);
         }
 
         [$namespace, $componentName, $variantName] = $identifierParts;
         if ($namespace === '' || $componentName === '' || $variantName === '') {
-            throw new \InvalidArgumentException('The variant identifier is invalid.');
+            throw new InvalidArgumentException('The variant identifier is invalid.', 2259431300);
         }
 
         return [$namespace, $componentName, $variantName];
@@ -352,12 +356,12 @@ final readonly class ComponentTreeDataProvider
     {
         $identifierParts = explode(':', trim($componentIdentifier), 2);
         if (count($identifierParts) !== 2) {
-            throw new \InvalidArgumentException('The component identifier is invalid.');
+            throw new InvalidArgumentException('The component identifier is invalid.', 5523922312);
         }
 
         [$namespace, $componentName] = $identifierParts;
         if ($namespace === '' || $componentName === '') {
-            throw new \InvalidArgumentException('The component identifier is invalid.');
+            throw new InvalidArgumentException('The component identifier is invalid.', 2917257212);
         }
 
         return [$namespace, $componentName];
@@ -450,15 +454,19 @@ final readonly class ComponentTreeDataProvider
         if (preg_match('/\bbool(ean)?\b/', $normalizedType)) {
             return false;
         }
+
         if (preg_match('/\bint(eger)?\b/', $normalizedType)) {
             return 0;
         }
+
         if (preg_match('/\b(float|double)\b/', $normalizedType)) {
             return 0.0;
         }
+
         if (preg_match('/\b(array|iterable|list|map)\b/', $normalizedType)) {
             return [];
         }
+
         if ($normalizedType === '' || preg_match('/\b(string|scalar|mixed)\b/', $normalizedType)) {
             return 'Lorem ipsum';
         }
@@ -471,15 +479,19 @@ final readonly class ComponentTreeDataProvider
         if (preg_match('/^[._]?(views?|templates?|pages?|html)$/i', $name)) {
             return 'frontend-studio-views';
         }
+
         if (preg_match('/^[._]?(redux|organisms?|flux)$/i', $name)) {
             return 'frontend-studio-redux';
         }
+
         if (preg_match('/^[._]?atoms?(-ci)?$/i', $name)) {
             return 'frontend-studio-atoms';
         }
+
         if (preg_match('/^[._]?molecules?$/i', $name)) {
             return 'frontend-studio-molecules';
         }
+
         return self::ICONS[$nodeType];
     }
 }

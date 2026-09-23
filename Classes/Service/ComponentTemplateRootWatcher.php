@@ -16,7 +16,7 @@ use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 
 final readonly class ComponentTemplateRootWatcher
 {
-    private const IGNORED_DIRECTORY_NAMES = [
+    private const array IGNORED_DIRECTORY_NAMES = [
         '.cache' => true,
         '.git' => true,
         'node_modules' => true,
@@ -28,7 +28,8 @@ final readonly class ComponentTemplateRootWatcher
         private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, string>
@@ -61,6 +62,7 @@ final readonly class ComponentTemplateRootWatcher
                 $changedPaths[$path] = true;
             }
         }
+
         foreach ($previousSnapshot as $path => $signature) {
             if (!array_key_exists($path, $currentSnapshot)) {
                 $changedPaths[$path] = true;
@@ -115,6 +117,7 @@ final readonly class ComponentTemplateRootWatcher
             $componentIdentifiers = array_values(array_unique($componentIdentifiers));
             sort($componentIdentifiers, SORT_STRING);
         }
+
         unset($componentIdentifiers);
 
         return $componentIdentifiersByPath;

@@ -22,10 +22,13 @@ use Throwable;
 #[AsController]
 final readonly class FrontendStudioModuleController
 {
-    private const VARIANT_SIDEBAR_WIDTH_USER_SETTING = 'frontendStudio.variantView.sidebarWidth';
-    private const VARIANT_ACTIVE_TAB_USER_SETTING = 'frontendStudio.variantView.activeTab';
-    private const DEFAULT_VARIANT_SIDEBAR_WIDTH = 360;
-    private const MINIMUM_VARIANT_SIDEBAR_WIDTH = 280;
+    private const string VARIANT_SIDEBAR_WIDTH_USER_SETTING = 'frontendStudio.variantView.sidebarWidth';
+
+    private const string VARIANT_ACTIVE_TAB_USER_SETTING = 'frontendStudio.variantView.activeTab';
+
+    private const int DEFAULT_VARIANT_SIDEBAR_WIDTH = 360;
+
+    private const int MINIMUM_VARIANT_SIDEBAR_WIDTH = 280;
 
     public function __construct(
         private ModuleTemplateFactory $moduleTemplateFactory,
@@ -37,7 +40,8 @@ final readonly class FrontendStudioModuleController
         private SiteFinder $siteFinder,
         private Typo3Version $typo3Version,
         private AssetCollector $assetCollector,
-    ) {}
+    ) {
+    }
 
     public function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
@@ -134,7 +138,7 @@ final readonly class FrontendStudioModuleController
             self::VARIANT_SIDEBAR_WIDTH_USER_SETTING,
         );
 
-        if (!is_int($configuredWidth) && !(is_string($configuredWidth) && preg_match('/^\d+$/', $configuredWidth) === 1)) {
+        if (!is_int($configuredWidth) && (!is_string($configuredWidth) || preg_match('/^\d+$/', $configuredWidth) !== 1)) {
             return self::DEFAULT_VARIANT_SIDEBAR_WIDTH;
         }
 
@@ -168,6 +172,7 @@ final readonly class FrontendStudioModuleController
             if (!is_array($value) || !array_key_exists($pathSegment, $value)) {
                 return null;
             }
+
             $value = $value[$pathSegment];
         }
 

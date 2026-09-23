@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use RuntimeException;
+use InvalidArgumentException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Symfony\Component\Yaml\Yaml;
 use Throwable;
@@ -15,7 +17,8 @@ final readonly class ComponentFixtureProvider
 {
     public function __construct(
         private PackageManager $packageManager,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array{
@@ -36,12 +39,12 @@ final readonly class ComponentFixtureProvider
         try {
             $templatePath = $this->resolveTemplatePath($resolverDelegate, $componentName);
             if ($templatePath === null) {
-                throw new \RuntimeException('Component template path could not be resolved.');
+                throw new RuntimeException('Component template path could not be resolved.', 1098271731);
             }
 
             $absolutePath = $this->getFixturePath($templatePath);
             if ($absolutePath === null) {
-                throw new \RuntimeException('Fixture path could not be derived from template path "' . $templatePath . '".');
+                throw new RuntimeException('Fixture path could not be derived from template path "' . $templatePath . '".', 1919059575);
             }
 
             if (!is_file($absolutePath)) {
@@ -56,12 +59,12 @@ final readonly class ComponentFixtureProvider
 
             $content = file_get_contents($absolutePath);
             if ($content === false) {
-                throw new \RuntimeException('Fixture file could not be read.');
+                throw new RuntimeException('Fixture file could not be read.', 2483720305);
             }
 
             $fixture = Yaml::parseFile($absolutePath);
             if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-                throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+                throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 9491866460);
             }
 
             foreach ($fixture['variants'] as $variantName => $variantValues) {
@@ -94,7 +97,7 @@ final readonly class ComponentFixtureProvider
     ): array {
         $newVariantName = trim($newVariantName);
         if ($newVariantName === '') {
-            throw new \InvalidArgumentException('The variant title must not be empty.');
+            throw new InvalidArgumentException('The variant title must not be empty.', 6596881576);
         }
 
         if ($newVariantName === $currentVariantName) {
@@ -107,31 +110,32 @@ final readonly class ComponentFixtureProvider
 
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
-            throw new \RuntimeException('Fixture file does not exist.');
+            throw new RuntimeException('Fixture file does not exist.', 3271471519);
         }
 
         $fixture = Yaml::parseFile($fixturePath);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-            throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+            throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 1298473157);
         }
 
         if (!array_key_exists($currentVariantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $currentVariantName . '" does not exist.');
+            throw new RuntimeException('The variant "' . $currentVariantName . '" does not exist.', 6191154598);
         }
 
         if (array_key_exists($newVariantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $newVariantName . '" already exists.');
+            throw new RuntimeException('The variant "' . $newVariantName . '" already exists.', 6822966409);
         }
 
         $renamedVariants = [];
         foreach ($fixture['variants'] as $variantName => $variantValues) {
             $renamedVariants[$variantName === $currentVariantName ? $newVariantName : $variantName] = $variantValues;
         }
+
         $fixture['variants'] = $renamedVariants;
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
-            throw new \RuntimeException('Fixture file could not be written.');
+            throw new RuntimeException('Fixture file could not be written.', 6265288681);
         }
 
         return [
@@ -152,28 +156,28 @@ final readonly class ComponentFixtureProvider
     ): array {
         $variantName = trim($variantName);
         if ($variantName === '') {
-            throw new \InvalidArgumentException('The variant title must not be empty.');
+            throw new InvalidArgumentException('The variant title must not be empty.', 8617766585);
         }
 
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (is_file($fixturePath)) {
             $fixture = Yaml::parseFile($fixturePath);
             if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-                throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+                throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 5101321905);
             }
         } else {
             $fixture = ['variants' => []];
         }
 
         if (array_key_exists($variantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $variantName . '" already exists.');
+            throw new RuntimeException('The variant "' . $variantName . '" already exists.', 5796181384);
         }
 
         $fixture['variants'][$variantName] = $variantValues;
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
-            throw new \RuntimeException('Fixture file could not be written.');
+            throw new RuntimeException('Fixture file could not be written.', 8388962290);
         }
 
         return [
@@ -194,25 +198,25 @@ final readonly class ComponentFixtureProvider
     ): array {
         $newVariantName = trim($newVariantName);
         if ($newVariantName === '') {
-            throw new \InvalidArgumentException('The variant title must not be empty.');
+            throw new InvalidArgumentException('The variant title must not be empty.', 6666536237);
         }
 
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
-            throw new \RuntimeException('Fixture file does not exist.');
+            throw new RuntimeException('Fixture file does not exist.', 4783618831);
         }
 
         $fixture = Yaml::parseFile($fixturePath);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-            throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+            throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 6187566018);
         }
 
         if (!array_key_exists($sourceVariantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $sourceVariantName . '" does not exist.');
+            throw new RuntimeException('The variant "' . $sourceVariantName . '" does not exist.', 3816407312);
         }
 
         if (array_key_exists($newVariantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $newVariantName . '" already exists.');
+            throw new RuntimeException('The variant "' . $newVariantName . '" already exists.', 4042281802);
         }
 
         $sourceVariantValues = $fixture['variants'][$sourceVariantName];
@@ -222,7 +226,7 @@ final readonly class ComponentFixtureProvider
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
-            throw new \RuntimeException('Fixture file could not be written.');
+            throw new RuntimeException('Fixture file could not be written.', 6538942559);
         }
 
         return [
@@ -241,23 +245,23 @@ final readonly class ComponentFixtureProvider
     ): array {
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
-            throw new \RuntimeException('Fixture file does not exist.');
+            throw new RuntimeException('Fixture file does not exist.', 8076247836);
         }
 
         $fixture = Yaml::parseFile($fixturePath);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-            throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+            throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 4255598607);
         }
 
         if (!array_key_exists($variantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $variantName . '" does not exist.');
+            throw new RuntimeException('The variant "' . $variantName . '" does not exist.', 4356859594);
         }
 
         unset($fixture['variants'][$variantName]);
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
-            throw new \RuntimeException('Fixture file could not be written.');
+            throw new RuntimeException('Fixture file could not be written.', 8814357264);
         }
 
         return [
@@ -277,23 +281,23 @@ final readonly class ComponentFixtureProvider
     ): array {
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
-            throw new \RuntimeException('Fixture file does not exist.');
+            throw new RuntimeException('Fixture file does not exist.', 3973298810);
         }
 
         $fixture = Yaml::parseFile($fixturePath);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-            throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+            throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 7009596763);
         }
 
         if (!array_key_exists($variantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $variantName . '" does not exist.');
+            throw new RuntimeException('The variant "' . $variantName . '" does not exist.', 9161589254);
         }
 
         $fixture['variants'][$variantName] = $variantValues->toYamlArray();
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
-            throw new \RuntimeException('Fixture file could not be written.');
+            throw new RuntimeException('Fixture file could not be written.', 6351024941);
         }
 
         return [
@@ -310,16 +314,16 @@ final readonly class ComponentFixtureProvider
     ): ComponentVariantValues {
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
-            throw new \RuntimeException('Fixture file does not exist.');
+            throw new RuntimeException('Fixture file does not exist.', 7881463807);
         }
 
         $fixture = Yaml::parseFile($fixturePath);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
-            throw new \RuntimeException('Fixture file must contain a top-level "variants" map.');
+            throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 4719164179);
         }
 
         if (!array_key_exists($variantName, $fixture['variants'])) {
-            throw new \RuntimeException('The variant "' . $variantName . '" does not exist.');
+            throw new RuntimeException('The variant "' . $variantName . '" does not exist.', 4628371251);
         }
 
         $variantValues = $fixture['variants'][$variantName];
@@ -342,12 +346,12 @@ final readonly class ComponentFixtureProvider
     {
         $templatePath = $this->resolveTemplatePath($resolverDelegate, $componentName);
         if ($templatePath === null) {
-            throw new \RuntimeException('Component template path could not be resolved.');
+            throw new RuntimeException('Component template path could not be resolved.', 6040508781);
         }
 
         $fixturePath = $this->getFixturePath($templatePath);
         if ($fixturePath === null) {
-            throw new \RuntimeException('Fixture path could not be derived from template path "' . $templatePath . '".');
+            throw new RuntimeException('Fixture path could not be derived from template path "' . $templatePath . '".', 7411493034);
         }
 
         return $fixturePath;

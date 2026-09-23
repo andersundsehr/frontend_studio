@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use RuntimeException;
+use InvalidArgumentException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -17,7 +19,8 @@ final readonly class ComponentFolderArchiveProvider
         private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array{path: string, filename: string, filesAdded: int}
@@ -27,24 +30,24 @@ final readonly class ComponentFolderArchiveProvider
         [$namespace, $componentName] = $this->parseComponentIdentifier($componentIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
         if ($resolverDelegate === null) {
-            throw new \RuntimeException('The selected component could not be resolved.', 404);
+            throw new RuntimeException('The selected component could not be resolved.', 404);
         }
 
         $templatePath = $this->resolveTemplatePath($resolverDelegate, $componentName);
         $componentFolder = realpath(dirname($templatePath));
         if ($componentFolder === false || !is_dir($componentFolder)) {
-            throw new \RuntimeException('The component folder could not be resolved.');
+            throw new RuntimeException('The component folder could not be resolved.', 5914815181);
         }
 
         $temporaryFile = tempnam(sys_get_temp_dir(), 'frontend-studio-component-');
         if ($temporaryFile === false) {
-            throw new \RuntimeException('Could not create temporary archive file.');
+            throw new RuntimeException('Could not create temporary archive file.', 9460114746);
         }
 
         $zip = new ZipArchive();
         if ($zip->open($temporaryFile, ZipArchive::OVERWRITE) !== true) {
             @unlink($temporaryFile);
-            throw new \RuntimeException('Could not open temporary archive file.');
+            throw new RuntimeException('Could not open temporary archive file.', 6495303359);
         }
 
         $filesAdded = $this->addFolderToArchive($zip, $componentFolder);
@@ -52,7 +55,7 @@ final readonly class ComponentFolderArchiveProvider
 
         if ($filesAdded === 0) {
             @unlink($temporaryFile);
-            throw new \RuntimeException('The component folder does not contain readable files.');
+            throw new RuntimeException('The component folder does not contain readable files.', 9912232629);
         }
 
         return [
@@ -69,12 +72,12 @@ final readonly class ComponentFolderArchiveProvider
     {
         $identifierParts = explode(':', trim($componentIdentifier), 2);
         if (count($identifierParts) !== 2) {
-            throw new \InvalidArgumentException('The component identifier is invalid.');
+            throw new InvalidArgumentException('The component identifier is invalid.', 6523036825);
         }
 
         [$namespace, $componentName] = $identifierParts;
         if ($namespace === '' || $componentName === '') {
-            throw new \InvalidArgumentException('The component identifier is invalid.');
+            throw new InvalidArgumentException('The component identifier is invalid.', 2056744118);
         }
 
         return [$namespace, $componentName];
@@ -137,7 +140,7 @@ final readonly class ComponentFolderArchiveProvider
         );
 
         if (!is_string($templatePath) || $templatePath === '' || !is_file($templatePath)) {
-            throw new \RuntimeException('The component template file could not be resolved.');
+            throw new RuntimeException('The component template file could not be resolved.', 9196219404);
         }
 
         return $templatePath;

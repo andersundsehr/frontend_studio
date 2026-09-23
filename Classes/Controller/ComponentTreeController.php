@@ -24,9 +24,10 @@ final readonly class ComponentTreeController
         private ComponentFolderArchiveProvider $componentFolderArchiveProvider,
         private ResponseFactoryInterface $responseFactory,
         private StreamFactoryInterface $streamFactory,
-    ) {}
+    ) {
+    }
 
-    public function fetchDataAction(ServerRequestInterface $request): ResponseInterface
+    public function fetchDataAction(): ResponseInterface
     {
         return new JsonResponse($this->componentTreeDataProvider->getTreeNodes());
     }

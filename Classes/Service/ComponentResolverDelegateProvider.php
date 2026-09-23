@@ -11,7 +11,8 @@ final readonly class ComponentResolverDelegateProvider
 {
     public function __construct(
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, ViewHelperResolverDelegateInterface>
@@ -30,6 +31,7 @@ final readonly class ComponentResolverDelegateProvider
                 if ($classNamespace instanceof ViewHelperResolverDelegateInterface) {
                     $classNamespace = $classNamespace->getNamespace();
                 }
+
                 if (!is_string($classNamespace) || $classNamespace === '') {
                     continue;
                 }

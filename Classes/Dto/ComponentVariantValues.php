@@ -13,7 +13,8 @@ final readonly class ComponentVariantValues
      */
     private function __construct(
         private array $values,
-    ) {}
+    ) {
+    }
 
     public static function empty(): self
     {
@@ -35,7 +36,7 @@ final readonly class ComponentVariantValues
      */
     public static function fromSubmittedValues(array $values, array $argumentTypes = []): self
     {
-        return (new self(self::normalizeValueMap($values)))->normalizeForArgumentTypes($argumentTypes);
+        return new self(self::normalizeValueMap($values))->normalizeForArgumentTypes($argumentTypes);
     }
 
     /**
@@ -46,12 +47,13 @@ final readonly class ComponentVariantValues
         $normalizedValues = [];
         foreach ($this->values as $name => $value) {
             $argumentType = $argumentTypes[$name] ?? null;
-            if (self::isBooleanArgumentType($argumentType)) {
-                $normalizedValues[$name] = self::normalizeSubmittedBooleanValue($value);
+            if ($this->isBooleanArgumentType($argumentType)) {
+                $normalizedValues[$name] = $this->normalizeSubmittedBooleanValue($value);
                 continue;
             }
-            if (self::isCompoundArgumentType($argumentType)) {
-                $normalizedValues[$name] = self::normalizeSubmittedCompoundValue($value);
+
+            if ($this->isCompoundArgumentType($argumentType)) {
+                $normalizedValues[$name] = $this->normalizeSubmittedCompoundValue($value);
                 continue;
             }
 
@@ -87,7 +89,7 @@ final readonly class ComponentVariantValues
             $values[] = [
                 'name' => $name,
                 'type' => get_debug_type($value),
-                'value' => self::formatDisplayValue($value),
+                'value' => $this->formatDisplayValue($value),
                 'nativeValue' => $value,
                 'isMultiline' => is_string($value) && str_contains($value, "\n"),
                 'isFixtureValue' => true,
@@ -116,17 +118,17 @@ final readonly class ComponentVariantValues
         return $normalizedValues;
     }
 
-    private static function isBooleanArgumentType(?string $type): bool
+    private function isBooleanArgumentType(?string $type): bool
     {
         return $type !== null && preg_match('/\bbool(ean)?\b/i', $type) === 1;
     }
 
-    private static function isCompoundArgumentType(?string $type): bool
+    private function isCompoundArgumentType(?string $type): bool
     {
         return $type !== null && preg_match('/\b(array|iterable|list|map|object|stdclass)\b/i', $type) === 1;
     }
 
-    private static function normalizeSubmittedBooleanValue(mixed $value): bool
+    private function normalizeSubmittedBooleanValue(mixed $value): bool
     {
         if (is_bool($value)) {
             return $value;
@@ -139,7 +141,7 @@ final readonly class ComponentVariantValues
         return (bool)$value;
     }
 
-    private static function normalizeSubmittedCompoundValue(mixed $value): mixed
+    private function normalizeSubmittedCompoundValue(mixed $value): mixed
     {
         if (is_string($value)) {
             try {
@@ -171,14 +173,16 @@ final readonly class ComponentVariantValues
         return $value;
     }
 
-    private static function formatDisplayValue(mixed $value): string
+    private function formatDisplayValue(mixed $value): string
     {
         if ($value === null) {
             return 'null';
         }
+
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
+
         if (is_scalar($value)) {
             return (string)$value;
         }

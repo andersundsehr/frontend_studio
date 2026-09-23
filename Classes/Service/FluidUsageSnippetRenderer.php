@@ -10,7 +10,8 @@ final readonly class FluidUsageSnippetRenderer
 {
     public function __construct(
         private HtmlSourceHighlighter $htmlSourceHighlighter,
-    ) {}
+    ) {
+    }
 
     /**
      * @param array<string, mixed>|null $selectedComponentMetadata

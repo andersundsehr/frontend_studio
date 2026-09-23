@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
+use InvalidArgumentException;
+use RuntimeException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
@@ -20,7 +22,8 @@ final readonly class ComponentPreviewRenderer
         private RenderingContextFactory $renderingContextFactory,
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
-    ) {}
+    ) {
+    }
 
     public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?ComponentVariantValues $variantValueOverrides = null): string
     {
@@ -45,12 +48,12 @@ final readonly class ComponentPreviewRenderer
     {
         $identifierParts = explode(':', trim($variantIdentifier), 3);
         if (count($identifierParts) !== 3) {
-            throw new \InvalidArgumentException('The variant identifier is invalid.');
+            throw new InvalidArgumentException('The variant identifier is invalid.', 2846232392);
         }
 
         [$namespace, $componentName, $variantName] = $identifierParts;
         if ($namespace === '' || $componentName === '' || $variantName === '') {
-            throw new \InvalidArgumentException('The variant identifier is invalid.');
+            throw new InvalidArgumentException('The variant identifier is invalid.', 7380533273);
         }
 
         return [$namespace, $componentName, $variantName];
@@ -83,7 +86,7 @@ final readonly class ComponentPreviewRenderer
             return $resolverDelegate;
         }
 
-        throw new \RuntimeException('The selected component could not be resolved.');
+        throw new RuntimeException('The selected component could not be resolved.', 9185246890);
     }
 
     /**

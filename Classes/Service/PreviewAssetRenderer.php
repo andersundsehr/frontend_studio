@@ -21,8 +21,7 @@ final readonly class PreviewAssetRenderer
     public function __construct(
         private AssetCollector $assetCollector,
         private AssetRenderer $assetRenderer,
-    )
-    {
+    ) {
     }
 
     public function renderAssets(): string

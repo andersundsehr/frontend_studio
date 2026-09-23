@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Middleware;
 
+use InvalidArgumentException;
+use RuntimeException;
+use JsonException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
@@ -19,12 +22,17 @@ use TYPO3\CMS\Core\Http\HtmlResponse;
 
 final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 {
-    private const PREVIEW_PARAMETER = 'frontendStudioComponentPreview';
-    private const PREVIEW_FORMAT_PARAMETER = 'frontendStudioPreviewFormat';
-    private const PREVIEW_FORMAT_FRAGMENT = 'fragment';
-    private const PREVIEW_FORMAT_HIGHLIGHTED_FRAGMENT = 'highlighted-fragment';
-    private const PREVIEW_FORMAT_FLUID_USAGE = 'fluid-usage';
-    private const VARIANT_VALUES_PARAMETER = 'componentVariantValues';
+    private const string PREVIEW_PARAMETER = 'frontendStudioComponentPreview';
+
+    private const string PREVIEW_FORMAT_PARAMETER = 'frontendStudioPreviewFormat';
+
+    private const string PREVIEW_FORMAT_FRAGMENT = 'fragment';
+
+    private const string PREVIEW_FORMAT_HIGHLIGHTED_FRAGMENT = 'highlighted-fragment';
+
+    private const string PREVIEW_FORMAT_FLUID_USAGE = 'fluid-usage';
+
+    private const string VARIANT_VALUES_PARAMETER = 'componentVariantValues';
 
     public function __construct(
         private ComponentPreviewRenderer $componentPreviewRenderer,
@@ -32,7 +40,8 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private PreviewAssetRenderer $previewAssetRenderer,
-    ) {}
+    ) {
+    }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -58,9 +67,9 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
         try {
             $content = $this->componentPreviewRenderer->renderVariant($variantIdentifier, $request, $variantValueOverrides);
-        } catch (\InvalidArgumentException $exception) {
+        } catch (InvalidArgumentException $exception) {
             return $this->createErrorResponse('Invalid component variant', $exception->getMessage(), 400, $isFragmentRequest);
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             return $this->createErrorResponse('Component variant not found', $exception->getMessage(), 404, $isFragmentRequest);
         } catch (Throwable $throwable) {
             return $this->createErrorResponse('Component variant rendering failed', $throwable->getMessage(), 500, $isFragmentRequest);
@@ -118,7 +127,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
         try {
             $decodedValues = json_decode($encodedValues, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
+        } catch (JsonException) {
             return null;
         }
 
@@ -170,7 +179,7 @@ EOF;
         $body .= $this->previewAssetRenderer->renderAssets();
         return '<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>'
             . htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-            . '</title><style>'.$css.'</style></head><body>'
+            . '</title><style>' . $css . '</style></head><body>'
             . $body
             . '</body></html>';
     }

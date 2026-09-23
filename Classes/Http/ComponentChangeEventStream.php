@@ -8,14 +8,16 @@ use Andersundsehr\FrontendStudio\Service\ComponentTemplateRootWatcher;
 use RuntimeException;
 use TYPO3\CMS\Core\Http\SelfEmittableStreamInterface;
 
-final class ComponentChangeEventStream implements SelfEmittableStreamInterface
+final readonly class ComponentChangeEventStream implements SelfEmittableStreamInterface
 {
-    private const POLL_INTERVAL_MICROSECONDS = 1_000_000;
-    private const MAX_RUNTIME_SECONDS = 300;
+    private const int POLL_INTERVAL_MICROSECONDS = 1_000_000;
+
+    private const int MAX_RUNTIME_SECONDS = 300;
 
     public function __construct(
-        private readonly ComponentTemplateRootWatcher $componentTemplateRootWatcher,
-    ) {}
+        private ComponentTemplateRootWatcher $componentTemplateRootWatcher,
+    ) {
+    }
 
     public function emit(): void
     {
@@ -68,6 +70,7 @@ final class ComponentChangeEventStream implements SelfEmittableStreamInterface
         if (ob_get_level() > 0) {
             @ob_flush();
         }
+
         flush();
     }
 
@@ -76,7 +79,9 @@ final class ComponentChangeEventStream implements SelfEmittableStreamInterface
         return '';
     }
 
-    public function close(): void {}
+    public function close(): void
+    {
+    }
 
     public function detach()
     {
@@ -105,12 +110,12 @@ final class ComponentChangeEventStream implements SelfEmittableStreamInterface
 
     public function seek(int $offset, int $whence = SEEK_SET): void
     {
-        throw new RuntimeException('The component change event stream is not seekable.');
+        throw new RuntimeException('The component change event stream is not seekable.', 8294674828);
     }
 
     public function rewind(): void
     {
-        throw new RuntimeException('The component change event stream is not seekable.');
+        throw new RuntimeException('The component change event stream is not seekable.', 6013508026);
     }
 
     public function isWritable(): bool
@@ -120,7 +125,7 @@ final class ComponentChangeEventStream implements SelfEmittableStreamInterface
 
     public function write(string $string): int
     {
-        throw new RuntimeException('The component change event stream is not writable.');
+        throw new RuntimeException('The component change event stream is not writable.', 6915233706);
     }
 
     public function isReadable(): bool
