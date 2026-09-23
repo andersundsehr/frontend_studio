@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Transformer;
 
-use Andersundsehr\FrontendStudio\Dto\ViewHelperName;
-use Andersundsehr\FrontendStudio\Service\ConfigService;
 use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -34,6 +32,9 @@ final readonly class TransformersFactory
         'float',
         'double',
         'string',
+        'array',
+        'iterable',
+        'mixed',
         DateTime::class,
         DateTimeImmutable::class,
         DateTimeInterface::class,
@@ -47,19 +48,19 @@ final readonly class TransformersFactory
 
     public function get(
         ComponentTemplateResolverInterface&ComponentDefinitionProviderInterface $collection,
-        ViewHelperName $viewHelperName
+        string $componentName,
     ): Transformers {
-        $templateName = $collection->resolveTemplateName($viewHelperName->name);
+        $templateName = $collection->resolveTemplateName($componentName);
         $fileName = $collection->getTemplatePaths()->resolveTemplateFileForControllerAndActionAndFormat('Default', $templateName);
         $pdaFileName = preg_replace('/(\.fluid)?\.html$/', '.transformer.php', (string)$fileName) ?:
             throw new RuntimeException(
-                'Could not resolve the transformer file for the view helper "' . $viewHelperName->fullName . '"',
+                'Could not resolve the transformer file for the component "' . $componentName . '"',
                 5992417357,
             );
 
-        $argumentTransformers = $this->loadArgumentTransformer($pdaFileName, $viewHelperName);
+        $argumentTransformers = $this->loadArgumentTransformer($pdaFileName, $componentName);
 
-        $argumentDefinitions = $collection->getComponentDefinition($viewHelperName->name)->getArgumentDefinitions();
+        $argumentDefinitions = $collection->getComponentDefinition($componentName)->getArgumentDefinitions();
         foreach (array_keys($argumentTransformers->arguments) as $name) {
             if (!isset($argumentDefinitions[$name])) {
                 throw new RuntimeException(
@@ -81,7 +82,7 @@ final readonly class TransformersFactory
             }
 
             $type = $argumentDefinition->getType();
-            if (in_array($type, self::DEFAULT_SUPPORTED_TYPES, true)) {
+            if ($this->isDefaultSupportedType($type)) {
                 continue;
             }
 
@@ -104,7 +105,7 @@ final readonly class TransformersFactory
 
         $result = new Transformers(arguments: $transformers, fromFile: $pdaFileName);
 
-        $this->validateReturnType($collection->getComponentDefinition($viewHelperName->name), $result);
+        $this->validateReturnType($collection->getComponentDefinition($componentName), $result);
 
         return $result;
     }
@@ -149,6 +150,17 @@ final readonly class TransformersFactory
         return true;
     }
 
+    private function isDefaultSupportedType(string $type): bool
+    {
+        foreach ($this->splitUnionType(ltrim($type, '?')) as $typePart) {
+            if (!in_array($typePart, self::DEFAULT_SUPPORTED_TYPES, true) && $typePart !== 'null') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * @return list<string>
      */
@@ -173,7 +185,7 @@ final readonly class TransformersFactory
         return $targetIsClass && $resultIsClass && is_a($resultType, $targetType, true);
     }
 
-    private function loadArgumentTransformer(mixed $pdaFileName, ViewHelperName $viewHelperName): mixed
+    private function loadArgumentTransformer(string $pdaFileName, string $componentName): ArgumentTransformers
     {
         if (!file_exists($pdaFileName)) {
             return new ArgumentTransformers();
@@ -182,7 +194,7 @@ final readonly class TransformersFactory
         $argumentTransformers = require $pdaFileName;
         if (!$argumentTransformers instanceof ArgumentTransformers) {
             throw new RuntimeException(
-                'The PDA file ' . $pdaFileName . ' for the component "' . $viewHelperName->fullName . '" did not return an instance of ' . ArgumentTransformers::class,
+                'The transformer file ' . $pdaFileName . ' for the component "' . $componentName . '" did not return an instance of ' . ArgumentTransformers::class,
                 3130845333,
             );
         }

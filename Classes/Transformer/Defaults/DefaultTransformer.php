@@ -6,6 +6,7 @@ namespace Andersundsehr\FrontendStudio\Transformer\Defaults;
 
 use RuntimeException;
 use Andersundsehr\FrontendStudio\Transformer\Attribute\TypeTransformer;
+use Stringable;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Core\LinkHandling\TypolinkParameter;
 use TYPO3\CMS\Core\Resource\File;
@@ -15,6 +16,21 @@ final readonly class DefaultTransformer
 {
     public function __construct(private ResourceFactory $resourceFactory)
     {
+    }
+
+    #[TypeTransformer(priority: 100)]
+    public function stringable(string $string): Stringable
+    {
+        return new class($string) implements Stringable {
+            public function __construct(private string $string)
+            {
+            }
+
+            public function __toString(): string
+            {
+                return $this->string;
+            }
+        };
     }
 
     #[TypeTransformer(priority: 100)]

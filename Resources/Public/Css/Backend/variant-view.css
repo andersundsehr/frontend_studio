@@ -134,6 +134,27 @@
     margin-bottom: .75rem;
 }
 
+.frontend-studio-variant-transformer-group {
+    margin: 0 0 .75rem;
+    padding: .75rem;
+    border: 1px solid var(--frontend-studio-variant-border-color);
+    border-radius: 2px;
+}
+
+.frontend-studio-variant-transformer-group legend {
+    float: none;
+    width: auto;
+    margin: 0;
+    padding: 0 .25rem;
+    color: var(--typo3-text-color-variant);
+    font-size: .8125rem;
+    font-weight: 600;
+}
+
+.frontend-studio-variant-transformer-group > :last-child {
+    margin-bottom: 0;
+}
+
 .frontend-studio-variant-value-type {
     display: inline-block;
     padding: .0625rem .25rem;

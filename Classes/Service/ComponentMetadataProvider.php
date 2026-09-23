@@ -12,6 +12,9 @@ use Andersundsehr\FrontendStudio\Dto\ComponentTemplateMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentTemplateRootPathMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
+use Andersundsehr\FrontendStudio\Transformer\Transformers;
+use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
+use DateTimeImmutable;
 use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Package\PackageManager;
@@ -28,6 +31,7 @@ final readonly class ComponentMetadataProvider
         private PackageManager $packageManager,
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
+        private TransformersFactory $transformersFactory,
     ) {
     }
 
@@ -61,6 +65,7 @@ final readonly class ComponentMetadataProvider
         $fixture = null;
         $staticVariables = [];
         $errors = [];
+        $transformers = null;
         $resolverDelegate = $component['resolverDelegate'];
 
         if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
@@ -86,7 +91,15 @@ final readonly class ComponentMetadataProvider
                 $errors[] = 'Selected variant was not found in the fixture file.';
             }
 
-            $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments);
+            if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
+                try {
+                    $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
+                } catch (Throwable $throwable) {
+                    $errors[] = 'Component transformers could not be loaded: ' . $throwable->getMessage();
+                }
+            }
+
+            $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments, $transformers);
             try {
                 $staticVariables = $this->normalizeStaticVariables($resolverDelegate->getAdditionalVariables($componentName));
             } catch (Throwable $throwable) {
@@ -122,7 +135,7 @@ final readonly class ComponentMetadataProvider
      * @param list<ComponentArgumentMetadata> $arguments
      * @return list<ComponentVariantValueMetadata>
      */
-    private function mergeVariantValuesWithArguments(array $variantValues, array $arguments): array
+    private function mergeVariantValuesWithArguments(array $variantValues, array $arguments, ?Transformers $transformers): array
     {
         $variantValuesByName = [];
         foreach ($variantValues as $variantValue) {
@@ -132,6 +145,31 @@ final readonly class ComponentMetadataProvider
         $mergedValues = [];
         foreach ($arguments as $argument) {
             $variantValue = $variantValuesByName[$argument->name] ?? null;
+            $transformer = $transformers?->arguments[$argument->name] ?? null;
+            if ($transformer !== null) {
+                $inputValues = is_array($variantValue?->nativeValue) ? $variantValue->nativeValue : [];
+                foreach ($transformer->arguments as $inputName => $inputDefinition) {
+                    $hasValue = array_key_exists($inputName, $inputValues);
+                    $value = $hasValue ? $inputValues[$inputName] : $inputDefinition->getDefaultValue();
+                    $mergedValues[] = new ComponentVariantValueMetadata(
+                        $inputName,
+                        $inputDefinition->getType(),
+                        $inputDefinition->getDescription(),
+                        $this->formatTransformerInputValue($inputDefinition->getType(), $value),
+                        $value,
+                        is_string($value) && str_contains($value, "\n"),
+                        $hasValue,
+                        $inputDefinition->isRequired(),
+                        $argument->name,
+                        $argument->name . '.' . $inputName,
+                        $this->isDateType($inputDefinition->getType()),
+                        $this->getEnumOptions($inputDefinition->getType()),
+                        $transformer->from,
+                    );
+                }
+                continue;
+            }
+
             if ($variantValue === null) {
                 $mergedValues[] = new ComponentVariantValueMetadata(
                     $argument->name,
@@ -142,6 +180,8 @@ final readonly class ComponentMetadataProvider
                     str_contains($argument->defaultValue, "\n"),
                     false,
                     $argument->required,
+                    null,
+                    $argument->name,
                 );
                 continue;
             }
@@ -155,6 +195,8 @@ final readonly class ComponentMetadataProvider
                 $variantValue->isMultiline,
                 $variantValue->isFixtureValue,
                 $argument->required,
+                null,
+                $argument->name,
             );
         }
 
@@ -164,7 +206,7 @@ final readonly class ComponentMetadataProvider
     /**
      * @param list<ComponentArgumentMetadata> $arguments
      */
-    private function mergeFixtureValuesWithArguments(ComponentFixtureMetadata $fixture, array $arguments): ComponentFixtureMetadata
+    private function mergeFixtureValuesWithArguments(ComponentFixtureMetadata $fixture, array $arguments, ?Transformers $transformers): ComponentFixtureMetadata
     {
         if ($fixture->selectedVariant === null) {
             return $fixture;
@@ -178,7 +220,7 @@ final readonly class ComponentMetadataProvider
             $fixture->error,
             new ComponentVariantMetadata(
                 $fixture->selectedVariant->name,
-                $this->mergeVariantValuesWithArguments($fixture->selectedVariant->values, $arguments),
+                $this->mergeVariantValuesWithArguments($fixture->selectedVariant->values, $arguments, $transformers),
             ),
         );
     }
@@ -330,6 +372,41 @@ final readonly class ComponentMetadataProvider
         } catch (Throwable) {
             return get_debug_type($value);
         }
+    }
+
+    private function formatTransformerInputValue(string $type, mixed $value): string
+    {
+        if (!$this->isDateType($type) || !is_string($value)) {
+            return $this->normalizeValue($value);
+        }
+
+        try {
+            return new DateTimeImmutable($value)->format('Y-m-d\\TH:i');
+        } catch (Throwable) {
+            return $value;
+        }
+    }
+
+    private function isDateType(string $type): bool
+    {
+        return in_array($type, [\DateTime::class, DateTimeImmutable::class, \DateTimeInterface::class], true);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getEnumOptions(string $type): array
+    {
+        if (!enum_exists($type)) {
+            return [];
+        }
+
+        $options = [];
+        foreach ($type::cases() as $case) {
+            $options[$case->name] = $case->name;
+        }
+
+        return $options;
     }
 
     private function getExtensionPath(string $absolutePath): ?string

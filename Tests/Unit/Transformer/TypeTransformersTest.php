@@ -39,7 +39,7 @@ final class TypeTransformersTest extends UnitTestCase
             );
         }
 
-        self::assertEquals($transformers[$expectedIndex]['class'] . '->__invoke', $subject->get($type)->from);
+        self::assertEquals($transformers[$expectedIndex]['class'] . '::__invoke', $subject->get($type)->from);
     }
 
     public static function getDataProvider(): Generator
@@ -173,6 +173,23 @@ final class TypeTransformersTest extends UnitTestCase
         $this->expectExceptionCode(1988452468);
 
         $subject->get('string');
+    }
+
+    public function testTypeTransformerKeepsMethodSourceWithoutVirtualInputDescription(): void
+    {
+        $handler = new class {
+            public function transform(string $value): string
+            {
+                return $value;
+            }
+        };
+        $subject = $this->createSubject();
+        $subject->addTransformer($handler, 'transform', 'string', 0);
+
+        $transformer = $subject->get('string');
+
+        self::assertSame($handler::class . '::transform', $transformer->from);
+        self::assertSame('', $transformer->arguments['value']->getDescription());
     }
 
     private function createSubject(): TypeTransformers

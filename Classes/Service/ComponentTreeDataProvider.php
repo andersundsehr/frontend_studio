@@ -7,6 +7,8 @@ namespace Andersundsehr\FrontendStudio\Service;
 use RuntimeException;
 use InvalidArgumentException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Transformer\Transformer;
+use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Throwable;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
@@ -27,6 +29,7 @@ final readonly class ComponentTreeDataProvider
         private ViewHelperResolverFactoryInterface $viewHelperResolverFactory,
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
+        private TransformersFactory $transformersFactory,
     ) {
     }
 
@@ -413,12 +416,31 @@ final readonly class ComponentTreeDataProvider
         }
 
         $defaults = [];
+        $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
         foreach ($argumentDefinitions as $argumentDefinition) {
             if (!$argumentDefinition instanceof ArgumentDefinition || !$argumentDefinition->isRequired()) {
                 continue;
             }
 
-            $defaults[$argumentDefinition->getName()] = $this->getDefaultValueForArgumentType($argumentDefinition->getType());
+            $transformer = $transformers->arguments[$argumentDefinition->getName()] ?? null;
+            $defaults[$argumentDefinition->getName()] = $transformer === null
+                ? $this->getDefaultValueForArgumentType($argumentDefinition->getType())
+                : $this->getTransformerDefaults($transformer);
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getTransformerDefaults(Transformer $transformer): array
+    {
+        $defaults = [];
+        foreach ($transformer->arguments as $argument) {
+            $defaults[$argument->getName()] = $argument->isRequired()
+                ? $this->getDefaultValueForArgumentType($argument->getType())
+                : $argument->getDefaultValue();
         }
 
         return $defaults;

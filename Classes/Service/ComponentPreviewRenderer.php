@@ -7,6 +7,7 @@ namespace Andersundsehr\FrontendStudio\Service;
 use InvalidArgumentException;
 use RuntimeException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
@@ -22,6 +23,8 @@ final readonly class ComponentPreviewRenderer
         private RenderingContextFactory $renderingContextFactory,
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
+        private TransformersFactory $transformersFactory,
+        private ComponentVariantTransformer $componentVariantTransformer,
     ) {
     }
 
@@ -33,9 +36,16 @@ final readonly class ComponentPreviewRenderer
             ?? $this->componentFixtureProvider->getVariantValues($resolverDelegate, $componentName, $variantName);
         $renderingContext = $this->renderingContextFactory->create([], $request);
 
+        $componentDefinition = $resolverDelegate->getComponentDefinition($componentName);
+        $values = $this->componentVariantTransformer->transform(
+            $componentDefinition,
+            $this->transformersFactory->get($resolverDelegate, $componentName),
+            $variantValues->toArray(),
+        );
+
         return trim($resolverDelegate->getComponentRenderer()->renderComponent(
             $componentName,
-            $variantValues->toArray(),
+            $values,
             [],
             $renderingContext,
         ));

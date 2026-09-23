@@ -141,6 +141,7 @@ Options:
             - composerValidate: "composer validate"
             - functional: PHP functional tests
             - grumphpRun: Run GrumPHP
+            - phpstan: Run PHPStan
             - unit: PHP unit tests
             - renderDocumentation
             - testRenderDocumentation
@@ -475,6 +476,10 @@ case ${TEST_SUITE} in
     grumphpRun)
         COMMAND=(vendor/bin/grumphp run "$@")
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name grumphp-${SUFFIX} -e COMPOSER_CACHE_DIR=var/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} "${COMMAND[@]}"
+        SUITE_EXIT_CODE=$?
+        ;;
+    phpstan)
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name phpstan-${SUFFIX} ${IMAGE_PHP} vendor/bin/phpstan analyse "$@"
         SUITE_EXIT_CODE=$?
         ;;
     renderDocumentation)

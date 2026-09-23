@@ -368,11 +368,34 @@ class FrontendStudioVariantView {
 
       const value = this.readFieldValue(field);
       if (this.shouldSubmitField(field, name, value)) {
-        values[name] = value;
+        this.setNestedValue(values, name, value);
       }
     });
 
     return values;
+  }
+
+  setNestedValue(values, name, value) {
+    const path = name.split('.');
+    const lastSegment = path.pop();
+    let target = values;
+
+    path.forEach((segment) => {
+      target[segment] ??= {};
+      target = target[segment];
+    });
+
+    target[lastSegment] = value;
+  }
+
+  hasNestedValue(values, name) {
+    return name.split('.').every((segment) => {
+      if (!Object.prototype.hasOwnProperty.call(values, segment)) {
+        return false;
+      }
+      values = values[segment];
+      return true;
+    });
   }
 
   collectFieldValues() {
@@ -416,6 +439,11 @@ class FrontendStudioVariantView {
     if (fixtureType === 'null') {
       const value = field.value.trim();
       return value === '' || value.toLowerCase() === 'null' ? null : field.value;
+    }
+
+    if (fixtureType === 'datetime') {
+      const date = new Date(field.value);
+      return Number.isNaN(date.getTime()) ? field.value : date.toISOString();
     }
 
     if (this.isCompoundFixtureType(fixtureType)) {
@@ -647,6 +675,17 @@ class FrontendStudioVariantView {
       return;
     }
 
+    if (fixtureType === 'datetime') {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        field.value = value;
+        return;
+      }
+      const offset = date.getTimezoneOffset() * 60_000;
+      field.value = new Date(date.getTime() - offset).toISOString().slice(0, 16);
+      return;
+    }
+
     if (value === null || value === undefined) {
       field.value = '';
       return;
@@ -686,7 +725,7 @@ class FrontendStudioVariantView {
       this.initialFieldValues = this.collectFieldValues();
       this.fields.forEach((field) => {
         const name = field.dataset.fixtureName || field.name || '';
-        field.dataset.fixtureValueDefined = Object.prototype.hasOwnProperty.call(savedValues, name) ? 'true' : 'false';
+        field.dataset.fixtureValueDefined = this.hasNestedValue(savedValues, name) ? 'true' : 'false';
       });
       this.updateDirtyState();
       this.renderedHtmlPreviewUrl = '';

@@ -4,16 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service;
 
-use FilesystemIterator;
-use RecursiveCallbackFilterIterator;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
-use Throwable;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3Fluid\Fluid\Core\Component\AbstractComponentCollection;
 use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
-use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 
 final readonly class ComponentDiscoveryProvider
 {

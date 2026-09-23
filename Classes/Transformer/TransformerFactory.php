@@ -14,7 +14,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 use function class_exists;
 use function in_array;
 use function sprintf;
-use function str_contains;
 
 final readonly class TransformerFactory
 {
@@ -62,11 +61,10 @@ final readonly class TransformerFactory
                 );
             }
 
-            $descriptionPrefix = 'transformed via: ' . (str_contains($from, '::') ? '`' . $from . '`' : '`*.transformer.php`') . ' - ';
             $arguments[$argumentName] = new ArgumentDefinition(
                 name: $argumentName,
                 type: $type,
-                description: $descriptionPrefix . ' virtual argument has type:',
+                description: '',
                 required: !$parameter->isOptional(),
                 defaultValue: $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
                 escape: false,

@@ -72,7 +72,7 @@ final class TypeTransformers
 
         $this->handlers[$returnType] = $this->transformerFactory->fromCallable(
             $handler->{$method}(...),
-            $handler::class . '->' . $method
+            $handler::class . '::' . $method
         );
         $this->priorities[$returnType] = $priority;
     }

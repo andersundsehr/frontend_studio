@@ -15,6 +15,12 @@ final readonly class ComponentVariantValueMetadata
         public bool $isMultiline,
         public bool $isFixtureValue,
         public bool $required,
+        public ?string $parentName = null,
+        public ?string $fixtureName = null,
+        public bool $isDate = false,
+        /** @var array<string, string> */
+        public array $options = [],
+        public ?string $transformerSource = null,
     ) {
     }
 }

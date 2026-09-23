@@ -38,6 +38,15 @@ final class FluidUsageSnippetRendererTest extends TestCase
         self::assertSame('Hello', $variables->getByPath('metadata.fixture.selectedVariant.values.0.value'));
     }
 
+    public function testUsesVariableForNestedTransformerFixtureValues(): void
+    {
+        $metadata = $this->createMetadataWithTransformerValue();
+
+        $snippet = new FluidUsageSnippetRenderer(new HtmlSourceHighlighter())->build($metadata);
+
+        self::assertSame('<ui:Card typolink="{typolink}" />', $snippet);
+    }
+
     private function createMetadata(): ComponentMetadata
     {
         return new ComponentMetadata(
@@ -64,6 +73,38 @@ final class FluidUsageSnippetRendererTest extends TestCase
                 new ComponentVariantMetadata('Default', [
                     new ComponentVariantValueMetadata('title', 'string', '', 'Hello', 'Hello', false, true, false),
                     new ComponentVariantValueMetadata('enabled', 'bool', '', 'true', true, false, true, false),
+                ]),
+            ),
+            [],
+            [],
+        );
+    }
+
+    private function createMetadataWithTransformerValue(): ComponentMetadata
+    {
+        return new ComponentMetadata(
+            'ui:Card:Default',
+            'Default',
+            'Default',
+            'ui:Card',
+            'Card',
+            'ui',
+            'Vendor\\Components',
+            true,
+            'Vendor\\Components',
+            [],
+            false,
+            [],
+            [],
+            null,
+            new ComponentFixtureMetadata(
+                null,
+                null,
+                null,
+                [],
+                null,
+                new ComponentVariantMetadata('Default', [
+                    new ComponentVariantValueMetadata('typolink', 'array', '', '', ['url' => '/contact'], false, true, false),
                 ]),
             ),
             [],
