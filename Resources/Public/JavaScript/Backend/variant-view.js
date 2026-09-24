@@ -676,6 +676,7 @@ class FrontendStudioVariantView {
   updateDirtyState() {
     this.hasUnsavedChanges = JSON.stringify(this.collectValues()) !== JSON.stringify(this.savedValues)
       || JSON.stringify(this.collectSlotValues()) !== JSON.stringify(this.savedSlots);
+    const hasInvalidFields = [...this.fields, ...this.slotFields].some((field) => !field.checkValidity());
 
     if (this.saveState !== null) {
       this.saveState.hidden = !this.hasUnsavedChanges;
@@ -683,6 +684,8 @@ class FrontendStudioVariantView {
 
     if (this.saveButton !== null) {
       this.saveButton.disabled = !this.hasUnsavedChanges;
+      this.saveButton.classList.toggle('frontend-studio-variant-save-invalid', this.hasUnsavedChanges && hasInvalidFields);
+      this.saveButton.setAttribute('aria-disabled', (!this.hasUnsavedChanges || hasInvalidFields).toString());
     }
 
     if (this.resetButton !== null) {
@@ -747,7 +750,13 @@ class FrontendStudioVariantView {
   }
 
   async saveValues() {
-    if (this.variantIdentifier === '' || this.saveButton === null || !this.hasUnsavedChanges || ![...this.fields, ...this.slotFields].every((field) => field.reportValidity())) {
+    if (this.variantIdentifier === '' || this.saveButton === null || !this.hasUnsavedChanges) {
+      return;
+    }
+
+    const invalidField = [...this.fields, ...this.slotFields].find((field) => !field.reportValidity());
+    if (invalidField !== undefined) {
+      invalidField.focus();
       return;
     }
 

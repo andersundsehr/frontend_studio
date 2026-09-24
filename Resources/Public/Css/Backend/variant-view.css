@@ -191,6 +191,14 @@
     --typo3-form-select-border-color: var(--typo3-state-danger-border-color);
 }
 
+.frontend-studio-variant-view .frontend-studio-variant-save-invalid {
+    --typo3-btn-color: var(--typo3-btn-disabled-color);
+    --typo3-btn-bg: var(--typo3-btn-disabled-bg);
+    --typo3-btn-border-color: var(--typo3-btn-disabled-border-color);
+    cursor: not-allowed;
+    opacity: var(--typo3-btn-disabled-opacity);
+}
+
 .frontend-studio-variant-html-status,
 .frontend-studio-variant-template-status {
     margin-bottom: .75rem;
