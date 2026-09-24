@@ -6,6 +6,7 @@ namespace Andersundsehr\FrontendStudio\Service;
 
 use DateTime;
 use DateTimeInterface;
+use Andersundsehr\FrontendStudio\ValueFormatter;
 use Andersundsehr\FrontendStudio\Dto\ComponentArgumentMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentFixtureMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
@@ -266,7 +267,7 @@ final readonly class ComponentMetadataProvider
                 $argumentDefinition->getType(),
                 $argumentDefinition->getDescription(),
                 $argumentDefinition->isRequired(),
-                $this->normalizeValue($argumentDefinition->getDefaultValue()),
+                ValueFormatter::format($argumentDefinition->getDefaultValue()),
                 match ($argumentDefinition->getEscape()) {
                     true => 'enabled',
                     false => 'disabled',
@@ -346,41 +347,16 @@ final readonly class ComponentMetadataProvider
     {
         $variables = [];
         foreach ($staticVariables as $name => $value) {
-            $variables[] = new ComponentStaticVariableMetadata((string)$name, get_debug_type($value), $this->normalizeValue($value));
+            $variables[] = new ComponentStaticVariableMetadata((string)$name, get_debug_type($value), ValueFormatter::format($value));
         }
 
         return $variables;
     }
 
-    private function normalizeValue(mixed $value): string
-    {
-        if ($value === null) {
-            return 'null';
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_scalar($value)) {
-            return (string)$value;
-        }
-
-        if (is_object($value)) {
-            return 'object(' . $value::class . ')';
-        }
-
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
-        } catch (Throwable) {
-            return get_debug_type($value);
-        }
-    }
-
     private function formatTransformerInputValue(string $type, mixed $value): string
     {
         if (!$this->isDateType($type) || !is_string($value)) {
-            return $this->normalizeValue($value);
+            return ValueFormatter::format($value);
         }
 
         try {

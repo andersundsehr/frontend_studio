@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Dto;
 
+use Andersundsehr\FrontendStudio\ValueFormatter;
 use BackedEnum;
 use Throwable;
 use UnitEnum;
@@ -93,7 +94,7 @@ final readonly class ComponentVariantValues
                 $name,
                 get_debug_type($value),
                 '',
-                self::formatDisplayValue($value),
+                ValueFormatter::format($value),
                 $value,
                 is_string($value) && str_contains($value, "\n"),
                 true,
@@ -209,24 +210,4 @@ final readonly class ComponentVariantValues
         return $value;
     }
 
-    private function formatDisplayValue(mixed $value): string
-    {
-        if ($value === null) {
-            return 'null';
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_scalar($value)) {
-            return (string)$value;
-        }
-
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
-        } catch (Throwable) {
-            return get_debug_type($value);
-        }
-    }
 }

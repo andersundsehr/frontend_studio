@@ -1,217 +1,228 @@
 <details class="frontend-studio-variant-argument-group panel panel-default" open>
-    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-        <strong>{variantValue.name}</strong>
-        <code class="frontend-studio-variant-value-type">{variantValue.type}</code>
-        <f:if condition="{variantValue.required} == false">
-            <span class="text-body-secondary">*</span>
-        </f:if>
-        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-            <core:icon identifier="actions-chevron-end" />
-        </span>
-        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-            <core:icon identifier="actions-chevron-down" />
-        </span>
-    </summary>
-    <div class="frontend-studio-variant-argument-group-content panel-body">
-        <f:if condition="{variantValue.description}">
-            <f:if condition="{variantValue.parentName}">
-              <f:then>
-                <div class="form-text mb-0">{variantValue.description}</div>
-              </f:then>
-              <f:else>
-                <label class="form-label" for="frontend-studio-variant-value-{variantValue.fixtureName}">{variantValue.description}</label>
-              </f:else>
-            </f:if>
-        </f:if>
-        <f:if condition="{variantValue.options}">
+  <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+    <strong>{variantValue.name}</strong>
+    <f:if condition="{variantValue.required} == false">
+      <span class="text-body-secondary">?</span>
+    </f:if>
+    <code class="frontend-studio-variant-value-type">{variantValue.type}</code>
+    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+      <core:icon identifier="actions-chevron-end"/>
+    </span>
+    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+      <core:icon identifier="actions-chevron-down"/>
+    </span>
+  </summary>
+  <div class="frontend-studio-variant-argument-group-content panel-body">
+    <f:if condition="{variantValue.description}">
+      <f:if condition="{variantValue.parentName}">
         <f:then>
-            <select
-                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                name="{variantValue.fixtureName}"
-                data-frontend-studio-variant-value
-                data-fixture-name="{variantValue.fixtureName}"
-                data-fixture-type="{variantValue.type}"
-                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                class="form-select"
-                {f:if(condition: variantValue.required, then: 'required')}
-            >
-                <f:for each="{variantValue.options}" as="label" key="value">
-                    <option value="{value}" {f:if(condition: '{variantValue.value} == {value}', then: 'selected')}>{label}</option>
-                </f:for>
-            </select>
+          <div class="form-text mb-0">{variantValue.description}</div>
         </f:then>
         <f:else>
-            <f:if condition="{variantValue.isDate}">
-                <f:then>
-                    <input
-                        type="datetime-local"
-                        id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                        name="{variantValue.fixtureName}"
-                        data-frontend-studio-variant-value
-                        data-fixture-name="{variantValue.fixtureName}"
-                        data-fixture-type="datetime"
-                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                        class="form-control"
-                        {f:if(condition: variantValue.required, then: 'required')}
-                        value="{variantValue.value}"
-                    >
-                </f:then>
-                <f:else>
-                    <f:switch expression="{variantValue.type}">
-                        <f:case value="bool">
-                            <div class="form-check">
-                                <input
-                                    type="checkbox"
-                                    id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                    name="{variantValue.fixtureName}"
-                                    data-frontend-studio-variant-value
-                                    data-fixture-name="{variantValue.fixtureName}"
-                                    data-fixture-type="{variantValue.type}"
-                                    data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                    class="form-check-input"
-                                    value="1"
-                                    {f:if(condition: '{variantValue.value} == \'true\'', then: 'checked')}
-                                >
-                            </div>
-                        </f:case>
-                        <f:case value="boolean">
-                            <div class="form-check">
-                                <input
-                                    type="checkbox"
-                                    id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                    name="{variantValue.fixtureName}"
-                                    data-frontend-studio-variant-value
-                                    data-fixture-name="{variantValue.fixtureName}"
-                                    data-fixture-type="{variantValue.type}"
-                                    data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                    class="form-check-input"
-                                    value="1"
-                                    {f:if(condition: '{variantValue.value} == \'true\'', then: 'checked')}
-                                >
-                            </div>
-                        </f:case>
-                        <f:case value="int">
-                            <input
-                                type="number"
-                                step="1"
-                                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                name="{variantValue.fixtureName}"
-                                data-frontend-studio-variant-value
-                                data-fixture-name="{variantValue.fixtureName}"
-                                data-fixture-type="{variantValue.type}"
-                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                class="form-control"
-                                {f:if(condition: variantValue.required, then: 'required')}
-                                value="{variantValue.value}"
-                            >
-                        </f:case>
-                        <f:case value="integer">
-                            <input
-                                type="number"
-                                step="1"
-                                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                name="{variantValue.fixtureName}"
-                                data-frontend-studio-variant-value
-                                data-fixture-name="{variantValue.fixtureName}"
-                                data-fixture-type="{variantValue.type}"
-                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                class="form-control"
-                                {f:if(condition: variantValue.required, then: 'required')}
-                                value="{variantValue.value}"
-                            >
-                        </f:case>
-                        <f:case value="float">
-                            <input
-                                type="number"
-                                step="any"
-                                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                name="{variantValue.fixtureName}"
-                                data-frontend-studio-variant-value
-                                data-fixture-name="{variantValue.fixtureName}"
-                                data-fixture-type="{variantValue.type}"
-                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                class="form-control"
-                                {f:if(condition: variantValue.required, then: 'required')}
-                                value="{variantValue.value}"
-                            >
-                        </f:case>
-                        <f:case value="double">
-                            <input
-                                type="number"
-                                step="any"
-                                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                name="{variantValue.fixtureName}"
-                                data-frontend-studio-variant-value
-                                data-fixture-name="{variantValue.fixtureName}"
-                                data-fixture-type="{variantValue.type}"
-                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                class="form-control"
-                                {f:if(condition: variantValue.required, then: 'required')}
-                                value="{variantValue.value}"
-                            >
-                        </f:case>
-                        <f:case value="string">
-                            <f:if condition="{variantValue.isMultiline}">
-                                <f:then>
-                                    <textarea
-                                        id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                        name="{variantValue.fixtureName}"
-                                        data-frontend-studio-variant-value
-                                        data-fixture-name="{variantValue.fixtureName}"
-                                        data-fixture-type="{variantValue.type}"
-                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                        class="form-control"
-                                        {f:if(condition: variantValue.required, then: 'required')}
-                                        rows="3"
-                                    >{variantValue.value}</textarea>
-                                </f:then>
-                                <f:else>
-                                    <input
-                                        type="text"
-                                        id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                        name="{variantValue.fixtureName}"
-                                        data-frontend-studio-variant-value
-                                        data-fixture-name="{variantValue.fixtureName}"
-                                        data-fixture-type="{variantValue.type}"
-                                        data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                        class="form-control"
-                                        {f:if(condition: variantValue.required, then: 'required')}
-                                        value="{variantValue.value}"
-                                    >
-                                </f:else>
-                            </f:if>
-                        </f:case>
-                        <f:case value="null">
-                            <input
-                                type="text"
-                                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                name="{variantValue.fixtureName}"
-                                data-frontend-studio-variant-value
-                                data-fixture-name="{variantValue.fixtureName}"
-                                data-fixture-type="{variantValue.type}"
-                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                class="form-control"
-                                {f:if(condition: variantValue.required, then: 'required')}
-                                value=""
-                            >
-                        </f:case>
-                        <f:defaultCase>
-                            <textarea
-                                id="frontend-studio-variant-value-{variantValue.fixtureName}"
-                                name="{variantValue.fixtureName}"
-                                data-frontend-studio-variant-value
-                                data-fixture-name="{variantValue.fixtureName}"
-                                data-fixture-type="{variantValue.type}"
-                                data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                                class="form-control"
-                                {f:if(condition: variantValue.required, then: 'required')}
-                                rows="3"
-                            >{variantValue.value}</textarea>
-                        </f:defaultCase>
-                    </f:switch>
-                </f:else>
-            </f:if>
+          <label class="form-label" for="frontend-studio-variant-value-{variantValue.fixtureName}">{variantValue.description}</label>
         </f:else>
+      </f:if>
+    </f:if>
+    <f:if condition="{variantValue.options}">
+      <f:then>
+        <select
+          id="frontend-studio-variant-value-{variantValue.fixtureName}"
+          name="{variantValue.fixtureName}"
+          data-frontend-studio-variant-value
+          data-fixture-name="{variantValue.fixtureName}"
+          data-fixture-type="{variantValue.type}"
+          data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+          data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+          class="form-select"
+          {f:if(condition: variantValue.required, then: 'required')}
+        >
+        <f:for each="{variantValue.options}" as="label" key="value">
+          <option value="{value}" {f:if(condition:
+          '{variantValue.value} == {value}', then: 'selected')}>{label}</option>
+        </f:for>
+        </select>
+      </f:then>
+      <f:else>
+        <f:if condition="{variantValue.isDate}">
+          <f:then>
+            <input
+              type="datetime-local"
+              id="frontend-studio-variant-value-{variantValue.fixtureName}"
+              name="{variantValue.fixtureName}"
+              data-frontend-studio-variant-value
+              data-fixture-name="{variantValue.fixtureName}"
+              data-fixture-type="datetime"
+              data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+              data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+              class="form-control"
+              {f:if(condition: variantValue.required, then: 'required')}
+              value="{variantValue.value}"
+            />
+          </f:then>
+          <f:else>
+            <f:switch expression="{variantValue.type}">
+              <f:case value="bool">
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                    name="{variantValue.fixtureName}"
+                    data-frontend-studio-variant-value
+                    data-fixture-name="{variantValue.fixtureName}"
+                    data-fixture-type="{variantValue.type}"
+                    data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                    class="form-check-input"
+                    value="1"
+                    {f:if(condition: '{variantValue.value} == \'true\'', then: 'checked')}
+                  />
+                </div>
+              </f:case>
+              <f:case value="boolean">
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                    name="{variantValue.fixtureName}"
+                    data-frontend-studio-variant-value
+                    data-fixture-name="{variantValue.fixtureName}"
+                    data-fixture-type="{variantValue.type}"
+                    data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                    class="form-check-input"
+                    value="1"
+                    {f:if(condition: '{variantValue.value} == \'true\'', then: 'checked')}
+                  />
+                </div>
+              </f:case>
+              <f:case value="int">
+                <input
+                  type="number"
+                  step="1"
+                  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                  name="{variantValue.fixtureName}"
+                  data-frontend-studio-variant-value
+                  data-fixture-name="{variantValue.fixtureName}"
+                  data-fixture-type="{variantValue.type}"
+                  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  class="form-control"
+                  {f:if(condition: variantValue.required, then: 'required')}
+                  value="{variantValue.value}"
+                  />
+              </f:case>
+              <f:case value="integer">
+                <input
+                  type="number"
+                  step="1"
+                  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                  name="{variantValue.fixtureName}"
+                  data-frontend-studio-variant-value
+                  data-fixture-name="{variantValue.fixtureName}"
+                  data-fixture-type="{variantValue.type}"
+                  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  class="form-control"
+                  {f:if(condition: variantValue.required, then: 'required')}
+                  value="{variantValue.value}"
+                  />
+              </f:case>
+              <f:case value="float">
+                <input
+                  type="number"
+                  step="any"
+                  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                  name="{variantValue.fixtureName}"
+                  data-frontend-studio-variant-value
+                  data-fixture-name="{variantValue.fixtureName}"
+                  data-fixture-type="{variantValue.type}"
+                  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  class="form-control"
+                  {f:if(condition: variantValue.required, then: 'required')}
+                  value="{variantValue.value}"
+                  />
+              </f:case>
+              <f:case value="double">
+                <input
+                  type="number"
+                  step="any"
+                  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                  name="{variantValue.fixtureName}"
+                  data-frontend-studio-variant-value
+                  data-fixture-name="{variantValue.fixtureName}"
+                  data-fixture-type="{variantValue.type}"
+                  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  class="form-control"
+                  {f:if(condition: variantValue.required, then: 'required')}
+                  value="{variantValue.value}"
+                  />
+              </f:case>
+              <f:case value="string">
+                <f:if condition="{variantValue.isMultiline}">
+                  <f:then>
+                    <textarea
+                      id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                      name="{variantValue.fixtureName}"
+                      data-frontend-studio-variant-value
+                      data-fixture-name="{variantValue.fixtureName}"
+                      data-fixture-type="{variantValue.type}"
+                      data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                      data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                      class="form-control"
+                      {f:if(condition: variantValue.required, then: 'required')}
+                      rows="3"
+                    >{variantValue.value}</textarea>
+                  </f:then>
+                  <f:else>
+                    <input
+                      type="text"
+                      id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                      name="{variantValue.fixtureName}"
+                      data-frontend-studio-variant-value
+                      data-fixture-name="{variantValue.fixtureName}"
+                      data-fixture-type="{variantValue.type}"
+                      data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                      data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                      class="form-control"
+                      {f:if(condition: variantValue.required, then: 'required')}
+                      value="{variantValue.value}"
+                      />
+                  </f:else>
+                </f:if>
+              </f:case>
+              <f:case value="null">
+                <input
+                  type="text"
+                  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                  name="{variantValue.fixtureName}"
+                  data-frontend-studio-variant-value
+                  data-fixture-name="{variantValue.fixtureName}"
+                  data-fixture-type="{variantValue.type}"
+                  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  class="form-control"
+                  {f:if(condition: variantValue.required, then: 'required')}
+                  value=""
+                  />
+              </f:case>
+              <f:defaultCase>
+                <textarea
+                  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+                  name="{variantValue.fixtureName}"
+                  data-frontend-studio-variant-value
+                  data-fixture-name="{variantValue.fixtureName}"
+                  data-fixture-type="{variantValue.type}"
+                  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  class="form-control"
+                  {f:if(condition: variantValue.required, then: 'required')}
+                  rows="3"
+                  >{variantValue.value}</textarea>
+              </f:defaultCase>
+            </f:switch>
+          </f:else>
         </f:if>
-    </div>
+      </f:else>
+    </f:if>
+  </div>
 </details>

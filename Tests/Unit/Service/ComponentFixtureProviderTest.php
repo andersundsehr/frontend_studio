@@ -53,6 +53,23 @@ YAML);
         self::assertTrue($metadata->variants[0]->values[1]->nativeValue);
     }
 
+    public function testKeepsYamlNullDistinctFromStringNull(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', <<<YAML
+variants:
+  Default:
+    nativeNull: null
+    stringNull: 'null'
+YAML);
+
+        $values = $this->createProvider()->getFixtureMetadata($this->createResolverDelegate(), 'Card')->variants[0]->values;
+
+        self::assertNull($values[0]->nativeValue);
+        self::assertSame('', $values[0]->value);
+        self::assertSame('null', $values[1]->nativeValue);
+        self::assertSame('null', $values[1]->value);
+    }
+
     public function testReturnsEmptyTypedMetadataWhenFixtureDoesNotExist(): void
     {
         $metadata = $this->createProvider()->getFixtureMetadata($this->createResolverDelegate(), 'Card');

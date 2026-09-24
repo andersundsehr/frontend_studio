@@ -428,6 +428,14 @@ class FrontendStudioVariantView {
       return field.checked === true;
     }
 
+    if (field.dataset.fixtureValueNull === 'true') {
+      if (field.value === '') {
+        return null;
+      }
+
+      field.dataset.fixtureValueNull = 'false';
+    }
+
     if (fixtureType === 'int' || fixtureType === 'integer') {
       return Number.isFinite(field.valueAsNumber) ? Math.trunc(field.valueAsNumber) : field.value;
     }
@@ -437,8 +445,7 @@ class FrontendStudioVariantView {
     }
 
     if (fixtureType === 'null') {
-      const value = field.value.trim();
-      return value === '' || value.toLowerCase() === 'null' ? null : field.value;
+      return field.value.trim() === '' ? null : field.value;
     }
 
     if (fixtureType === 'datetime') {
@@ -667,6 +674,7 @@ class FrontendStudioVariantView {
   }
 
   writeFieldValue(field, value) {
+    field.dataset.fixtureValueNull = value === null ? 'true' : 'false';
     const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
 
     if (fixtureType === 'bool' || fixtureType === 'boolean') {

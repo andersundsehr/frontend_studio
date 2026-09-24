@@ -1,366 +1,367 @@
 <html
-    xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
-    xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
-    data-namespace-typo3-fluid="true"
+  xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+  xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+  data-namespace-typo3-fluid="true"
 >
-    <f:asset.css
-        identifier="frontend-studio-variant-view"
-        href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"
-    />
-    <f:asset.script
-        identifier="frontend-studio-variant-view"
-        src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js"
-        type="module"
-    />
-    <f:asset.script
-        identifier="frontend-studio-component-tree-startup"
-        src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/component-tree-startup.js"
-        type="module"
-    />
+<f:asset.css
+  identifier="frontend-studio-variant-view"
+  href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"
+/>
+<f:asset.script
+  identifier="frontend-studio-variant-view"
+  src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js"
+  type="module"
+/>
+<f:asset.script
+  identifier="frontend-studio-component-tree-startup"
+  src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/component-tree-startup.js"
+  type="module"
+/>
 
-    <div
-        class="frontend-studio-variant-view"
-        data-frontend-studio-variant-view
-        data-variant-identifier="{selectedVariantIdentifier}"
-        data-preview-uri="{componentPreviewUri}"
-        data-component-change-stream-uri="{componentChangeStreamUri}"
-        data-component-file-path="{selectedComponentMetadata.template.relativePath}"
-        data-component-fluid-tag-name="{selectedComponentMetadata.displayNamespace}:{selectedComponentMetadata.componentName}"
-        data-active-tab="{variantActiveTab}"
-        style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px"
-    >
-        <div class="frontend-studio-variant-workspace">
-            <div class="frontend-studio-variant-preview-column">
-                <div class="frontend-studio-variant-header">
-                    <f:if condition="{selectedVariantIdentifier}">
-                        <f:then>
-                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="min-w-0 d-flex flex-wrap align-items-center gap-1">
-                                    <typo3-backend-content-navigation-toggle
-                                      class="btn btn-sm btn-icon btn-default btn-borderless"
-                                      action="expand"
-                                      hidden
-                                    ></typo3-backend-content-navigation-toggle>
+<div
+  class="frontend-studio-variant-view"
+  data-frontend-studio-variant-view
+  data-variant-identifier="{selectedVariantIdentifier}"
+  data-preview-uri="{componentPreviewUri}"
+  data-component-change-stream-uri="{componentChangeStreamUri}"
+  data-component-file-path="{selectedComponentMetadata.template.relativePath}"
+  data-component-fluid-tag-name="{selectedComponentMetadata.displayNamespace}:{selectedComponentMetadata.componentName}"
+  data-active-tab="{variantActiveTab}"
+  style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px"
+>
+  <div class="frontend-studio-variant-workspace">
+    <div class="frontend-studio-variant-preview-column">
+      <div class="frontend-studio-variant-header">
+        <f:if condition="{selectedVariantIdentifier}">
+          <f:then>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="min-w-0 d-flex flex-wrap align-items-center gap-1">
+                <typo3-backend-content-navigation-toggle
+                  class="btn btn-sm btn-icon btn-default btn-borderless"
+                  action="expand"
+                  hidden
+                ></typo3-backend-content-navigation-toggle>
 
-                                    <h1 class="h6 mb-0">
-                                        <f:if condition="{selectedComponentMetadata.variantLabel}">
-                                            <f:then>{selectedComponentMetadata.variantLabel}</f:then>
-                                            <f:else>Selected component variant</f:else>
-                                        </f:if>
-                                    </h1>
-                                    <div class="small text-body-secondary text-truncate">
-                                        <code>{selectedVariantIdentifier}</code>
-                                    </div>
-                                </div>
-
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <f:if condition="{selectedComponentMetadata.template.relativePath}">
-                                        <button
-                                            type="button"
-                                            class="btn btn-default btn-sm"
-                                            title="Copy component file path"
-                                            data-frontend-studio-copy-component-path
-                                        >
-                                            Copy file path
-                                            <core:icon identifier="actions-edit-copy" size="small" />
-                                        </button>
-                                    </f:if>
-                                    <f:if condition="{componentPreviewUri}">
-                                        <a
-                                            href="{componentPreviewUri}"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="btn btn-default btn-sm"
-                                        >
-                                            Open rendered variant
-                                            <core:icon identifier="actions-window-open" size="small" />
-                                        </a>
-                                    </f:if>
-                                </div>
-                            </div>
-
-                            <f:if condition="{selectedComponentMetadata.errors}">
-                                <div class="alert alert-warning mt-2 mb-0">
-                                    <ul class="mb-0">
-                                        <f:for each="{selectedComponentMetadata.errors}" as="error">
-                                            <li>{error}</li>
-                                        </f:for>
-                                    </ul>
-                                </div>
-                            </f:if>
-                        </f:then>
-                        <f:else>
-                            <h1 class="h4 mb-1">No component variant selected</h1>
-                            <p class="mb-0 text-body-secondary">Select a component variant from the tree to render it.</p>
-                        </f:else>
-                    </f:if>
+                <h1 class="h6 mb-0">
+                  <f:if condition="{selectedComponentMetadata.variantLabel}">
+                    <f:then>{selectedComponentMetadata.variantLabel}</f:then>
+                    <f:else>Selected component variant</f:else>
+                  </f:if>
+                </h1>
+                <div class="small text-body-secondary text-truncate">
+                  <code>{selectedVariantIdentifier}</code>
                 </div>
+              </div>
 
-                <div class="frontend-studio-variant-preview">
-                    <f:if condition="{componentPreviewUri}">
-                        <f:then>
-                            <iframe
-                                src="{componentPreviewUri}"
-                                title="Rendered component variant preview"
-                                data-frontend-studio-variant-frame
-                            ></iframe>
-                        </f:then>
-                    <f:else>
-                        <div class="p-4 text-body-secondary">
-                            The rendered component preview is not available.
-                        </div>
-                    </f:else>
-                    </f:if>
-                </div>
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <f:if condition="{selectedComponentMetadata.template.relativePath}">
+                  <button
+                    type="button"
+                    class="btn btn-default btn-sm"
+                    title="Copy component file path"
+                    data-frontend-studio-copy-component-path
+                  >
+                    Copy file path
+                    <core:icon identifier="actions-edit-copy" size="small"/>
+                  </button>
+                </f:if>
+                <f:if condition="{componentPreviewUri}">
+                  <a
+                    href="{componentPreviewUri}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-default btn-sm"
+                  >
+                    Open rendered variant
+                    <core:icon identifier="actions-window-open" size="small"/>
+                  </a>
+                </f:if>
+              </div>
             </div>
 
-            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant}">
-                <div
-                    class="frontend-studio-variant-sidebar-resize-handle"
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label="Resize variant side panel"
-                    tabindex="0"
-                    data-frontend-studio-variant-sidebar-resize
-                ></div>
-                <aside class="frontend-studio-variant-sidebar" aria-label="Variant tools">
-                    <div class="frontend-studio-variant-sidebar-header">
-                        <ul class="nav nav-tabs frontend-studio-variant-tabs" role="tablist" aria-label="Variant panel tabs">
-                            <li class="nav-item" role="presentation">
-                                <button
-                                    type="button"
-                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'values\'', then: ' active is-active')}"
-                                    id="frontend-studio-variant-values-tab"
-                                    role="tab"
-                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'values\'', then: 'true', else: 'false')}"
-                                    aria-controls="frontend-studio-variant-values-panel"
-                                    data-frontend-studio-variant-tab="values"
-                                >
-                                    Controls
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button
-                                    type="button"
-                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'html\'', then: ' active is-active')}"
-                                    id="frontend-studio-variant-html-tab"
-                                    role="tab"
-                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'html\'', then: 'true', else: 'false')}"
-                                    aria-controls="frontend-studio-variant-html-panel"
-                                    data-frontend-studio-variant-tab="html"
-                                >
-                                    Rendered HTML
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button
-                                    type="button"
-                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'template\'', then: ' active is-active')}"
-                                    id="frontend-studio-variant-template-tab"
-                                    role="tab"
-                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'template\'', then: 'true', else: 'false')}"
-                                    aria-controls="frontend-studio-variant-template-panel"
-                                    data-frontend-studio-variant-tab="template"
-                                >
-                                    Fluid Template
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button
-                                    type="button"
-                                    class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' active is-active')}"
-                                    id="frontend-studio-variant-usage-tab"
-                                    role="tab"
-                                    aria-selected="{f:if(condition: '{variantActiveTab} == \'usage\'', then: 'true', else: 'false')}"
-                                    aria-controls="frontend-studio-variant-usage-panel"
-                                    data-frontend-studio-variant-tab="usage"
-                                >
-                                    Fluid Usage
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="frontend-studio-variant-sidebar-body">
-                        <div
-                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'values\'', then: ' is-active', else: ' is-hidden')}"
-                            id="frontend-studio-variant-values-panel"
-                            role="tabpanel"
-                            aria-labelledby="frontend-studio-variant-values-tab"
-                            data-frontend-studio-variant-tab-panel="values"
-                        >
-                            <div class="frontend-studio-variant-values-actions">
-                                <button
-                                    type="button"
-                                    class="btn btn-default btn-sm"
-                                    data-frontend-studio-variant-reset
-                                    disabled
-                                >
-                                  <core:icon identifier="actions-undo"/>
-                                    Reset
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-default btn-sm"
-                                    data-frontend-studio-variant-copy
-                                >
-                                  <core:icon identifier="actions-edit-copy"/>
-                                    Save as new
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-primary btn-sm"
-                                    data-frontend-studio-variant-save
-                                    disabled
-                                >
-                                  <core:icon identifier="actions-save"/>
-                                    Save
-                                </button>
-                                <span
-                                  class="frontend-studio-variant-save-state"
-                                  data-frontend-studio-variant-save-state
-                                  hidden
-                                >
-                                      Unsaved changes
-                                  </span>
-                            </div>
-                            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
-                                <f:then>
-                                    <div class="panel-group mb-0">
-                                        <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
-                                        <f:if condition="{parentName}">
-                                            <f:then>
-                                                <details class="frontend-studio-variant-argument-group panel panel-default" open>
-                                                    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                                                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                                                            <f:if condition="{argument.name} == {parentName}">
-                                                                <strong>{argument.name}</strong>
-                                                                <code class="frontend-studio-variant-value-type">{argument.type}</code>
-                                                                <f:if condition="{argument.required} == false">
-                                                                    <span class="text-body-secondary">*</span>
-                                                                </f:if>
-                                                            </f:if>
-                                                        </f:for>
-                                                        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                                                            <core:icon identifier="actions-chevron-end" />
-                                                        </span>
-                                                        <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                                                            <core:icon identifier="actions-chevron-down" />
-                                                        </span>
-                                                    </summary>
-                                                    <div class="frontend-studio-variant-argument-group-content panel-body">
-                                                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                                                            <f:if condition="{argument.name} == {parentName}">
-                                                                <f:if condition="{argument.description}">
-                                                                    <div class="form-text mb-0">{argument.description}</div>
-                                                                </f:if>
-                                                            </f:if>
-                                                        </f:for>
-                                                        <div class="panel-group mb-0">
-                                                            <f:for each="{groupValues}" as="variantValue">
-                                                                <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}" />
-                                                            </f:for>
-                                                        </div>
-                                                        <f:for each="{groupValues}" as="variantValue" iteration="iterator">
-                                                            <f:if condition="{iterator.isLast}">
-                                                                <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
-                                                            </f:if>
-                                                        </f:for>
-                                                    </div>
-                                                </details>
-                                            </f:then>
-                                            <f:else>
-                                                <f:for each="{groupValues}" as="variantValue">
-                                                    <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}" />
-                                                </f:for>
-                                            </f:else>
-                                        </f:if>
-                                        </f:groupedFor>
-                                    </div>
-                                    <p class="mb-0 text-body-secondary">
-                                        * optional argument
-                                    </p>
-                                </f:then>
-                                <f:else>
-                                    <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>
-                                </f:else>
-                            </f:if>
-                        </div>
-                        <div
-                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'html\'', then: ' is-active', else: ' is-hidden')}"
-                            id="frontend-studio-variant-html-panel"
-                            role="tabpanel"
-                            aria-labelledby="frontend-studio-variant-html-tab"
-                            data-frontend-studio-variant-tab-panel="html"
-                        >
-                            <div
-                                class="frontend-studio-variant-html-status{f:if(condition: renderedHtmlStatus, then: ' is-error')}"
-                                data-frontend-studio-variant-html-status
-                                hidden="{f:if(condition: renderedHtmlStatus, then: false, else: true)}"
-                            >
-                                {renderedHtmlStatus}
-                            </div>
-                            <div
-                                class="frontend-studio-variant-html"
-                                data-frontend-studio-variant-html
-                            >{renderedHtmlSource -> f:format.raw()}</div>
-                        </div>
-                        <div
-                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'template\'', then: ' is-active', else: ' is-hidden')}"
-                            id="frontend-studio-variant-template-panel"
-                            role="tabpanel"
-                            aria-labelledby="frontend-studio-variant-template-tab"
-                            data-frontend-studio-variant-tab-panel="template"
-                        >
-                            <f:if condition="{selectedComponentMetadata.template.error}">
-                                <f:then>
-                                    <div class="frontend-studio-variant-template-status is-error">
-                                        The Fluid template could not be loaded. {selectedComponentMetadata.template.error}
-                                    </div>
-                                </f:then>
-                                <f:else>
-                                    <f:if condition="{selectedComponentMetadata.template.content}">
-                                        <f:then>
-                                            <div class="frontend-studio-variant-template">
-                                                {fluidTemplateSource -> f:format.raw()}
-                                            </div>
-                                        </f:then>
-                                        <f:else>
-                                            <div class="frontend-studio-variant-template-status">
-                                                The Fluid template content is not available.
-                                            </div>
-                                        </f:else>
-                                    </f:if>
-                                </f:else>
-                            </f:if>
-                        </div>
-                        <div
-                            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' is-active', else: ' is-hidden')}"
-                            id="frontend-studio-variant-usage-panel"
-                            role="tabpanel"
-                            aria-labelledby="frontend-studio-variant-usage-tab"
-                            data-frontend-studio-variant-tab-panel="usage"
-                        >
-                            <div class="frontend-studio-variant-usage-actions">
-                                <button
-                                    type="button"
-                                    class="btn btn-default btn-sm"
-                                    data-frontend-studio-copy-fluid-usage
-                                >
-                                    Copy
-                                    <core:icon identifier="actions-edit-copy" size="small" />
-                                </button>
-                            </div>
-                            <div
-                                class="frontend-studio-variant-usage"
-                                data-frontend-studio-variant-usage
-                            >
-                                <pre class="frontend-studio-variant-html-source"><code data-frontend-studio-fluid-usage-code>{fluidUsageSource -> f:format.raw()}</code></pre>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
+            <f:if condition="{selectedComponentMetadata.errors}">
+              <div class="alert alert-warning mt-2 mb-0">
+                <ul class="mb-0">
+                  <f:for each="{selectedComponentMetadata.errors}" as="error">
+                    <li>{error}</li>
+                  </f:for>
+                </ul>
+              </div>
             </f:if>
-        </div>
+          </f:then>
+          <f:else>
+            <h1 class="h4 mb-1">No component variant selected</h1>
+            <p class="mb-0 text-body-secondary">Select a component variant from the tree to render it.</p>
+          </f:else>
+        </f:if>
+      </div>
+
+      <div class="frontend-studio-variant-preview">
+        <f:if condition="{componentPreviewUri}">
+          <f:then>
+            <iframe
+              src="{componentPreviewUri}"
+              title="Rendered component variant preview"
+              data-frontend-studio-variant-frame
+            ></iframe>
+          </f:then>
+          <f:else>
+            <div class="p-4 text-body-secondary">
+              The rendered component preview is not available.
+            </div>
+          </f:else>
+        </f:if>
+      </div>
     </div>
+
+    <f:if condition="{selectedComponentMetadata.fixture.selectedVariant}">
+      <div
+        class="frontend-studio-variant-sidebar-resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize variant side panel"
+        tabindex="0"
+        data-frontend-studio-variant-sidebar-resize
+      ></div>
+      <aside class="frontend-studio-variant-sidebar" aria-label="Variant tools">
+        <div class="frontend-studio-variant-sidebar-header">
+          <ul class="nav nav-tabs frontend-studio-variant-tabs" role="tablist" aria-label="Variant panel tabs">
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'values\'', then: ' active is-active')}"
+                id="frontend-studio-variant-values-tab"
+                role="tab"
+                aria-selected="{f:if(condition: '{variantActiveTab} == \'values\'', then: 'true', else: 'false')}"
+                aria-controls="frontend-studio-variant-values-panel"
+                data-frontend-studio-variant-tab="values"
+              >
+                Controls
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'html\'', then: ' active is-active')}"
+                id="frontend-studio-variant-html-tab"
+                role="tab"
+                aria-selected="{f:if(condition: '{variantActiveTab} == \'html\'', then: 'true', else: 'false')}"
+                aria-controls="frontend-studio-variant-html-panel"
+                data-frontend-studio-variant-tab="html"
+              >
+                Rendered HTML
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'template\'', then: ' active is-active')}"
+                id="frontend-studio-variant-template-tab"
+                role="tab"
+                aria-selected="{f:if(condition: '{variantActiveTab} == \'template\'', then: 'true', else: 'false')}"
+                aria-controls="frontend-studio-variant-template-panel"
+                data-frontend-studio-variant-tab="template"
+              >
+                Fluid Template
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' active is-active')}"
+                id="frontend-studio-variant-usage-tab"
+                role="tab"
+                aria-selected="{f:if(condition: '{variantActiveTab} == \'usage\'', then: 'true', else: 'false')}"
+                aria-controls="frontend-studio-variant-usage-panel"
+                data-frontend-studio-variant-tab="usage"
+              >
+                Fluid Usage
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div class="frontend-studio-variant-sidebar-body">
+          <div
+            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'values\'', then: ' is-active', else: ' is-hidden')}"
+            id="frontend-studio-variant-values-panel"
+            role="tabpanel"
+            aria-labelledby="frontend-studio-variant-values-tab"
+            data-frontend-studio-variant-tab-panel="values"
+          >
+            <div class="frontend-studio-variant-values-actions">
+              <button
+                type="button"
+                class="btn btn-default btn-sm"
+                data-frontend-studio-variant-reset
+                disabled
+              >
+                <core:icon identifier="actions-undo"/>
+                Reset
+              </button>
+              <button
+                type="button"
+                class="btn btn-default btn-sm"
+                data-frontend-studio-variant-copy
+              >
+                <core:icon identifier="actions-edit-copy"/>
+                Save as new
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                data-frontend-studio-variant-save
+                disabled
+              >
+                <core:icon identifier="actions-save"/>
+                Save
+              </button>
+              <span
+                class="frontend-studio-variant-save-state"
+                data-frontend-studio-variant-save-state
+                hidden
+              >
+                Unsaved changes
+              </span>
+            </div>
+            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
+              <f:then>
+                <div class="panel-group mb-0">
+                  <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
+                    <f:if condition="{parentName}">
+                      <f:then>
+                        <details class="frontend-studio-variant-argument-group panel panel-default" open>
+                          <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+                            <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                              <f:if condition="{argument.name} == {parentName}">
+                                <strong>{argument.name}</strong>
+                                <f:if condition="{argument.required} == false">
+                                  <span class="text-body-secondary">?</span>
+                                </f:if>
+                                <code class="frontend-studio-variant-value-type">{argument.type}</code>
+                              </f:if>
+                            </f:for>
+                            <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+                              <core:icon identifier="actions-chevron-end"/>
+                            </span>
+                            <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+                              <core:icon identifier="actions-chevron-down"/>
+                            </span>
+                          </summary>
+                          <div class="frontend-studio-variant-argument-group-content panel-body">
+                            <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                              <f:if condition="{argument.name} == {parentName}">
+                                <f:if condition="{argument.description}">
+                                  <div class="form-text mb-0">{argument.description}</div>
+                                </f:if>
+                              </f:if>
+                            </f:for>
+                            <div class="panel-group mb-0">
+                              <f:for each="{groupValues}" as="variantValue">
+                                <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}"/>
+                              </f:for>
+                            </div>
+                            <f:for each="{groupValues}" as="variantValue" iteration="iterator">
+                              <f:if condition="{iterator.isLast}">
+                                <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
+                              </f:if>
+                            </f:for>
+                          </div>
+                        </details>
+                      </f:then>
+                      <f:else>
+                        <f:for each="{groupValues}" as="variantValue">
+                          <f:render partial="FrontendStudio/VariantValue" arguments="{variantValue: variantValue}"/>
+                        </f:for>
+                      </f:else>
+                    </f:if>
+                  </f:groupedFor>
+                </div>
+                <p class="mb-0 text-body-secondary">
+                  ? optional argument
+                </p>
+              </f:then>
+              <f:else>
+                <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>
+              </f:else>
+            </f:if>
+          </div>
+          <div
+            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'html\'', then: ' is-active', else: ' is-hidden')}"
+            id="frontend-studio-variant-html-panel"
+            role="tabpanel"
+            aria-labelledby="frontend-studio-variant-html-tab"
+            data-frontend-studio-variant-tab-panel="html"
+          >
+            <div
+              class="frontend-studio-variant-html-status{f:if(condition: renderedHtmlStatus, then: ' is-error')}"
+              data-frontend-studio-variant-html-status
+              hidden="{f:if(condition: renderedHtmlStatus, then: false, else: true)}"
+            >
+              {renderedHtmlStatus}
+            </div>
+            <div
+              class="frontend-studio-variant-html"
+              data-frontend-studio-variant-html
+            >{renderedHtmlSource -> f:format.raw()}
+            </div>
+          </div>
+          <div
+            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'template\'', then: ' is-active', else: ' is-hidden')}"
+            id="frontend-studio-variant-template-panel"
+            role="tabpanel"
+            aria-labelledby="frontend-studio-variant-template-tab"
+            data-frontend-studio-variant-tab-panel="template"
+          >
+            <f:if condition="{selectedComponentMetadata.template.error}">
+              <f:then>
+                <div class="frontend-studio-variant-template-status is-error">
+                  The Fluid template could not be loaded. {selectedComponentMetadata.template.error}
+                </div>
+              </f:then>
+              <f:else>
+                <f:if condition="{selectedComponentMetadata.template.content}">
+                  <f:then>
+                    <div class="frontend-studio-variant-template">
+                      {fluidTemplateSource -> f:format.raw()}
+                    </div>
+                  </f:then>
+                  <f:else>
+                    <div class="frontend-studio-variant-template-status">
+                      The Fluid template content is not available.
+                    </div>
+                  </f:else>
+                </f:if>
+              </f:else>
+            </f:if>
+          </div>
+          <div
+            class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' is-active', else: ' is-hidden')}"
+            id="frontend-studio-variant-usage-panel"
+            role="tabpanel"
+            aria-labelledby="frontend-studio-variant-usage-tab"
+            data-frontend-studio-variant-tab-panel="usage"
+          >
+            <div class="frontend-studio-variant-usage-actions">
+              <button
+                type="button"
+                class="btn btn-default btn-sm"
+                data-frontend-studio-copy-fluid-usage
+              >
+                Copy
+                <core:icon identifier="actions-edit-copy" size="small"/>
+              </button>
+            </div>
+            <div
+              class="frontend-studio-variant-usage"
+              data-frontend-studio-variant-usage
+            >
+              <pre class="frontend-studio-variant-html-source"><code data-frontend-studio-fluid-usage-code>{fluidUsageSource -> f:format.raw()}</code></pre>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </f:if>
+  </div>
+</div>
 
 </html>

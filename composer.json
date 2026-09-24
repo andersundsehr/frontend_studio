@@ -28,6 +28,11 @@
       "Andersundsehr\\FrontendStudio\\": "Classes/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "Andersundsehr\\FrontendStudio\\Tests\\": "Tests/"
+    }
+  },
   "config": {
     "allow-plugins": {
       "a9f/fractor-extension-installer": true,
