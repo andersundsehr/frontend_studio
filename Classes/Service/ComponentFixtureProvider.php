@@ -50,7 +50,7 @@ final readonly class ComponentFixtureProvider
 
             $content = $fixtureContent;
 
-            $fixture = Yaml::parseFile($absolutePath);
+            $fixture = Yaml::parseFile($absolutePath, Yaml::PARSE_CONSTANT);
             if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
                 throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 9491866460);
             }
@@ -101,7 +101,7 @@ final readonly class ComponentFixtureProvider
             throw new RuntimeException('Fixture file does not exist.', 3271471519);
         }
 
-        $fixture = Yaml::parseFile($fixturePath);
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
             throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 1298473157);
         }
@@ -149,7 +149,7 @@ final readonly class ComponentFixtureProvider
 
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (is_file($fixturePath)) {
-            $fixture = Yaml::parseFile($fixturePath);
+            $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
             if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
                 throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 5101321905);
             }
@@ -175,6 +175,7 @@ final readonly class ComponentFixtureProvider
     }
 
     /**
+     * @param array<string, string> $argumentTypes
      * @return array{fixturePath: string, fixtureExtensionPath: string|null}
      */
     public function copyVariant(
@@ -183,6 +184,7 @@ final readonly class ComponentFixtureProvider
         string $sourceVariantName,
         string $newVariantName,
         ?ComponentVariantValues $variantValues = null,
+        array $argumentTypes = [],
     ): array {
         $newVariantName = trim($newVariantName);
         if ($newVariantName === '') {
@@ -194,7 +196,7 @@ final readonly class ComponentFixtureProvider
             throw new RuntimeException('Fixture file does not exist.', 4783618831);
         }
 
-        $fixture = Yaml::parseFile($fixturePath);
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
             throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 6187566018);
         }
@@ -210,7 +212,7 @@ final readonly class ComponentFixtureProvider
         $sourceVariantValues = $fixture['variants'][$sourceVariantName];
         $fixture['variants'][$newVariantName] = $variantValues !== null
             ? $variantValues->toYamlArray()
-            : ComponentVariantValues::fromYamlValues($sourceVariantValues)->toYamlArray();
+            : ComponentVariantValues::fromYamlValues($sourceVariantValues)->normalizeForArgumentTypes($argumentTypes)->toYamlArray();
 
         $bytesWritten = file_put_contents($fixturePath, Yaml::dump($fixture, 99, 2));
         if ($bytesWritten === false) {
@@ -236,7 +238,7 @@ final readonly class ComponentFixtureProvider
             throw new RuntimeException('Fixture file does not exist.', 8076247836);
         }
 
-        $fixture = Yaml::parseFile($fixturePath);
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
             throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 4255598607);
         }
@@ -272,7 +274,7 @@ final readonly class ComponentFixtureProvider
             throw new RuntimeException('Fixture file does not exist.', 3973298810);
         }
 
-        $fixture = Yaml::parseFile($fixturePath);
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
             throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 7009596763);
         }
@@ -305,7 +307,7 @@ final readonly class ComponentFixtureProvider
             throw new RuntimeException('Fixture file does not exist.', 7881463807);
         }
 
-        $fixture = Yaml::parseFile($fixturePath);
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
         if (!is_array($fixture) || !isset($fixture['variants']) || !is_array($fixture['variants'])) {
             throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 4719164179);
         }

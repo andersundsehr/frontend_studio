@@ -77,6 +77,10 @@ final readonly class ComponentVariantTransformer
         }
 
         if (enum_exists($type)) {
+            if ($value instanceof $type) {
+                return $value;
+            }
+
             foreach ($type::cases() as $case) {
                 if ($case->name === $value) {
                     return $case;

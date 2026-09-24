@@ -66,12 +66,12 @@ final readonly class FluidUsageSnippetRenderer
                 continue;
             }
 
-            $name = trim($variantValue->name);
+            $name = trim($variantValue->parentName ?? $variantValue->name);
             if ($name === '') {
                 continue;
             }
 
-            $values[$name] = $variantValue->nativeValue;
+            $values[$name] = $variantValue->parentName === null ? $variantValue->nativeValue : [];
         }
 
         return $values;

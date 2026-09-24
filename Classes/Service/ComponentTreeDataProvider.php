@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service;
 
 use RuntimeException;
+use DateTimeImmutable;
 use InvalidArgumentException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
@@ -14,6 +15,8 @@ use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
+
+use function enum_exists;
 
 final readonly class ComponentTreeDataProvider
 {
@@ -218,12 +221,14 @@ final readonly class ComponentTreeDataProvider
             throw new RuntimeException('The selected component could not be resolved.', 9264046266);
         }
 
+        $argumentTypes = $this->getArgumentTypes($resolverDelegate, $componentName);
         $copyResult = $this->componentFixtureProvider->copyVariant(
             $resolverDelegate,
             $componentName,
             $sourceVariantName,
             $newVariantName,
-            $variantValues?->normalizeForArgumentTypes($this->getArgumentTypes($resolverDelegate, $componentName)),
+            $variantValues?->normalizeForArgumentTypes($argumentTypes),
+            $argumentTypes,
         );
         $newVariantName = trim($newVariantName);
 
@@ -411,12 +416,12 @@ final readonly class ComponentTreeDataProvider
 
         try {
             $argumentDefinitions = $resolverDelegate->getComponentDefinition($componentName)->getArgumentDefinitions();
+            $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
         } catch (Throwable) {
             return [];
         }
 
         $defaults = [];
-        $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
         foreach ($argumentDefinitions as $argumentDefinition) {
             if (!$argumentDefinition instanceof ArgumentDefinition || !$argumentDefinition->isRequired()) {
                 continue;
@@ -457,6 +462,7 @@ final readonly class ComponentTreeDataProvider
 
         try {
             $argumentDefinitions = $resolverDelegate->getComponentDefinition($componentName)->getArgumentDefinitions();
+            $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
         } catch (Throwable) {
             return [];
         }
@@ -468,6 +474,14 @@ final readonly class ComponentTreeDataProvider
             }
 
             $types[$argumentDefinition->getName()] = $argumentDefinition->getType();
+            $transformer = $transformers->arguments[$argumentDefinition->getName()] ?? null;
+            if ($transformer === null) {
+                continue;
+            }
+
+            foreach ($transformer->arguments as $inputName => $inputDefinition) {
+                $types[$argumentDefinition->getName() . '.' . $inputName] = $inputDefinition->getType();
+            }
         }
 
         return $types;
@@ -475,6 +489,14 @@ final readonly class ComponentTreeDataProvider
 
     private function getDefaultValueForArgumentType(string $type): mixed
     {
+        if ($type === DateTimeImmutable::class) {
+            return (new DateTimeImmutable())->format('Y-m-d\\TH:i');
+        }
+
+        if (enum_exists($type)) {
+            return $type::cases()[0] ?? null;
+        }
+
         $normalizedType = strtolower($type);
 
         if (preg_match('/\bbool(ean)?\b/', $normalizedType)) {

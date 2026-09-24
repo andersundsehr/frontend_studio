@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Dto;
 
+use BackedEnum;
 use Throwable;
+use UnitEnum;
+
+use function enum_exists;
 
 final readonly class ComponentVariantValues
 {
@@ -46,18 +50,17 @@ final readonly class ComponentVariantValues
     {
         $normalizedValues = [];
         foreach ($this->values as $name => $value) {
-            $argumentType = $argumentTypes[$name] ?? null;
-            if ($this->isBooleanArgumentType($argumentType)) {
-                $normalizedValues[$name] = $this->normalizeSubmittedBooleanValue($value);
-                continue;
+            $value = $this->normalizeValueForArgumentType($value, $argumentTypes[$name] ?? null);
+            if (is_array($value)) {
+                foreach ($value as $nestedName => $nestedValue) {
+                    $value[$nestedName] = $this->normalizeValueForArgumentType(
+                        $nestedValue,
+                        $argumentTypes[$name . '.' . $nestedName] ?? null,
+                    );
+                }
             }
 
-            if ($this->isCompoundArgumentType($argumentType)) {
-                $normalizedValues[$name] = $this->normalizeSubmittedCompoundValue($value);
-                continue;
-            }
-
-            $normalizedValues[$name] = self::normalizeYamlValue($value);
+            $normalizedValues[$name] = $value;
         }
 
         return new self($normalizedValues);
@@ -130,6 +133,33 @@ final readonly class ComponentVariantValues
         return $type !== null && preg_match('/\b(array|iterable|list|map|object|stdclass)\b/i', $type) === 1;
     }
 
+    private function normalizeValueForArgumentType(mixed $value, ?string $type): mixed
+    {
+        if ($type !== null && enum_exists($type)) {
+            if ($value instanceof $type) {
+                return $value;
+            }
+
+            if (is_string($value)) {
+                foreach ($type::cases() as $case) {
+                    if ($case->name === $value || $case instanceof BackedEnum && $case->value === $value) {
+                        return $case;
+                    }
+                }
+            }
+        }
+
+        if ($this->isBooleanArgumentType($type)) {
+            return $this->normalizeSubmittedBooleanValue($value);
+        }
+
+        if ($this->isCompoundArgumentType($type)) {
+            return $this->normalizeSubmittedCompoundValue($value);
+        }
+
+        return self::normalizeYamlValue($value);
+    }
+
     private function normalizeSubmittedBooleanValue(mixed $value): bool
     {
         if (is_bool($value)) {
@@ -160,6 +190,10 @@ final readonly class ComponentVariantValues
 
     private static function normalizeYamlValue(mixed $value): mixed
     {
+        if ($value instanceof UnitEnum) {
+            return $value;
+        }
+
         if (is_array($value)) {
             foreach ($value as $key => $nestedValue) {
                 $value[$key] = self::normalizeYamlValue($nestedValue);

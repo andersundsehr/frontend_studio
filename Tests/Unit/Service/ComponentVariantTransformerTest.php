@@ -84,4 +84,26 @@ final class ComponentVariantTransformerTest extends TestCase
 
         new ComponentVariantTransformer()->transform($definition, new Transformers(['result' => $transformer], 'test'), ['result' => 'invalid']);
     }
+
+    public function testPreservesEnumTransformerInput(): void
+    {
+        $definition = new ComponentDefinition('test:component', [
+            'result' => new ArgumentDefinition('result', TypolinkTargetEnum::class, '', true, null, false),
+        ], false, []);
+        $transformer = new Transformer(
+            static fn(TypolinkTargetEnum $target): TypolinkTargetEnum => $target,
+            'test',
+            TypolinkTargetEnum::class,
+            ['target' => new ArgumentDefinition('target', TypolinkTargetEnum::class, '', true, null, false)],
+            [],
+        );
+
+        $result = new ComponentVariantTransformer()->transform(
+            $definition,
+            new Transformers(['result' => $transformer], 'test'),
+            ['result' => ['target' => TypolinkTargetEnum::none]],
+        );
+
+        self::assertSame(TypolinkTargetEnum::none, $result['result']);
+    }
 }

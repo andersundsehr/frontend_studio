@@ -14,6 +14,10 @@ use TYPO3\CMS\Core\Resource\ResourceFactory;
 
 final readonly class DefaultTransformer
 {
+    private const string DEFAULT_URL = 'https://extensions.typo3.org/extension/frontend_studio';
+
+    private const string DEFAULT_FILE = 'EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png';
+
     public function __construct(private ResourceFactory $resourceFactory)
     {
     }
@@ -34,14 +38,14 @@ final readonly class DefaultTransformer
     }
 
     #[TypeTransformer(priority: 100)]
-    public function uri(string $url): Uri
+    public function uri(string $url = self::DEFAULT_URL): Uri
     {
         return new Uri($url);
     }
 
     // Transformer also matches to FileInterface or AbstractFile
     #[TypeTransformer(priority: 100)]
-    public function file(string $extPath): File
+    public function file(string $extPath = self::DEFAULT_FILE): File
     {
         $file = $this->resourceFactory->retrieveFileOrFolderObject($extPath);
         if (!$file instanceof File) {
@@ -53,7 +57,7 @@ final readonly class DefaultTransformer
 
     #[TypeTransformer(priority: 100)]
     public function typolinkParameter(
-        string $url = '',
+        string $url = self::DEFAULT_URL,
         TypolinkTargetEnum $target = TypolinkTargetEnum::none,
         string $class = '',
         string $title = '',

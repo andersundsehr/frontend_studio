@@ -699,7 +699,7 @@ class FrontendStudioVariantView {
   }
 
   async saveValues() {
-    if (this.variantIdentifier === '' || this.saveButton === null || !this.hasUnsavedChanges) {
+    if (this.variantIdentifier === '' || this.saveButton === null || !this.hasUnsavedChanges || !this.fields.every((field) => field.reportValidity())) {
       return;
     }
 
@@ -753,7 +753,7 @@ class FrontendStudioVariantView {
   }
 
   async copyVariant(name) {
-    if (this.variantIdentifier === '' || this.copyVariantButton === null) {
+    if (this.variantIdentifier === '' || this.copyVariantButton === null || !this.fields.every((field) => field.reportValidity())) {
       return;
     }
 

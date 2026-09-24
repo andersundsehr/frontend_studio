@@ -38,13 +38,13 @@ final class FluidUsageSnippetRendererTest extends TestCase
         self::assertSame('Hello', $variables->getByPath('metadata.fixture.selectedVariant.values.0.value'));
     }
 
-    public function testUsesVariableForNestedTransformerFixtureValues(): void
+    public function testUsesParentVariableForTransformerFixtureValues(): void
     {
         $metadata = $this->createMetadataWithTransformerValue();
 
         $snippet = new FluidUsageSnippetRenderer(new HtmlSourceHighlighter())->build($metadata);
 
-        self::assertSame('<ui:Card typolink="{typolink}" />', $snippet);
+        self::assertSame('<ui:Card bodytext="{bodytext}" />', $snippet);
     }
 
     private function createMetadata(): ComponentMetadata
@@ -104,7 +104,8 @@ final class FluidUsageSnippetRendererTest extends TestCase
                 [],
                 null,
                 new ComponentVariantMetadata('Default', [
-                    new ComponentVariantValueMetadata('typolink', 'array', '', '', ['url' => '/contact'], false, true, false),
+                    new ComponentVariantValueMetadata('content', 'string', '', 'Text', 'Text', false, true, false, 'bodytext', 'bodytext.content'),
+                    new ComponentVariantValueMetadata('format', 'string', '', 'html', 'html', false, true, false, 'bodytext', 'bodytext.format'),
                 ]),
             ),
             [],
