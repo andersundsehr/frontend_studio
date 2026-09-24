@@ -15,7 +15,7 @@ use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperResolverDelegateInterface;
 
-final readonly class ComponentPreviewRenderer
+final readonly class ComponentPreviewRenderer implements ComponentPreviewRendererInterface
 {
     public function __construct(
         private ComponentResolverDelegateProvider $componentResolverDelegateProvider,
@@ -28,7 +28,10 @@ final readonly class ComponentPreviewRenderer
     ) {
     }
 
-    public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?ComponentVariantValues $variantValueOverrides = null): string
+    /**
+     * @param array<string, string>|null $slotOverrides
+     */
+    public function renderVariant(string $variantIdentifier, ServerRequestInterface $request, ?ComponentVariantValues $variantValueOverrides = null, ?array $slotOverrides = null): string
     {
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponent($namespace, $componentName);
@@ -42,11 +45,22 @@ final readonly class ComponentPreviewRenderer
             $this->transformersFactory->get($resolverDelegate, $componentName),
             $variantValues->toArray(),
         );
+        $storedSlotValues = $this->componentFixtureProvider->getVariantSlots(
+            $resolverDelegate,
+            $componentName,
+            $variantName,
+            array_values($componentDefinition->getAvailableSlots()),
+        );
+        $slotValues = $slotOverrides ?? $storedSlotValues;
+        $slots = [];
+        foreach ($slotValues as $slotName => $slotValue) {
+            $slots[$slotName] = static fn(): string => $slotValue;
+        }
 
         return trim($resolverDelegate->getComponentRenderer()->renderComponent(
             $componentName,
             $values,
-            [],
+            $slots,
             $renderingContext,
         ));
     }

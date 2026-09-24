@@ -102,7 +102,15 @@ final readonly class ComponentMetadataProvider
                 }
             }
 
-            $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments, $transformers);
+            try {
+                $slotValues = $fixture->selectedVariant !== null
+                    ? $this->componentFixtureProvider->getVariantSlots($resolverDelegate, $componentName, $variantName, $slots)
+                    : [];
+            } catch (Throwable $throwable) {
+                $slotValues = [];
+                $errors[] = 'Component slots could not be loaded: ' . $throwable->getMessage();
+            }
+            $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments, $transformers, $slotValues);
             try {
                 $staticVariables = $this->normalizeStaticVariables($resolverDelegate->getAdditionalVariables($componentName));
             } catch (Throwable $throwable) {
@@ -209,8 +217,9 @@ final readonly class ComponentMetadataProvider
 
     /**
      * @param list<ComponentArgumentMetadata> $arguments
+     * @param array<string, string> $slots
      */
-    private function mergeFixtureValuesWithArguments(ComponentFixtureMetadata $fixture, array $arguments, ?Transformers $transformers): ComponentFixtureMetadata
+    private function mergeFixtureValuesWithArguments(ComponentFixtureMetadata $fixture, array $arguments, ?Transformers $transformers, array $slots = []): ComponentFixtureMetadata
     {
         if ($fixture->selectedVariant === null) {
             return $fixture;
@@ -225,6 +234,7 @@ final readonly class ComponentMetadataProvider
             new ComponentVariantMetadata(
                 $fixture->selectedVariant->name,
                 $this->mergeVariantValuesWithArguments($fixture->selectedVariant->values, $arguments, $transformers),
+                $slots,
             ),
         );
     }

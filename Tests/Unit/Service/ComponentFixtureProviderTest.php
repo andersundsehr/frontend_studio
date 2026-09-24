@@ -9,6 +9,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use TYPO3\CMS\Core\Package\PackageManager;
@@ -26,7 +27,11 @@ final class ComponentFixtureProviderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->templatePath = tempnam(sys_get_temp_dir(), 'frontend-studio-') . '.html';
+        $directory = tempnam(sys_get_temp_dir(), 'frontend-studio-');
+        self::assertNotFalse($directory);
+        unlink($directory);
+        mkdir($directory);
+        $this->templatePath = $directory . '/Card.html';
         file_put_contents($this->templatePath, '<f:variable name="example" />');
     }
 
@@ -34,6 +39,11 @@ final class ComponentFixtureProviderTest extends TestCase
     {
         @unlink($this->templatePath);
         @unlink(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml');
+        foreach (glob(dirname($this->templatePath) . '/_slots/*') ?: [] as $slotFile) {
+            @unlink($slotFile);
+        }
+        @rmdir(dirname($this->templatePath) . '/_slots');
+        @rmdir(dirname($this->templatePath));
     }
 
     public function testReturnsTypedFixtureMetadata(): void
@@ -77,6 +87,80 @@ YAML);
         self::assertSame([], $metadata->variants);
         self::assertNull($metadata->content);
         self::assertNull($metadata->error);
+    }
+
+    public function testStoresAndClearsSlotHtmlOutsideTheFixture(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+
+        $provider->updateVariantValues(
+            $resolverDelegate,
+            'Card',
+            'Default',
+            ComponentVariantValues::empty(),
+            ['default' => '<p>Slot HTML</p>'],
+            ['default'],
+        );
+
+        self::assertSame(['default' => '<p>Slot HTML</p>'], $provider->getVariantSlots($resolverDelegate, 'Card', 'Default', ['default']));
+        self::assertStringStartsWith('# slots can be put there: _slots/<variant_name>__slot__<slot_name>.fluid.html', (string)file_get_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml'));
+        self::assertStringNotContainsString('<p>Slot HTML</p>', (string)file_get_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml'));
+
+        $provider->updateVariantValues($resolverDelegate, 'Card', 'Default', ComponentVariantValues::empty(), ['default' => ''], ['default']);
+
+        self::assertSame(['default' => ''], $provider->getVariantSlots($resolverDelegate, 'Card', 'Default', ['default']));
+    }
+
+    public function testRejectsNonStringSlotValues(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+        $provider->updateVariantValues($resolverDelegate, 'Card', 'Default', ComponentVariantValues::empty(), ['default' => '<p>Preserved</p>'], ['default']);
+
+        foreach ([null, []] as $value) {
+            try {
+                $provider->updateVariantValues($resolverDelegate, 'Card', 'Default', ComponentVariantValues::empty(), ['default' => $value], ['default']);
+                self::fail('Expected invalid slot value to be rejected.');
+            } catch (InvalidArgumentException) {
+                self::assertSame(['default' => '<p>Preserved</p>'], $provider->getVariantSlots($resolverDelegate, 'Card', 'Default', ['default']));
+            }
+        }
+    }
+
+    public function testCopiesRenamesAndDeletesSlotFiles(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+        $provider->updateVariantValues($resolverDelegate, 'Card', 'Default', ComponentVariantValues::empty(), ['default' => '<strong>Copied</strong>'], ['default']);
+
+        $provider->copyVariant($resolverDelegate, 'Card', 'Default', 'Copy', null, [], null, ['default']);
+        self::assertSame(['default' => '<strong>Copied</strong>'], $provider->getVariantSlots($resolverDelegate, 'Card', 'Copy', ['default']));
+
+        $provider->renameVariant($resolverDelegate, 'Card', 'Copy', 'Renamed', ['default']);
+        self::assertSame(['default' => '<strong>Copied</strong>'], $provider->getVariantSlots($resolverDelegate, 'Card', 'Renamed', ['default']));
+
+        $provider->deleteVariant($resolverDelegate, 'Card', 'Renamed', ['default']);
+        self::assertFileDoesNotExist(dirname($this->templatePath) . '/_slots/Renamed__slot__default.fluid.html');
+    }
+
+    public function testRejectsCollidingNormalizedSlotNames(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->createProvider()->getVariantSlots($this->createResolverDelegate(), 'Card', 'Default', ['content/body', 'content\\body']);
+    }
+
+    public function testRejectsCollidingNormalizedVariantNames(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  A/B: []\n  A\\B: []\n");
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->createProvider()->getVariantSlots($this->createResolverDelegate(), 'Card', 'A/B', ['default']);
     }
 
     private function createProvider(): ComponentFixtureProvider

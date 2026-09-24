@@ -9,7 +9,7 @@ use RuntimeException;
 use JsonException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
-use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
+use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Andersundsehr\FrontendStudio\Service\PreviewAssetRenderer;
@@ -37,8 +37,10 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
     private const string VARIANT_VALUES_PARAMETER = 'componentVariantValues';
 
+    private const string VARIANT_SLOTS_PARAMETER = 'componentVariantSlots';
+
     public function __construct(
-        private ComponentPreviewRenderer $componentPreviewRenderer,
+        private ComponentPreviewRendererInterface $componentPreviewRenderer,
         private ComponentMetadataProvider $componentMetadataProvider,
         private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
@@ -63,6 +65,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         $queryParams = $request->getQueryParams();
         $variantIdentifier = isset($queryParams['componentVariant']) ? (string)$queryParams['componentVariant'] : '';
         $variantValueOverrides = $this->getVariantValueOverrides($queryParams);
+        $slotOverrides = $this->getSlotOverrides($queryParams);
         $isFragmentRequest = $this->isFragmentRequest($queryParams) || $this->isHighlightedFragmentRequest($queryParams);
 
         if ($this->isFluidUsageRequest($queryParams)) {
@@ -75,7 +78,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         }
 
         try {
-            $content = $this->componentPreviewRenderer->renderVariant($variantIdentifier, $request, $variantValueOverrides);
+            $content = $this->componentPreviewRenderer->renderVariant($variantIdentifier, $request, $variantValueOverrides, $slotOverrides);
         } catch (InvalidArgumentException $exception) {
             return $this->createErrorResponse('Invalid component variant', $exception->getMessage(), 400, $isFragmentRequest);
         } catch (RuntimeException $exception) {
@@ -145,6 +148,38 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         }
 
         return ComponentVariantValues::fromSubmittedValues($decodedValues);
+    }
+
+    /**
+     * @param array<string, mixed> $queryParams
+     * @return array<string, string>|null
+     */
+    private function getSlotOverrides(array $queryParams): ?array
+    {
+        $encodedSlots = $queryParams[self::VARIANT_SLOTS_PARAMETER] ?? null;
+        if (!is_string($encodedSlots) || $encodedSlots === '') {
+            return null;
+        }
+
+        try {
+            $decodedSlots = json_decode($encodedSlots, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        if (!is_array($decodedSlots)) {
+            return null;
+        }
+
+        $slots = [];
+        foreach ($decodedSlots as $name => $content) {
+            if (!is_string($name) || !is_string($content)) {
+                return null;
+            }
+            $slots[$name] = $content;
+        }
+
+        return $slots;
     }
 
     private function createErrorResponse(string $title, string $message, int $status, bool $isFragmentRequest): HtmlResponse

@@ -174,6 +174,7 @@ final readonly class ComponentTreeDataProvider
             $componentName,
             $currentVariantName,
             $newVariantName,
+            $this->getSlotNames($resolverDelegate, $componentName),
         );
         $newVariantName = trim($newVariantName);
 
@@ -200,6 +201,7 @@ final readonly class ComponentTreeDataProvider
             $componentName,
             $variantName,
             $this->getRequiredArgumentDefaults($resolverDelegate, $componentName),
+            $this->getSlotNames($resolverDelegate, $componentName),
         );
         $variantName = trim($variantName);
 
@@ -211,9 +213,10 @@ final readonly class ComponentTreeDataProvider
     }
 
     /**
+     * @param array<string, mixed>|null $slotValues
      * @return array{identifier: string, componentIdentifier: string, name: string, fixturePath: string, fixtureExtensionPath: string|null}
      */
-    public function copyVariant(string $sourceVariantIdentifier, string $newVariantName, ?ComponentVariantValues $variantValues = null): array
+    public function copyVariant(string $sourceVariantIdentifier, string $newVariantName, ?ComponentVariantValues $variantValues = null, ?array $slotValues = null): array
     {
         [$namespace, $componentName, $sourceVariantName] = $this->parseVariantIdentifier($sourceVariantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
@@ -229,6 +232,8 @@ final readonly class ComponentTreeDataProvider
             $newVariantName,
             $variantValues?->normalizeForArgumentTypes($argumentTypes),
             $argumentTypes,
+            $slotValues,
+            $this->getSlotNames($resolverDelegate, $componentName),
         );
         $newVariantName = trim($newVariantName);
 
@@ -255,6 +260,7 @@ final readonly class ComponentTreeDataProvider
             $resolverDelegate,
             $componentName,
             $variantName,
+            $this->getSlotNames($resolverDelegate, $componentName),
         );
 
         return [
@@ -266,9 +272,10 @@ final readonly class ComponentTreeDataProvider
     }
 
     /**
+     * @param array<string, mixed>|null $slotValues
      * @return array{identifier: string, componentIdentifier: string, name: string, fixturePath: string, fixtureExtensionPath: string|null, values: array<string, mixed>}
      */
-    public function updateVariantValues(string $variantIdentifier, ComponentVariantValues $variantValues): array
+    public function updateVariantValues(string $variantIdentifier, ComponentVariantValues $variantValues, ?array $slotValues = null): array
     {
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponentTemplateResolver($namespace, $componentName);
@@ -281,6 +288,8 @@ final readonly class ComponentTreeDataProvider
             $componentName,
             $variantName,
             $variantValues->normalizeForArgumentTypes($this->getArgumentTypes($resolverDelegate, $componentName)),
+            $slotValues,
+            $this->getSlotNames($resolverDelegate, $componentName),
         );
 
         return [
@@ -485,6 +494,18 @@ final readonly class ComponentTreeDataProvider
         }
 
         return $types;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getSlotNames(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): array
+    {
+        if (!$resolverDelegate instanceof ComponentDefinitionProviderInterface) {
+            return [];
+        }
+
+        return array_values($resolverDelegate->getComponentDefinition($componentName)->getAvailableSlots());
     }
 
     private function getDefaultValueForArgumentType(string $type): mixed

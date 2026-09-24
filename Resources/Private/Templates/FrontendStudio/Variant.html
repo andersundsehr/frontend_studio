@@ -223,7 +223,7 @@
                 Unsaved changes
               </span>
             </div>
-            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values}">
+            <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values} || {selectedComponentMetadata.fixture.selectedVariant.slots}">
               <f:then>
                 <div class="panel-group mb-0">
                   <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
@@ -279,6 +279,35 @@
                 <p class="mb-0 text-body-secondary">
                   ? optional argument
                 </p>
+                <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.slots}">
+                  <h2 class="h6 mt-3 mb-2">Slots</h2>
+                  <div class="panel-group mb-0">
+                    <f:for each="{selectedComponentMetadata.fixture.selectedVariant.slots}" as="slotContent" key="slotName">
+                      <details class="frontend-studio-variant-argument-group panel panel-default" open>
+                        <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+                          <strong>{slotName}</strong>
+                          <code class="frontend-studio-variant-value-type">HTML</code>
+                          <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+                            <core:icon identifier="actions-chevron-end"/>
+                          </span>
+                          <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+                            <core:icon identifier="actions-chevron-down"/>
+                          </span>
+                        </summary>
+                        <div class="frontend-studio-variant-argument-group-content panel-body">
+                          <textarea
+                            id="frontend-studio-variant-slot-{slotName}"
+                            name="{slotName}"
+                            data-frontend-studio-variant-slot
+                            data-slot-name="{slotName}"
+                            class="form-control"
+                            rows="5"
+                          >{slotContent}</textarea>
+                        </div>
+                      </details>
+                    </f:for>
+                  </div>
+                </f:if>
               </f:then>
               <f:else>
                 <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>

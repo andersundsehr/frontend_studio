@@ -7,5 +7,6 @@ $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'] = array_val
     'frontendStudioComponentPreview',
     'componentVariant',
     'componentVariantValues',
+    'componentVariantSlots',
     'frontendStudioPreviewFormat',
 ]));

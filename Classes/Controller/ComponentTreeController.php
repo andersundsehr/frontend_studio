@@ -117,11 +117,12 @@ final readonly class ComponentTreeController
         $values = isset($body['values']) && is_array($body['values'])
             ? ComponentVariantValues::fromSubmittedValues($body['values'])
             : null;
+        $slotValues = isset($body['slots']) && is_array($body['slots']) ? $body['slots'] : null;
 
         try {
             return new JsonResponse([
                 'success' => true,
-                'variant' => $this->componentTreeDataProvider->copyVariant($identifier, $name, $values),
+                'variant' => $this->componentTreeDataProvider->copyVariant($identifier, $name, $values, $slotValues),
             ]);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([
@@ -211,11 +212,12 @@ final readonly class ComponentTreeController
         $values = isset($body['values']) && is_array($body['values'])
             ? ComponentVariantValues::fromSubmittedValues($body['values'])
             : ComponentVariantValues::empty();
+        $slotValues = isset($body['slots']) && is_array($body['slots']) ? $body['slots'] : null;
 
         try {
             return new JsonResponse([
                 'success' => true,
-                'variant' => $this->componentTreeDataProvider->updateVariantValues($identifier, $values),
+                'variant' => $this->componentTreeDataProvider->updateVariantValues($identifier, $values, $slotValues),
             ]);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([

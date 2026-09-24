@@ -76,8 +76,13 @@ final readonly class ComponentTemplateRootWatcher
         $componentIdentifiersByPath = $this->getComponentIdentifiersByWatchedFilePath();
         $changedComponentIdentifiers = [];
         foreach (array_keys($changedPaths) as $path) {
-            foreach ($componentIdentifiersByPath[$path] ?? [] as $componentIdentifier) {
-                $changedComponentIdentifiers[$componentIdentifier] = true;
+            foreach ($componentIdentifiersByPath as $watchedPath => $componentIdentifiers) {
+                if ($path !== $watchedPath && !str_starts_with($path, $watchedPath . '/')) {
+                    continue;
+                }
+                foreach ($componentIdentifiers as $componentIdentifier) {
+                    $changedComponentIdentifiers[$componentIdentifier] = true;
+                }
             }
         }
 
@@ -149,6 +154,10 @@ final readonly class ComponentTemplateRootWatcher
         if ($fixturePath !== null) {
             $paths[] = $this->normalizeFilePath($fixturePath);
         }
+        $slotDirectory = $this->getSlotDirectoryPath($templatePath);
+        if ($slotDirectory !== null) {
+            $paths[] = $this->normalizeFilePath($slotDirectory);
+        }
 
         return array_values(array_unique($paths));
     }
@@ -161,6 +170,19 @@ final readonly class ComponentTemplateRootWatcher
 
         if (str_ends_with($templatePath, '.html')) {
             return substr($templatePath, 0, -strlen('.html')) . '.fixture.yaml';
+        }
+
+        return null;
+    }
+
+    private function getSlotDirectoryPath(string $templatePath): ?string
+    {
+        if (str_ends_with($templatePath, '.fluid.html')) {
+            return dirname($templatePath) . '/_slots';
+        }
+
+        if (str_ends_with($templatePath, '.html')) {
+            return dirname($templatePath) . '/_slots';
         }
 
         return null;

@@ -40,8 +40,11 @@ class FrontendStudioVariantView {
     this.htmlStatus = root.querySelector('[data-frontend-studio-variant-html-status]');
     this.fluidUsageCode = root.querySelector('[data-frontend-studio-fluid-usage-code]');
     this.fields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-value]'));
+    this.slotFields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-slot]'));
     this.initialFieldValues = {};
+    this.initialSlotValues = {};
     this.savedValues = {};
+    this.savedSlots = {};
     this.hasUnsavedChanges = false;
     this.activeTab = this.readInitialActiveTab();
     this.htmlRefreshTimeout = null;
@@ -60,7 +63,9 @@ class FrontendStudioVariantView {
     }
 
     this.initialFieldValues = this.collectFieldValues();
+    this.initialSlotValues = this.collectSlotValues();
     this.savedValues = this.collectValues();
+    this.savedSlots = this.collectSlotValues();
     this.renderedHtmlPreviewUrl = this.buildRenderedHtmlUrl().toString();
     this.updateDirtyState();
     this.initializeTabs();
@@ -72,6 +77,17 @@ class FrontendStudioVariantView {
       const handleFieldChange = () => {
         this.updateDirtyState();
         this.refreshFluidUsageSnippet();
+        this.updatePreview();
+        this.scheduleRenderedHtmlRefresh();
+      };
+
+      field.addEventListener('input', handleFieldChange);
+      field.addEventListener('change', handleFieldChange);
+    });
+
+    this.slotFields.forEach((field) => {
+      const handleFieldChange = () => {
+        this.updateDirtyState();
         this.updatePreview();
         this.scheduleRenderedHtmlRefresh();
       };
@@ -413,6 +429,19 @@ class FrontendStudioVariantView {
     return values;
   }
 
+  collectSlotValues() {
+    const slots = {};
+
+    this.slotFields.forEach((field) => {
+      const name = field.dataset.slotName || field.name || '';
+      if (name !== '') {
+        slots[name] = field.value;
+      }
+    });
+
+    return slots;
+  }
+
   shouldSubmitField(field, name, value) {
     if (field.dataset.fixtureValueDefined === 'true') {
       return true;
@@ -474,6 +503,10 @@ class FrontendStudioVariantView {
 
     if (this.fields.length > 0) {
       previewUrl.searchParams.set('componentVariantValues', JSON.stringify(this.collectValues()));
+    }
+
+    if (this.slotFields.length > 0) {
+      previewUrl.searchParams.set('componentVariantSlots', JSON.stringify(this.collectSlotValues()));
     }
 
     return previewUrl;
@@ -641,7 +674,8 @@ class FrontendStudioVariantView {
   }
 
   updateDirtyState() {
-    this.hasUnsavedChanges = JSON.stringify(this.collectValues()) !== JSON.stringify(this.savedValues);
+    this.hasUnsavedChanges = JSON.stringify(this.collectValues()) !== JSON.stringify(this.savedValues)
+      || JSON.stringify(this.collectSlotValues()) !== JSON.stringify(this.savedSlots);
 
     if (this.saveState !== null) {
       this.saveState.hidden = !this.hasUnsavedChanges;
@@ -664,6 +698,12 @@ class FrontendStudioVariantView {
       }
 
       this.writeFieldValue(field, this.initialFieldValues[name]);
+    });
+    this.slotFields.forEach((field) => {
+      const name = field.dataset.slotName || field.name || '';
+      if (name !== '') {
+        field.value = this.initialSlotValues[name] || '';
+      }
     });
 
     this.updateDirtyState();
@@ -707,7 +747,7 @@ class FrontendStudioVariantView {
   }
 
   async saveValues() {
-    if (this.variantIdentifier === '' || this.saveButton === null || !this.hasUnsavedChanges || !this.fields.every((field) => field.reportValidity())) {
+    if (this.variantIdentifier === '' || this.saveButton === null || !this.hasUnsavedChanges || ![...this.fields, ...this.slotFields].every((field) => field.reportValidity())) {
       return;
     }
 
@@ -719,6 +759,7 @@ class FrontendStudioVariantView {
         .post({
           identifier: this.variantIdentifier,
           values: this.collectValues(),
+          slots: this.collectSlotValues(),
         });
       const payload = await response.resolve();
 
@@ -729,7 +770,9 @@ class FrontendStudioVariantView {
       Notification.success('Variant saved', 'The variant values were written to the fixture file.');
       const savedValues = this.collectValues();
       this.savedValues = savedValues;
+      this.savedSlots = this.collectSlotValues();
       this.initialFieldValues = this.collectFieldValues();
+      this.initialSlotValues = this.collectSlotValues();
       this.fields.forEach((field) => {
         const name = field.dataset.fixtureName || field.name || '';
         field.dataset.fixtureValueDefined = this.hasNestedValue(savedValues, name) ? 'true' : 'false';
@@ -761,7 +804,7 @@ class FrontendStudioVariantView {
   }
 
   async copyVariant(name) {
-    if (this.variantIdentifier === '' || this.copyVariantButton === null || !this.fields.every((field) => field.reportValidity())) {
+    if (this.variantIdentifier === '' || this.copyVariantButton === null || ![...this.fields, ...this.slotFields].every((field) => field.reportValidity())) {
       return;
     }
 
@@ -774,6 +817,7 @@ class FrontendStudioVariantView {
           identifier: this.variantIdentifier,
           name,
           values: this.collectValues(),
+          slots: this.collectSlotValues(),
         });
       const payload = await response.resolve();
 

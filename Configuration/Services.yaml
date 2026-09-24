@@ -6,3 +6,6 @@ services:
 
   Andersundsehr\FrontendStudio\:
     resource: '../Classes/*'
+
+  Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface:
+    alias: Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer

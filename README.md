@@ -72,6 +72,16 @@ variants:
     highlighted: true
 ```
 
+## Component Slots
+
+Declared component slots appear as HTML controls. Their trusted raw HTML is stored separately from fixture YAML next to the component template:
+
+```text
+_slots/Default__slot__default.fluid.html
+```
+
+The filename uses the variant and slot names. Runs of filesystem-invalid characters (`< > : " / \ | ? *` and control bytes) become one `-`; spaces remain unchanged.
+
 Variant values are matched with the component argument definitions when metadata is available. Missing fixture values fall back to the argument default values shown by the component definition.
 
 ## Working With Variants
