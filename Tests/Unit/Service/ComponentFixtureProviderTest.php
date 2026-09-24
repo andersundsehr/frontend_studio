@@ -12,6 +12,7 @@ use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\View\TemplatePaths;
@@ -147,6 +148,161 @@ YAML);
         self::assertFileDoesNotExist(dirname($this->templatePath) . '/_slots/Renamed__slot__default.fluid.html');
     }
 
+    public function testNormalizesSlotFilenames(): void
+    {
+        $variantName = 'Default//Variant';
+        $slotName = 'content\\body??primary';
+        $fixturePath = substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml';
+        file_put_contents($fixturePath, "variants:\n  'Default//Variant': []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+
+        $provider->updateVariantValues(
+            $resolverDelegate,
+            'Card',
+            $variantName,
+            ComponentVariantValues::empty(),
+            [$slotName => '<p>Normalized</p>'],
+            [$slotName],
+        );
+
+        $slotPath = dirname($this->templatePath) . '/_slots/Default-Variant__slot__content-body-primary.fluid.html';
+        self::assertFileExists($slotPath);
+        self::assertSame(
+            [$slotName => '<p>Normalized</p>'],
+            $provider->getVariantSlots($resolverDelegate, 'Card', $variantName, [$slotName]),
+        );
+    }
+
+    public function testCopiesUnsavedSlotValues(): void
+    {
+        $fixturePath = substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml';
+        file_put_contents($fixturePath, "variants:\n  Default: []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+        $provider->updateVariantValues(
+            $resolverDelegate,
+            'Card',
+            'Default',
+            ComponentVariantValues::empty(),
+            ['default' => '<strong>Saved</strong>'],
+            ['default'],
+        );
+
+        $provider->copyVariant(
+            $resolverDelegate,
+            'Card',
+            'Default',
+            'Copy',
+            null,
+            [],
+            ['default' => '<em>Draft</em>'],
+            ['default'],
+        );
+
+        self::assertSame(
+            ['default' => '<strong>Saved</strong>'],
+            $provider->getVariantSlots($resolverDelegate, 'Card', 'Default', ['default']),
+        );
+        self::assertSame(
+            ['default' => '<em>Draft</em>'],
+            $provider->getVariantSlots($resolverDelegate, 'Card', 'Copy', ['default']),
+        );
+    }
+
+    public function testRejectsCopyWhenTargetSlotFileExists(): void
+    {
+        $fixturePath = substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml';
+        file_put_contents($fixturePath, "variants:\n  Default: []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+        $provider->updateVariantValues(
+            $resolverDelegate,
+            'Card',
+            'Default',
+            ComponentVariantValues::empty(),
+            ['default' => '<strong>Saved</strong>'],
+            ['default'],
+        );
+        $this->writeSlotFile('Copy', 'default', '<strong>Existing</strong>');
+
+        try {
+            $provider->copyVariant(
+                $resolverDelegate,
+                'Card',
+                'Default',
+                'Copy',
+                null,
+                [],
+                null,
+                ['default'],
+            );
+            self::fail('Expected an existing target slot file to prevent copying stored slots.');
+        } catch (RuntimeException $exception) {
+            self::assertSame(1768482512, $exception->getCode());
+        }
+
+        try {
+            $provider->copyVariant(
+                $resolverDelegate,
+                'Card',
+                'Default',
+                'Copy',
+                null,
+                [],
+                ['default' => '<em>Draft</em>'],
+                ['default'],
+            );
+            self::fail('Expected an existing target slot file to prevent copying unsaved slots.');
+        } catch (RuntimeException $exception) {
+            self::assertSame(1768482511, $exception->getCode());
+        }
+
+        $targetPath = dirname($this->templatePath) . '/_slots/Copy__slot__default.fluid.html';
+        self::assertSame('<strong>Existing</strong>', file_get_contents($targetPath));
+        $fixture = $provider->getFixtureMetadata($resolverDelegate, 'Card');
+        self::assertSame(
+            ['Default'],
+            array_map(static fn(ComponentVariantMetadata $variant): string => $variant->name, $fixture->variants),
+        );
+    }
+
+    public function testRejectsRenameWhenTargetSlotFileExists(): void
+    {
+        $fixturePath = substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml';
+        file_put_contents($fixturePath, "variants:\n  Default: []\n");
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+        $provider->updateVariantValues(
+            $resolverDelegate,
+            'Card',
+            'Default',
+            ComponentVariantValues::empty(),
+            ['default' => '<strong>Saved</strong>'],
+            ['default'],
+        );
+        $this->writeSlotFile('Renamed', 'default', '<strong>Existing</strong>');
+
+        try {
+            $provider->renameVariant($resolverDelegate, 'Card', 'Default', 'Renamed', ['default']);
+            self::fail('Expected an existing target slot file to prevent renaming.');
+        } catch (RuntimeException $exception) {
+            self::assertSame(1768482515, $exception->getCode());
+        }
+
+        self::assertSame(
+            ['default' => '<strong>Saved</strong>'],
+            $provider->getVariantSlots($resolverDelegate, 'Card', 'Default', ['default']),
+        );
+        $targetPath = dirname($this->templatePath) . '/_slots/Renamed__slot__default.fluid.html';
+        self::assertSame('<strong>Existing</strong>', file_get_contents($targetPath));
+        $fixture = $provider->getFixtureMetadata($resolverDelegate, 'Card');
+        self::assertSame(
+            ['Default'],
+            array_map(static fn(ComponentVariantMetadata $variant): string => $variant->name, $fixture->variants),
+        );
+    }
+
     public function testRejectsCollidingNormalizedSlotNames(): void
     {
         file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
@@ -169,6 +325,15 @@ YAML);
         $packageManager->method('getActivePackages')->willReturn([]);
 
         return new ComponentFixtureProvider($packageManager);
+    }
+
+    private function writeSlotFile(string $variantName, string $slotName, string $content): void
+    {
+        $directory = dirname($this->templatePath) . '/_slots';
+        if (!is_dir($directory)) {
+            mkdir($directory);
+        }
+        file_put_contents($directory . '/' . $variantName . '__slot__' . $slotName . '.fluid.html', $content);
     }
 
     private function createResolverDelegate(): ComponentTemplateResolverInterface
