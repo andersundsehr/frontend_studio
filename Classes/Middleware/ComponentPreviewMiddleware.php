@@ -176,6 +176,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
             if (!is_string($name) || !is_string($content)) {
                 return null;
             }
+
             $slots[$name] = $content;
         }
 

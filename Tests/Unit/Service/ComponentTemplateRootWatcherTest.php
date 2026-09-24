@@ -78,7 +78,8 @@ final class ComponentTemplateRootWatcherTest extends TestCase
     {
         $templatePaths = new TemplatePaths();
         $templatePaths->setTemplateRootPaths([$this->templateRoot]);
-        $resolverDelegate = new class ($templatePaths) implements ComponentListProviderInterface, ComponentTemplateResolverInterface, ViewHelperResolverDelegateInterface {
+
+        $resolverDelegate = new readonly class ($templatePaths) implements ComponentListProviderInterface, ComponentTemplateResolverInterface, ViewHelperResolverDelegateInterface {
             public function __construct(private TemplatePaths $templatePaths)
             {
             }
@@ -105,7 +106,7 @@ final class ComponentTemplateRootWatcherTest extends TestCase
 
             public function resolveViewHelperClassName(string $name): string
             {
-                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.');
+                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.', 9115996363);
             }
 
             public function getNamespace(): string

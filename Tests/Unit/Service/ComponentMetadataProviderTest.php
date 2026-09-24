@@ -49,6 +49,7 @@ final class ComponentMetadataProviderTest extends TestCase
         foreach (glob(dirname($this->templatePath) . '/_slots/*') ?: [] as $slotPath) {
             @unlink($slotPath);
         }
+
         @rmdir(dirname($this->templatePath) . '/_slots');
         @unlink($this->templatePath);
         @unlink(dirname($this->templatePath) . '/Card.fixture.yaml');
@@ -93,7 +94,8 @@ final class ComponentMetadataProviderTest extends TestCase
     {
         $templatePaths = new TemplatePaths();
         $templatePaths->setTemplatePathAndFilename($this->templatePath);
-        $resolverDelegate = new class ($templatePaths, $slotNames) implements
+
+        $resolverDelegate = new readonly class ($templatePaths, $slotNames) implements
             ComponentDefinitionProviderInterface,
             ComponentListProviderInterface,
             ComponentTemplateResolverInterface,
@@ -138,7 +140,7 @@ final class ComponentMetadataProviderTest extends TestCase
 
             public function resolveViewHelperClassName(string $name): string
             {
-                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.');
+                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.', 9606519065);
             }
 
             public function getNamespace(): string

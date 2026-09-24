@@ -110,6 +110,7 @@ final readonly class ComponentMetadataProvider
                 $slotValues = [];
                 $errors[] = 'Component slots could not be loaded: ' . $throwable->getMessage();
             }
+
             $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments, $transformers, $slotValues);
             try {
                 $staticVariables = $this->normalizeStaticVariables($resolverDelegate->getAdditionalVariables($componentName));

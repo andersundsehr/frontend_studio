@@ -36,7 +36,8 @@ final class ComponentPreviewMiddlewareTest extends TestCase
         if ($encodedSlots !== null) {
             $queryParams['componentVariantSlots'] = $encodedSlots;
         }
-        $request = (new ServerRequest('https://example.test/'))->withQueryParams($queryParams);
+
+        $request = new ServerRequest('https://example.test/')->withQueryParams($queryParams);
         $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
         $renderer->expects(self::once())
             ->method('renderVariant')
@@ -88,6 +89,6 @@ final class ComponentPreviewMiddlewareTest extends TestCase
      */
     private function createUninitialized(string $className): object
     {
-        return (new ReflectionClass($className))->newInstanceWithoutConstructor();
+        return new ReflectionClass($className)->newInstanceWithoutConstructor();
     }
 }

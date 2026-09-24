@@ -386,10 +386,12 @@ final readonly class ComponentFixtureProvider
                 $slots[$slotName] = '';
                 continue;
             }
+
             $content = file_get_contents($path);
             if ($content === false) {
                 throw new RuntimeException('Slot file could not be read.', 1768482504);
             }
+
             $slots[$slotName] = $content;
         }
 
@@ -471,6 +473,7 @@ final readonly class ComponentFixtureProvider
                 if (is_file($path) && !unlink($path)) {
                     throw new RuntimeException('Slot file could not be deleted.', 1768482506);
                 }
+
                 continue;
             }
 
@@ -478,6 +481,7 @@ final readonly class ComponentFixtureProvider
             if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
                 throw new RuntimeException('Slot directory could not be created.', 1768482507);
             }
+
             if (file_put_contents($path, $content) === false) {
                 throw new RuntimeException('Slot file could not be written.', 1768482508);
             }
@@ -500,6 +504,7 @@ final readonly class ComponentFixtureProvider
             if (isset($names[$normalizedName])) {
                 throw new InvalidArgumentException('Variant names "' . $names[$normalizedName] . '" and "' . $variantName . '" use the same slot filename.', 1768482509);
             }
+
             $names[$normalizedName] = (string)$variantName;
         }
     }
@@ -515,6 +520,7 @@ final readonly class ComponentFixtureProvider
             if (isset($names[$normalizedName])) {
                 throw new InvalidArgumentException('Slot names "' . $names[$normalizedName] . '" and "' . $slotName . '" use the same filename.', 1768482510);
             }
+
             $names[$normalizedName] = $slotName;
         }
     }
@@ -542,6 +548,7 @@ final readonly class ComponentFixtureProvider
                     throw new RuntimeException('Target slot file already exists.', 1768482511);
                 }
             }
+
             $this->writeSlotFiles($resolverDelegate, $componentName, $newVariantName, $slotValues, $slotNames);
             return;
         }
@@ -553,6 +560,7 @@ final readonly class ComponentFixtureProvider
             if (is_file($targetFile)) {
                 throw new RuntimeException('Target slot file already exists.', 1768482512);
             }
+
             $targetFiles[$sourceFile] = $targetFile;
         }
 
@@ -561,6 +569,7 @@ final readonly class ComponentFixtureProvider
             if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
                 throw new RuntimeException('Slot directory could not be created.', 1768482513);
             }
+
             if (!copy($sourceFile, $targetFile)) {
                 throw new RuntimeException('Slot file could not be copied.', 1768482514);
             }
@@ -585,6 +594,7 @@ final readonly class ComponentFixtureProvider
             if (is_file($targetFile)) {
                 throw new RuntimeException('Target slot file already exists.', 1768482515);
             }
+
             $renamedFiles[$sourceFile] = $targetFile;
         }
 

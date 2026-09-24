@@ -511,7 +511,7 @@ final readonly class ComponentTreeDataProvider
     private function getDefaultValueForArgumentType(string $type): mixed
     {
         if ($type === DateTimeImmutable::class) {
-            return (new DateTimeImmutable())->format('Y-m-d\\TH:i');
+            return new DateTimeImmutable()->format('Y-m-d\\TH:i');
         }
 
         if (enum_exists($type)) {

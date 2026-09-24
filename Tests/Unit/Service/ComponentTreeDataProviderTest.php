@@ -18,7 +18,7 @@ final class ComponentTreeDataProviderTest extends TestCase
 {
     public function testCreatesLocalDateTimeImmutableDefault(): void
     {
-        $subject = (new ReflectionClass(ComponentTreeDataProvider::class))->newInstanceWithoutConstructor();
+        $subject = new ReflectionClass(ComponentTreeDataProvider::class)->newInstanceWithoutConstructor();
         $method = new ReflectionMethod(ComponentTreeDataProvider::class, 'getDefaultValueForArgumentType');
         $default = $method->invoke($subject, DateTimeImmutable::class);
 
@@ -28,7 +28,7 @@ final class ComponentTreeDataProviderTest extends TestCase
 
     public function testCreatesFirstEnumCaseDefault(): void
     {
-        $subject = (new ReflectionClass(ComponentTreeDataProvider::class))->newInstanceWithoutConstructor();
+        $subject = new ReflectionClass(ComponentTreeDataProvider::class)->newInstanceWithoutConstructor();
         $method = new ReflectionMethod(ComponentTreeDataProvider::class, 'getDefaultValueForArgumentType');
 
         self::assertSame(TypolinkTargetEnum::none, $method->invoke($subject, TypolinkTargetEnum::class));
@@ -36,7 +36,7 @@ final class ComponentTreeDataProviderTest extends TestCase
 
     public function testStoresTransformerEnumDefaultAsEnum(): void
     {
-        $subject = (new ReflectionClass(ComponentTreeDataProvider::class))->newInstanceWithoutConstructor();
+        $subject = new ReflectionClass(ComponentTreeDataProvider::class)->newInstanceWithoutConstructor();
         $method = new ReflectionMethod(ComponentTreeDataProvider::class, 'getTransformerDefaults');
         $transformer = new Transformer(
             static fn(): string => '',

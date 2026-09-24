@@ -209,5 +209,4 @@ final readonly class ComponentVariantValues
 
         return $value;
     }
-
 }

@@ -58,6 +58,7 @@ final class ComponentVariantLifecycleTest extends TestCase
         foreach (glob(dirname($this->templatePath) . '/_slots/*') ?: [] as $slotPath) {
             @unlink($slotPath);
         }
+
         @rmdir(dirname($this->templatePath) . '/_slots');
         @unlink($this->templatePath);
         @unlink(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml');
@@ -95,10 +96,11 @@ final class ComponentVariantLifecycleTest extends TestCase
     {
         $provider = $this->createDataProvider();
         $provider->createVariant('test:Card', 'Default');
+
         $controller = $this->createController($provider);
 
         $updateResponse = $controller->updateVariantValuesAction(
-            (new ServerRequest('https://example.test/'))->withParsedBody([
+            new ServerRequest('https://example.test/')->withParsedBody([
                 'identifier' => 'test:Card:Default',
                 'values' => [],
                 'slots' => ['content' => '<em>Updated</em>'],
@@ -110,7 +112,7 @@ final class ComponentVariantLifecycleTest extends TestCase
         self::assertSame('<em>Updated</em>', file_get_contents($this->getSlotPath('Default')));
 
         $copyResponse = $controller->copyVariantAction(
-            (new ServerRequest('https://example.test/'))->withParsedBody([
+            new ServerRequest('https://example.test/')->withParsedBody([
                 'identifier' => 'test:Card:Default',
                 'name' => 'Copy',
                 'values' => [],
@@ -127,7 +129,8 @@ final class ComponentVariantLifecycleTest extends TestCase
     {
         $templatePaths = new TemplatePaths();
         $templatePaths->setTemplatePathAndFilename($this->templatePath);
-        $resolverDelegate = new class ($templatePaths) implements
+
+        $resolverDelegate = new readonly class ($templatePaths) implements
             ComponentDefinitionProviderInterface,
             ComponentListProviderInterface,
             ComponentTemplateResolverInterface,
@@ -169,7 +172,7 @@ final class ComponentVariantLifecycleTest extends TestCase
 
             public function resolveViewHelperClassName(string $name): string
             {
-                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.');
+                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.', 2676989740);
             }
 
             public function getNamespace(): string
@@ -203,7 +206,7 @@ final class ComponentVariantLifecycleTest extends TestCase
     {
         return new ComponentTreeController(
             $provider,
-            (new ReflectionClass(ComponentFolderArchiveProvider::class))->newInstanceWithoutConstructor(),
+            new ReflectionClass(ComponentFolderArchiveProvider::class)->newInstanceWithoutConstructor(),
             $this->createStub(ResponseFactoryInterface::class),
             $this->createStub(StreamFactoryInterface::class),
         );

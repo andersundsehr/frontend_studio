@@ -57,6 +57,7 @@ final class ComponentPreviewRendererTest extends TestCase
         foreach (glob(dirname($this->templatePath) . '/_slots/*') ?: [] as $slotPath) {
             @unlink($slotPath);
         }
+
         @rmdir(dirname($this->templatePath) . '/_slots');
         @unlink($this->templatePath);
         @unlink(dirname($this->templatePath) . '/Card.fixture.yaml');
@@ -94,7 +95,8 @@ final class ComponentPreviewRendererTest extends TestCase
     {
         $templatePaths = new TemplatePaths();
         $templatePaths->setTemplatePathAndFilename($this->templatePath);
-        $resolverDelegate = new class ($templatePaths) implements
+
+        $resolverDelegate = new readonly class ($templatePaths) implements
             ComponentDefinitionProviderInterface,
             ComponentListProviderInterface,
             ComponentTemplateResolverInterface,
@@ -139,7 +141,7 @@ final class ComponentPreviewRendererTest extends TestCase
 
             public function resolveViewHelperClassName(string $name): string
             {
-                throw new UnresolvableViewHelperException('Test component resolver only renders components.');
+                throw new UnresolvableViewHelperException('Test component resolver only renders components.', 4725463832);
             }
 
             public function getNamespace(): string
@@ -162,6 +164,7 @@ final class ComponentPreviewRendererTest extends TestCase
 
         $cacheManager = new CacheManager();
         $cacheManager->registerCache(new FluidTemplateCache('fluid_template', new NullBackend()));
+
         $renderingContextFactory = new RenderingContextFactory(
             new FailsafeContainer(),
             $cacheManager,

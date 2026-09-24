@@ -43,6 +43,7 @@ final class ComponentFixtureProviderTest extends TestCase
         foreach (glob(dirname($this->templatePath) . '/_slots/*') ?: [] as $slotFile) {
             @unlink($slotFile);
         }
+
         @rmdir(dirname($this->templatePath) . '/_slots');
         @rmdir(dirname($this->templatePath));
     }
@@ -238,8 +239,8 @@ YAML);
                 ['default'],
             );
             self::fail('Expected an existing target slot file to prevent copying stored slots.');
-        } catch (RuntimeException $exception) {
-            self::assertSame(1768482512, $exception->getCode());
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame(1768482512, $runtimeException->getCode());
         }
 
         try {
@@ -254,8 +255,8 @@ YAML);
                 ['default'],
             );
             self::fail('Expected an existing target slot file to prevent copying unsaved slots.');
-        } catch (RuntimeException $exception) {
-            self::assertSame(1768482511, $exception->getCode());
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame(1768482511, $runtimeException->getCode());
         }
 
         $targetPath = dirname($this->templatePath) . '/_slots/Copy__slot__default.fluid.html';
@@ -286,8 +287,8 @@ YAML);
         try {
             $provider->renameVariant($resolverDelegate, 'Card', 'Default', 'Renamed', ['default']);
             self::fail('Expected an existing target slot file to prevent renaming.');
-        } catch (RuntimeException $exception) {
-            self::assertSame(1768482515, $exception->getCode());
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame(1768482515, $runtimeException->getCode());
         }
 
         self::assertSame(
@@ -333,6 +334,7 @@ YAML);
         if (!is_dir($directory)) {
             mkdir($directory);
         }
+
         file_put_contents($directory . '/' . $variantName . '__slot__' . $slotName . '.fluid.html', $content);
     }
 

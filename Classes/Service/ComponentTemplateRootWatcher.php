@@ -80,6 +80,7 @@ final readonly class ComponentTemplateRootWatcher
                 if ($path !== $watchedPath && !str_starts_with($path, $watchedPath . '/')) {
                     continue;
                 }
+
                 foreach ($componentIdentifiers as $componentIdentifier) {
                     $changedComponentIdentifiers[$componentIdentifier] = true;
                 }
@@ -154,6 +155,7 @@ final readonly class ComponentTemplateRootWatcher
         if ($fixturePath !== null) {
             $paths[] = $this->normalizeFilePath($fixturePath);
         }
+
         $slotDirectory = $this->getSlotDirectoryPath($templatePath);
         if ($slotDirectory !== null) {
             $paths[] = $this->normalizeFilePath($slotDirectory);
