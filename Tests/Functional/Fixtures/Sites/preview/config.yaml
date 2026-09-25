@@ -1,0 +1,13 @@
+rootPageId: 98765432
+base: 'https://preview.test/'
+websiteTitle: Frontend Studio preview test
+dependencies:
+  - acme/frontend-studio-preview-test
+languages:
+  -
+    title: German
+    enabled: true
+    languageId: 0
+    locale: de-DE
+    hreflang: de
+    base: 'https://preview.test/de/'

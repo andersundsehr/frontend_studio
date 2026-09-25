@@ -1,5 +1,5 @@
 [site("identifier") == "preview" && siteLanguage("hreflang") == "de" && page == [] && tree.rootLineIds == [] && request.getQueryParams()["previewTest"] == "yes"]
-page = PAGE
-page.10 = TEXT
-page.10.value = site-set-preview
-[END]
+  page = PAGE
+  page.10 = TEXT
+  page.10.value = site-set-preview
+[end]

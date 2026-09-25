@@ -20,9 +20,8 @@ use Psr\Http\Server\RequestHandlerInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\ServerRequest;
-use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
-use TYPO3\CMS\Core\Site\Entity\SiteTypoScript;
+use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Site\Set\SetRegistry;
 use TYPO3\CMS\Core\TypoScript\FrontendTypoScript;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
@@ -37,30 +36,15 @@ final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
         __DIR__ . '/../Fixtures/Extensions/preview_site_set',
     ];
 
-    public function testRendersWithSiteSetTypoScriptWhenTheRootPageRecordIsMissing(): void
+    protected array $pathsToProvideInTestInstance = [
+        'typo3conf/ext/frontend_studio/Tests/Functional/Fixtures/Sites/preview' => 'typo3conf/sites/preview',
+    ];
+
+    public function testRendersWithSiteAndSetTypoScriptWhenTheRootPageRecordIsMissing(): void
     {
         self::assertNotNull($this->get(SetRegistry::class)->getSet('acme/frontend-studio-preview-test'));
-        $site = new Site(
-            'preview',
-            98765432,
-            [
-                'base' => 'https://preview.test/',
-                'dependencies' => ['acme/frontend-studio-preview-test'],
-                'languages' => [
-                    0 => [
-                        'languageId' => 0,
-                        'title' => 'German',
-                        'locale' => 'de-DE',
-                        'hreflang' => 'de',
-                        'base' => 'https://preview.test/de/',
-                    ],
-                ],
-            ],
-            typoscript: new SiteTypoScript(
-                setup: "page = PAGE\npage.10 = TEXT\npage.10.value = inline-site-preview",
-                constants: 'preview.context = inline-site-context',
-            ),
-        );
+        $site = $this->get(SiteFinder::class)->getSiteByIdentifier('preview');
+        self::assertNotNull($site->getTypoScript());
         $language = $site->getDefaultLanguage();
         self::assertInstanceOf(SiteLanguage::class, $language);
 
@@ -72,7 +56,7 @@ final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
             ->executeQuery()
             ->fetchAssociative();
         self::assertFalse($pageRecord);
-        $request = (new ServerRequest('https://preview.test/de/?frontendStudioPreviewFormat=fragment&componentVariant=site%3Acard%3ADefault&previewTest=yes'))
+        $request = new ServerRequest('https://preview.test/de/?frontendStudioPreviewFormat=fragment&componentVariant=site%3Acard%3ADefault&previewTest=yes')
             ->withQueryParams([
                 'frontendStudioPreviewFormat' => 'fragment',
                 'componentVariant' => 'site:card:Default',
@@ -87,8 +71,10 @@ final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
         self::assertInstanceOf(FrontendTypoScript::class, $frontendTypoScript);
         self::assertTrue($frontendTypoScript->hasPage(), json_encode($frontendTypoScript->getSetupConditionList(), JSON_THROW_ON_ERROR));
         self::assertSame('site-set-preview', $frontendTypoScript->getPageArray()['10.']['value'] ?? null);
+        self::assertSame('site-file-preview', $frontendTypoScript->getPageArray()['20.']['value'] ?? null);
         $flatSettings = $frontendTypoScript->getFlatSettings();
         self::assertSame('settings-context-ready', $flatSettings['preview.context'] ?? null, json_encode($flatSettings, JSON_THROW_ON_ERROR));
+        self::assertSame('site-file-constants', $flatSettings['preview.siteFile'] ?? null);
         self::assertSame($site, $renderRequest->getAttribute('site'));
         self::assertSame($language, $renderRequest->getAttribute('language'));
         $currentContentObject = $renderRequest->getAttribute('currentContentObject');

@@ -64,7 +64,7 @@
                       data-frontend-studio-site-select
                     >
                       <f:for each="{previewSites}" as="site">
-                        <option value="{site.identifier}" data-languages="{site.languagesJson}">{site.title}</option>
+                        <option value="{site.identifier}" data-languages="{site.languagesJson}" {f:if(condition: '{site.identifier} == {selectedSiteIdentifier}', then: 'selected')}>{site.title}</option>
                       </f:for>
                     </select>
                     <f:if condition="{previewLanguages}">
@@ -74,7 +74,7 @@
                         data-frontend-studio-language-select
                       >
                         <f:for each="{previewLanguages}" as="language">
-                          <option value="{language.value}">{language.title}</option>
+                          <option value="{language.value}" {f:if(condition: '{language.value} == {selectedLanguageHreflang}', then: 'selected')}>{language.title}</option>
                         </f:for>
                       </select>
                     </f:if>

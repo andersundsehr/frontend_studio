@@ -47,6 +47,22 @@ jobs:
       - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }}
       - run: CI=true ./Build/Scripts/runTests.sh -p ${{ matrix.php }} -s unit
 
+  functional-tests:
+    name: "functional database: ${{ matrix.database }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [ 'mysql', 'mariadb', 'postgres' ]
+    steps:
+      - name: Setup PHP with PECL extension
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+      - uses: actions/checkout@v6
+      - run: composer update --with typo3/cms-core:^14
+      - run: CI=true ./Build/Scripts/runTests.sh -p 8.5 -s functional -d ${{ matrix.database }}
+
   unit-tests-js:
     name: "unit js"
     runs-on: ubuntu-latest

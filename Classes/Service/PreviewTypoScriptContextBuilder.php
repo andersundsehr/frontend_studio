@@ -22,18 +22,21 @@ final readonly class PreviewTypoScriptContextBuilder implements PreviewTypoScrip
     {
         $site = $request->getAttribute('site');
         if (!$site instanceof Site) {
-            throw new RuntimeException('The preview request has no resolved site.');
+            throw new RuntimeException('The preview request has no resolved site.', 2420874664);
         }
+
         $siteLanguage = $request->getAttribute('language');
         if (!$siteLanguage instanceof SiteLanguage) {
             $siteLanguage = $site->getDefaultLanguage();
         }
+
         $request = $request->withAttribute('language', $siteLanguage);
         $siteForTypoScript = new Site(
             $site->getIdentifier(),
             $site->getRootPageId(),
             $site->getConfiguration(),
             $site->getSettings(),
+            $site->getTypoScript(),
         );
         $sysTemplateRows = [];
         $conditionMatcherVariables = [
@@ -64,6 +67,7 @@ final readonly class PreviewTypoScriptContextBuilder implements PreviewTypoScrip
         $request = $request->withAttribute('frontend.typoscript', $frontendTypoScript);
         $contentObjectRenderer = GeneralUtility::makeInstance(ContentObjectRenderer::class);
         $contentObjectRenderer->setRequest($request);
+
         $request = $request->withAttribute('currentContentObject', $contentObjectRenderer);
         $contentObjectRenderer->setRequest($request);
 
