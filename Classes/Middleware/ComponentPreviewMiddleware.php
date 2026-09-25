@@ -14,6 +14,7 @@ use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Andersundsehr\FrontendStudio\Service\PreviewAssetRenderer;
+use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -50,6 +51,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private PreviewAssetRenderer $previewAssetRenderer,
         private ListenerProvider $listenerProvider,
+        private PreviewTypoScriptContextBuilderInterface $previewTypoScriptContextBuilder,
     ) {
     }
 
@@ -121,6 +123,14 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
                 ),
             );
         }
+
+        try {
+            $request = $this->previewTypoScriptContextBuilder->build($request);
+        } catch (Throwable $throwable) {
+            return $this->createErrorResponse('Component variant rendering failed', $throwable->getMessage(), 500, $isFragmentRequest);
+        }
+
+        $GLOBALS['TYPO3_REQUEST'] = $request;
 
         try {
             $content = $this->componentPreviewRenderer->renderVariant($variantIdentifier, $request, $variantValueOverrides, $slotOverrides);

@@ -15,13 +15,14 @@ use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\Site\SiteFinder;
+use TYPO3\CMS\Core\Service\DependencyOrderingService;
 
 #[CoversClass(ComponentPreviewContextMiddleware::class)]
 final class ComponentPreviewContextMiddlewareTest extends TestCase
 {
     public function testIgnoresTheLegacyQueryMarkerOutsideThePreviewEndpoint(): void
     {
-        $request = (new ServerRequest('https://incoming.test/original/?frontendStudioComponentPreview=1'))
+        $request = new ServerRequest('https://incoming.test/original/?frontendStudioComponentPreview=1')
             ->withQueryParams(['frontendStudioComponentPreview' => '1']);
         $siteFinder = $this->createMock(SiteFinder::class);
         $siteFinder->expects(self::never())->method('getSiteByIdentifier');
@@ -39,7 +40,7 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
 
     public function testIgnoresSiteAndLanguageParametersOnNonPreviewRequests(): void
     {
-        $request = (new ServerRequest('https://incoming.test/original/?site=other&language=de'))
+        $request = new ServerRequest('https://incoming.test/original/?site=other&language=de')
             ->withQueryParams(['site' => 'other', 'language' => 'de']);
         $siteFinder = $this->createMock(SiteFinder::class);
         $siteFinder->expects(self::never())->method('getSiteByIdentifier');
@@ -207,7 +208,7 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
 
     public function testReturnsBadRequestForMalformedContextParameters(): void
     {
-        $request = (new ServerRequest('https://incoming.test/__frontendStudio/preview?site=invalid'))
+        $request = new ServerRequest('https://incoming.test/__frontendStudio/preview?site=invalid')
             ->withQueryParams(['site' => ['invalid']]);
         $siteFinder = $this->createMock(SiteFinder::class);
         $siteFinder->expects(self::never())->method('getSiteByIdentifier');
@@ -220,18 +221,32 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
         self::assertSame(400, $response->getStatusCode());
     }
 
-    public function testContextMiddlewareIsOrderedBeforeTypo3SiteResolution(): void
+    public function testPreviewMiddlewareUsesTheResolvedSiteAndBackendUserBeforePageResolution(): void
     {
         $requestMiddlewares = require dirname(__DIR__, 3) . '/Configuration/RequestMiddlewares.php';
         $contextMiddleware = $requestMiddlewares['frontend']['andersundsehr/frontend-studio/component-preview-context'];
+        $previewMiddleware = $requestMiddlewares['frontend']['andersundsehr/frontend-studio/component-preview'];
+        $typo3RequestMiddlewares = require dirname(__DIR__, 3) . '/vendor/typo3/cms-frontend/Configuration/RequestMiddlewares.php';
+        $orderedMiddlewareIdentifiers = array_keys(new DependencyOrderingService()->orderByDependencies(
+            array_replace($typo3RequestMiddlewares['frontend'], $requestMiddlewares['frontend']),
+        ));
+        $middlewarePositions = array_flip($orderedMiddlewareIdentifiers);
 
         self::assertSame(ComponentPreviewContextMiddleware::class, $contextMiddleware['target']);
         self::assertSame(['typo3/cms-core/normalized-params-attribute'], $contextMiddleware['after']);
         self::assertSame(['typo3/cms-frontend/site'], $contextMiddleware['before']);
-        self::assertContains(
-            'typo3/cms-frontend/prepare-tsfe-rendering',
-            $requestMiddlewares['frontend']['andersundsehr/frontend-studio/component-preview']['after'],
-        );
+        self::assertContains('typo3/cms-frontend/site', $previewMiddleware['after']);
+        self::assertContains('typo3/cms-frontend/maintenance-mode', $previewMiddleware['after']);
+        self::assertContains('typo3/cms-frontend/backend-user-authentication', $previewMiddleware['after']);
+        self::assertContains('typo3/cms-frontend/authentication', $previewMiddleware['before']);
+        self::assertContains('typo3/cms-frontend/page-resolver', $previewMiddleware['before']);
+        self::assertNotContains('typo3/cms-frontend/prepare-tsfe-rendering', $previewMiddleware['after']);
+        self::assertLessThan($middlewarePositions['typo3/cms-frontend/site'], $middlewarePositions['andersundsehr/frontend-studio/component-preview-context']);
+        self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-preview'], $middlewarePositions['typo3/cms-frontend/site']);
+        self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-preview'], $middlewarePositions['typo3/cms-frontend/maintenance-mode']);
+        self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-preview'], $middlewarePositions['typo3/cms-frontend/backend-user-authentication']);
+        self::assertLessThan($middlewarePositions['typo3/cms-frontend/authentication'], $middlewarePositions['andersundsehr/frontend-studio/component-preview']);
+        self::assertLessThan($middlewarePositions['typo3/cms-frontend/page-resolver'], $middlewarePositions['andersundsehr/frontend-studio/component-preview']);
     }
 
     /** @param array<string, mixed> $context */
@@ -241,15 +256,14 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
         $query = http_build_query($queryParams);
         $uri = $origin . '/__frontendStudio/preview' . ($query !== '' ? '?' . $query : '');
 
-        return (new ServerRequest($uri))->withQueryParams($queryParams);
+        return new ServerRequest($uri)->withQueryParams($queryParams);
     }
 
     private function createRewriteHandler(
         ServerRequestInterface $originalRequest,
         SiteLanguage $language,
         ?string $expectedUri = null,
-    ): RequestHandlerInterface
-    {
+    ): RequestHandlerInterface {
         $expectedUri ??= (string)$language->getBase()->withQuery($originalRequest->getUri()->getQuery());
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects(self::once())

@@ -1,0 +1,9 @@
+{
+  "name": "acme/frontend-studio-preview-test",
+  "type": "typo3-cms-extension",
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "frontend_studio_preview_test"
+    }
+  }
+}

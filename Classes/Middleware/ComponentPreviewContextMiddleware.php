@@ -59,6 +59,7 @@ final readonly class ComponentPreviewContextMiddleware implements MiddlewareInte
         if ($siteIdentifier !== null && $siteIdentifier !== $selectedSiteIdentifier) {
             return $this->createContextErrorResponse('Preview site not found.', 404);
         }
+
         if ($languageHreflang !== null && $languageHreflang !== $selectedLanguageHreflang) {
             return $this->createContextErrorResponse('Preview language not found for the selected site.', 404);
         }
@@ -69,13 +70,8 @@ final readonly class ComponentPreviewContextMiddleware implements MiddlewareInte
             return $this->createContextErrorResponse('Preview site not found.', 404);
         }
 
-        $language = null;
-        foreach ($site->getLanguages() as $siteLanguage) {
-            if ($siteLanguage->getHreflang() === $selectedLanguageHreflang) {
-                $language = $siteLanguage;
-                break;
-            }
-        }
+        $language = array_find($site->getLanguages(), fn($siteLanguage): bool => $siteLanguage->getHreflang() === $selectedLanguageHreflang);
+
         if (!($language instanceof SiteLanguage)) {
             return $this->createContextErrorResponse('Preview language not found for the selected site.', 404);
         }
@@ -85,11 +81,13 @@ final readonly class ComponentPreviewContextMiddleware implements MiddlewareInte
         if ($targetUri->getScheme() === '') {
             $targetUri = $targetUri->withScheme($requestUri->getScheme());
         }
+
         if ($targetUri->getHost() === '') {
             $targetUri = $targetUri
                 ->withHost($requestUri->getHost())
                 ->withPort($requestUri->getPort());
         }
+
         $targetUri = $targetUri
             ->withQuery($requestUri->getQuery())
             ->withFragment('');

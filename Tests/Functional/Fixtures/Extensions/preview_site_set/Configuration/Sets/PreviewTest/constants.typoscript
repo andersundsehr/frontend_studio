@@ -1,0 +1,3 @@
+[site("identifier") == "preview" && siteLanguage("hreflang") == "de" && page == [] && tree.rootLineIds == [] && request.getQueryParams()["previewTest"] == "yes"]
+preview.context = settings-context-ready
+[END]

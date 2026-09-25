@@ -12,6 +12,7 @@ use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Andersundsehr\FrontendStudio\Service\PreviewAssetRenderer;
+use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -27,15 +28,20 @@ final class ComponentPreviewMiddlewareTest extends TestCase
 {
     public function testLegacyQueryMarkerDoesNotTriggerPreviewRendering(): void
     {
-        $request = (new ServerRequest('https://example.test/?frontendStudioComponentPreview=1'))
+        $request = new ServerRequest('https://example.test/?frontendStudioComponentPreview=1')
             ->withQueryParams(['frontendStudioComponentPreview' => '1']);
+        $contextBuilder = $this->createMock(PreviewTypoScriptContextBuilderInterface::class);
+        $contextBuilder->expects(self::never())->method('build');
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects(self::once())
             ->method('handle')
             ->with(self::identicalTo($request))
             ->willReturn(new HtmlResponse('normal response'));
 
-        $response = $this->createMiddleware($this->createMock(ComponentPreviewRendererInterface::class))
+        $response = $this->createMiddleware(
+            $this->createMock(ComponentPreviewRendererInterface::class),
+            contextBuilder: $contextBuilder,
+        )
             ->process($request, $handler);
 
         self::assertSame('normal response', (string)$response->getBody());
@@ -67,6 +73,31 @@ final class ComponentPreviewMiddlewareTest extends TestCase
         $response = $this->createMiddleware($renderer)->process($request, $handler);
 
         self::assertSame(200, $response->getStatusCode());
+        self::assertSame('<article>Preview</article>', (string)$response->getBody());
+    }
+
+    public function testPassesTheCompiledRequestToTheRendererAndUpdatesTheGlobalRequest(): void
+    {
+        $request = $this->createPreviewRequest([
+            'frontendStudioPreviewFormat' => 'fragment',
+            'componentVariant' => 'site:Card:Default',
+        ]);
+        $compiledRequest = $request->withAttribute('frontend.typoscript', 'compiled');
+        $contextBuilder = $this->createMock(PreviewTypoScriptContextBuilderInterface::class);
+        $contextBuilder->expects(self::once())
+            ->method('build')
+            ->with(self::identicalTo($request))
+            ->willReturn($compiledRequest);
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::once())
+            ->method('renderVariant')
+            ->with('site:Card:Default', self::identicalTo($compiledRequest), null, null)
+            ->willReturn('<article>Preview</article>');
+
+        $response = $this->createMiddleware($renderer, contextBuilder: $contextBuilder)
+            ->process($request, $this->createMock(RequestHandlerInterface::class));
+
+        self::assertSame($compiledRequest, $GLOBALS['TYPO3_REQUEST']);
         self::assertSame('<article>Preview</article>', (string)$response->getBody());
     }
 
@@ -186,7 +217,7 @@ final class ComponentPreviewMiddlewareTest extends TestCase
     /** @param array<string, mixed> $queryParams */
     private function createPreviewRequest(array $queryParams): ServerRequest
     {
-        return (new ServerRequest('https://example.test/'))
+        return new ServerRequest('https://example.test/')
             ->withQueryParams($queryParams)
             ->withAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE, true);
     }
@@ -194,8 +225,14 @@ final class ComponentPreviewMiddlewareTest extends TestCase
     private function createMiddleware(
         ComponentPreviewRendererInterface $renderer,
         ?ComponentPathResolverInterface $componentPathResolver = null,
-    ): ComponentPreviewMiddleware
-    {
+        ?PreviewTypoScriptContextBuilderInterface $contextBuilder = null,
+    ): ComponentPreviewMiddleware {
+        if ($contextBuilder === null) {
+            $contextBuilderStub = $this->createStub(PreviewTypoScriptContextBuilderInterface::class);
+            $contextBuilderStub->method('build')->willReturnCallback(static fn ($request) => $request);
+            $contextBuilder = $contextBuilderStub;
+        }
+
         return new ComponentPreviewMiddleware(
             $renderer,
             $this->createUninitialized(ComponentMetadataProvider::class),
@@ -204,6 +241,7 @@ final class ComponentPreviewMiddlewareTest extends TestCase
             $this->createUninitialized(HtmlSourceHighlighter::class),
             $this->createUninitialized(PreviewAssetRenderer::class),
             new ListenerProvider($this->createStub(ContainerInterface::class)),
+            $contextBuilder,
         );
     }
 

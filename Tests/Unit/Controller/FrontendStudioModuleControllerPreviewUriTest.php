@@ -20,7 +20,7 @@ final class FrontendStudioModuleControllerPreviewUriTest extends TestCase
 {
     public function testBuildsTheSameOriginPreviewEndpointWithSelectedContext(): void
     {
-        $controller = (new ReflectionClass(FrontendStudioModuleController::class))->newInstanceWithoutConstructor();
+        $controller = new ReflectionClass(FrontendStudioModuleController::class)->newInstanceWithoutConstructor();
         $buildComponentPreviewUri = new ReflectionMethod(FrontendStudioModuleController::class, 'buildComponentPreviewUri');
         $uri = $buildComponentPreviewUri->invoke(
             $controller,
@@ -50,11 +50,11 @@ final class FrontendStudioModuleControllerPreviewUriTest extends TestCase
             'first' => $firstSite,
             'origin' => $originSite,
         ]);
-        $controller = (new ReflectionClass(FrontendStudioModuleController::class))->newInstanceWithoutConstructor();
-        (new ReflectionProperty(FrontendStudioModuleController::class, 'siteFinder'))->setValue($controller, $siteFinder);
-        (new ReflectionProperty(FrontendStudioModuleController::class, 'previewContextResolver'))
+        $controller = new ReflectionClass(FrontendStudioModuleController::class)->newInstanceWithoutConstructor();
+        new ReflectionProperty(FrontendStudioModuleController::class, 'siteFinder')->setValue($controller, $siteFinder);
+        new ReflectionProperty(FrontendStudioModuleController::class, 'previewContextResolver')
             ->setValue($controller, new PreviewContextResolver($siteFinder));
-        $request = (new ServerRequest('https://incoming.test/typo3/module?language=de'))
+        $request = new ServerRequest('https://incoming.test/typo3/module?language=de')
             ->withQueryParams(['language' => 'de']);
         $getPreviewContext = new ReflectionMethod(FrontendStudioModuleController::class, 'getPreviewContext');
 

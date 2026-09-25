@@ -97,7 +97,7 @@ final readonly class PreviewContextResolver
 
         $scheme = isset($parts['scheme']) ? (string)$parts['scheme'] : '';
         $host = isset($parts['host']) ? (string)$parts['host'] : '';
-        $port = isset($parts['port']) ? $parts['port'] : null;
+        $port = $parts['port'] ?? null;
 
         return $this->buildOrigin($scheme, $host, $port);
     }

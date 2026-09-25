@@ -68,6 +68,10 @@ Changing the site keeps the current language when it is available there; otherwi
 The preview, `Rendered HTML`, `Fluid Usage`, and `Open rendered variant` link update to use the selected site and language.
 Unsaved values in `Controls` are preserved, and the selection is stored in the module URL so it is restored when you reload or revisit the module.
 
+### Limitations
+
+Preview rendering compiles the selected site's TypoScript sets only. TypoScript from the site's `setup.typoscript` or `constants.typoscript` files, page-based TypoScript, a `pages` record, and a rootline are not loaded. The configured root page ID is retained as the condition matcher's `pageId` input, while page and rootline variables are empty.
+
 ![Site selector with its options open](Documentation/site-select-example.png)
 
 ![Language selector with its options open](Documentation/language-select-example.png)

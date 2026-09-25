@@ -237,13 +237,7 @@ final readonly class FrontendStudioModuleController
 
             [$selectedSiteIdentifier, $selectedLanguageHreflang] = $resolvedContext;
             $languages = $languagesBySite[$selectedSiteIdentifier] ?? [];
-            $selectedLanguage = null;
-            foreach ($languages as $language) {
-                if ($language['value'] === $selectedLanguageHreflang) {
-                    $selectedLanguage = $language;
-                    break;
-                }
-            }
+            $selectedLanguage = array_find($languages, fn($language): bool => $language['value'] === $selectedLanguageHreflang);
 
             return [
                 'sites' => $siteOptions,
@@ -284,15 +278,26 @@ final readonly class FrontendStudioModuleController
         }
 
         $countryIsoAlpha2 = strtoupper($countryIsoAlpha2);
-        if (preg_match('/^[A-Z]{2}$/', $countryIsoAlpha2) !== 1) {
+        if (strlen($countryIsoAlpha2) !== 2) {
+            return '🏳️‍🌈';
+        }
+
+        $firstCountryLetter = ord($countryIsoAlpha2[0]);
+        $secondCountryLetter = ord($countryIsoAlpha2[1]);
+        if (
+            $firstCountryLetter < 0x41
+            || $firstCountryLetter > 0x5A
+            || $secondCountryLetter < 0x41
+            || $secondCountryLetter > 0x5A
+        ) {
             return '🏳️‍🌈';
         }
 
         $unicodePrefix = "\xF0\x9F\x87";
         $unicodeAdditionForUpperCase = 0x65;
 
-        return $unicodePrefix . chr(ord($countryIsoAlpha2[0]) + $unicodeAdditionForUpperCase)
-            . $unicodePrefix . chr(ord($countryIsoAlpha2[1]) + $unicodeAdditionForUpperCase);
+        return $unicodePrefix . chr($firstCountryLetter + $unicodeAdditionForUpperCase)
+            . $unicodePrefix . chr($secondCountryLetter + $unicodeAdditionForUpperCase);
     }
 
     /**
@@ -314,5 +319,4 @@ final readonly class FrontendStudioModuleController
                 'language' => $selectedLanguage['value'],
             ], '', '&', PHP_QUERY_RFC3986);
     }
-
 }

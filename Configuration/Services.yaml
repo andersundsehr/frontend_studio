@@ -12,3 +12,6 @@ services:
 
   Andersundsehr\FrontendStudio\Service\ComponentPathResolverInterface:
     alias: Andersundsehr\FrontendStudio\Service\ComponentPathResolver
+
+  Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface:
+    alias: Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilder

@@ -2,7 +2,6 @@
 
 use Andersundsehr\FrontendStudio\Transformer\Attribute\TypeTransformer;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
-use Reflector;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
