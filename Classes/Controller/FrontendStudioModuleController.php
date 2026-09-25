@@ -9,6 +9,7 @@ use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
+use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
@@ -17,6 +18,7 @@ use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use Throwable;
 
@@ -39,6 +41,7 @@ final readonly class FrontendStudioModuleController
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private UriBuilder $uriBuilder,
         private SiteFinder $siteFinder,
+        private PreviewContextResolver $previewContextResolver,
         private Typo3Version $typo3Version,
         private AssetCollector $assetCollector,
     ) {
@@ -74,6 +77,7 @@ final readonly class FrontendStudioModuleController
     private function getVariantAssignments(string $selectedVariantIdentifier, ServerRequestInterface $request): array
     {
         $selectedComponentMetadata = $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($selectedVariantIdentifier);
+        $previewContext = $this->getPreviewContext($selectedVariantIdentifier, $request);
         [$renderedHtmlSource, $renderedHtmlStatus] = $selectedComponentMetadata !== null
             ? $this->renderInitialHtmlSource($selectedVariantIdentifier, $request)
             : ['', ''];
@@ -81,9 +85,11 @@ final readonly class FrontendStudioModuleController
         return [
             'selectedVariantIdentifier' => $selectedVariantIdentifier,
             'selectedComponentMetadata' => $selectedComponentMetadata,
-            'componentPreviewUri' => $selectedComponentMetadata !== null
-                ? $this->buildComponentPreviewUri($selectedVariantIdentifier, $request)
-                : null,
+            'componentPreviewUri' => $selectedComponentMetadata !== null ? $previewContext['componentPreviewUri'] : null,
+            'previewSites' => $previewContext['sites'],
+            'previewLanguages' => $previewContext['languages'],
+            'selectedSiteIdentifier' => $previewContext['selectedSiteIdentifier'],
+            'selectedLanguageHreflang' => $previewContext['selectedLanguageHreflang'],
             'variantSidebarWidth' => $this->getVariantSidebarWidth($GLOBALS['BE_USER']->uc ?? []),
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
             'renderedHtmlSource' => $renderedHtmlSource,
@@ -177,68 +183,136 @@ final readonly class FrontendStudioModuleController
         return $value;
     }
 
-    private function buildComponentPreviewUri(string $selectedVariantIdentifier, ServerRequestInterface $request): ?string
+    /**
+     * @return array{
+     *     sites: list<array{identifier: string, title: string, languagesJson: string}>,
+     *     languages: list<array{value: string, title: string}>,
+     *     selectedSiteIdentifier: string,
+     *     selectedLanguageHreflang: string,
+     *     componentPreviewUri: ?string
+     * }
+     */
+    private function getPreviewContext(string $selectedVariantIdentifier, ServerRequestInterface $request): array
     {
+        $emptyContext = [
+            'sites' => [],
+            'languages' => [],
+            'selectedSiteIdentifier' => '',
+            'selectedLanguageHreflang' => '',
+            'componentPreviewUri' => null,
+        ];
+
         try {
-            $sites = $this->siteFinder->getAllSites();
-            $site = reset($sites);
-            if ($site === false) {
-                return null;
+            $sites = array_values($this->siteFinder->getAllSites());
+            if ($sites === []) {
+                return $emptyContext;
             }
 
-            $requestOrigin = $this->getRequestOrigin($request);
-            if ($requestOrigin !== null) {
-                foreach ($sites as $candidateSite) {
-                    $candidateBase = (string)$candidateSite->getDefaultLanguage()->getBase();
-                    if ($this->getUrlOrigin($candidateBase) === $requestOrigin) {
-                        $site = $candidateSite;
-                        break;
-                    }
+            $languagesBySite = [];
+            $siteOptions = [];
+            foreach ($sites as $site) {
+                $siteIdentifier = $site->getIdentifier();
+                $languages = $this->getSiteLanguageOptions($site);
+                $languagesBySite[$siteIdentifier] = $languages;
+                $websiteTitle = (string)($site->getConfiguration()['websiteTitle'] ?? '');
+                $siteOptions[] = [
+                    'identifier' => $siteIdentifier,
+                    'title' => $websiteTitle !== '' ? $websiteTitle : $siteIdentifier,
+                    'languagesJson' => json_encode(
+                        $languages,
+                        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR,
+                    ) ?: '[]',
+                ];
+            }
+
+            $queryParams = $request->getQueryParams();
+            $resolvedContext = $this->previewContextResolver->resolve(
+                $request,
+                is_string($queryParams['site'] ?? null) ? $queryParams['site'] : null,
+                is_string($queryParams['language'] ?? null) ? $queryParams['language'] : null,
+            );
+            if ($resolvedContext === null) {
+                return $emptyContext;
+            }
+
+            [$selectedSiteIdentifier, $selectedLanguageHreflang] = $resolvedContext;
+            $languages = $languagesBySite[$selectedSiteIdentifier] ?? [];
+            $selectedLanguage = null;
+            foreach ($languages as $language) {
+                if ($language['value'] === $selectedLanguageHreflang) {
+                    $selectedLanguage = $language;
+                    break;
                 }
             }
 
-            return rtrim((string)$site->getDefaultLanguage()->getBase(), '/') . '/?'
-                . http_build_query([
-                    'frontendStudioComponentPreview' => '1',
-                    'componentVariant' => $selectedVariantIdentifier,
-                ], '', '&', PHP_QUERY_RFC3986);
+            return [
+                'sites' => $siteOptions,
+                'languages' => $languages,
+                'selectedSiteIdentifier' => $selectedSiteIdentifier,
+                'selectedLanguageHreflang' => $selectedLanguage['value'] ?? '',
+                'componentPreviewUri' => $this->buildComponentPreviewUri(
+                    $selectedVariantIdentifier,
+                    $selectedSiteIdentifier,
+                    $selectedLanguage,
+                ),
+            ];
         } catch (Throwable) {
+            return $emptyContext;
+        }
+    }
+
+    /**
+     * @return list<array{value: string, title: string}>
+     */
+    private function getSiteLanguageOptions(Site $site): array
+    {
+        $options = [];
+        foreach ($site->getLanguages() as $language) {
+            $options[] = [
+                'value' => $language->getHreflang(),
+                'title' => $this->getCountryFlagEmoji($language->getLocale()->getCountryCode()) . ' ' . $language->getTitle(),
+            ];
+        }
+
+        return $options;
+    }
+
+    private function getCountryFlagEmoji(?string $countryIsoAlpha2): string
+    {
+        if ($countryIsoAlpha2 === null) {
+            return '🏳️‍🌈';
+        }
+
+        $countryIsoAlpha2 = strtoupper($countryIsoAlpha2);
+        if (preg_match('/^[A-Z]{2}$/', $countryIsoAlpha2) !== 1) {
+            return '🏳️‍🌈';
+        }
+
+        $unicodePrefix = "\xF0\x9F\x87";
+        $unicodeAdditionForUpperCase = 0x65;
+
+        return $unicodePrefix . chr(ord($countryIsoAlpha2[0]) + $unicodeAdditionForUpperCase)
+            . $unicodePrefix . chr(ord($countryIsoAlpha2[1]) + $unicodeAdditionForUpperCase);
+    }
+
+    /**
+     * @param array{value: string, title: string}|null $selectedLanguage
+     */
+    private function buildComponentPreviewUri(
+        string $selectedVariantIdentifier,
+        string $selectedSiteIdentifier,
+        ?array $selectedLanguage,
+    ): ?string {
+        if ($selectedVariantIdentifier === '' || $selectedSiteIdentifier === '' || $selectedLanguage === null) {
             return null;
         }
+
+        return '/__frontendStudio/preview?'
+            . http_build_query([
+                'componentVariant' => $selectedVariantIdentifier,
+                'site' => $selectedSiteIdentifier,
+                'language' => $selectedLanguage['value'],
+            ], '', '&', PHP_QUERY_RFC3986);
     }
 
-    private function getRequestOrigin(ServerRequestInterface $request): ?string
-    {
-        $uri = $request->getUri();
-        return $this->buildOrigin($uri->getScheme(), $uri->getHost(), $uri->getPort());
-    }
-
-    private function getUrlOrigin(string $url): ?string
-    {
-        $parts = parse_url($url);
-        if (!is_array($parts)) {
-            return null;
-        }
-
-        $scheme = isset($parts['scheme']) ? (string)$parts['scheme'] : '';
-        $host = isset($parts['host']) ? (string)$parts['host'] : '';
-        $port = isset($parts['port']) && is_int($parts['port']) ? $parts['port'] : null;
-
-        return $this->buildOrigin($scheme, $host, $port);
-    }
-
-    private function buildOrigin(string $scheme, string $host, ?int $port): ?string
-    {
-        $scheme = strtolower($scheme);
-        $host = strtolower($host);
-        if ($scheme === '' || $host === '') {
-            return null;
-        }
-
-        if (($scheme === 'http' && $port === 80) || ($scheme === 'https' && $port === 443)) {
-            $port = null;
-        }
-
-        return $scheme . '://' . $host . ($port !== null ? ':' . $port : '');
-    }
 }

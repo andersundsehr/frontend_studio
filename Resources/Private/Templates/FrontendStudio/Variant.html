@@ -26,6 +26,8 @@
   data-component-change-stream-uri="{componentChangeStreamUri}"
   data-component-file-path="{selectedComponentMetadata.template.relativePath}"
   data-component-fluid-tag-name="{selectedComponentMetadata.displayNamespace}:{selectedComponentMetadata.componentName}"
+  data-selected-site-identifier="{selectedSiteIdentifier}"
+  data-selected-language-hreflang="{selectedLanguageHreflang}"
   data-active-tab="{variantActiveTab}"
   style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px"
 >
@@ -54,6 +56,30 @@
               </div>
 
               <div class="d-flex flex-wrap align-items-center gap-2">
+                <f:if condition="{previewSites}">
+                  <div class="d-flex flex-wrap align-items-center gap-2" role="group" aria-label="Preview context">
+                    <select
+                      class="form-select form-select-sm"
+                      aria-label="Site"
+                      data-frontend-studio-site-select
+                    >
+                      <f:for each="{previewSites}" as="site">
+                        <option value="{site.identifier}" data-languages="{site.languagesJson}">{site.title}</option>
+                      </f:for>
+                    </select>
+                    <f:if condition="{previewLanguages}">
+                      <select
+                        class="form-select form-select-sm"
+                        aria-label="Language"
+                        data-frontend-studio-language-select
+                      >
+                        <f:for each="{previewLanguages}" as="language">
+                          <option value="{language.value}">{language.title}</option>
+                        </f:for>
+                      </select>
+                    </f:if>
+                  </div>
+                </f:if>
                 <f:if condition="{selectedComponentMetadata.template.relativePath}">
                   <button
                     type="button"
@@ -71,6 +97,7 @@
                     target="_blank"
                     rel="noopener noreferrer"
                     class="btn btn-default btn-sm"
+                    data-frontend-studio-open-rendered-variant
                   >
                     Open rendered variant
                     <core:icon identifier="actions-window-open" size="small"/>

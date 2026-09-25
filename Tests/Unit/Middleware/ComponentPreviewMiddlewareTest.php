@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Middleware;
 
+use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentPathResolverInterface;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
@@ -17,11 +19,28 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionClass;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
+use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\ServerRequest;
 
 #[CoversClass(ComponentPreviewMiddleware::class)]
 final class ComponentPreviewMiddlewareTest extends TestCase
 {
+    public function testLegacyQueryMarkerDoesNotTriggerPreviewRendering(): void
+    {
+        $request = (new ServerRequest('https://example.test/?frontendStudioComponentPreview=1'))
+            ->withQueryParams(['frontendStudioComponentPreview' => '1']);
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects(self::once())
+            ->method('handle')
+            ->with(self::identicalTo($request))
+            ->willReturn(new HtmlResponse('normal response'));
+
+        $response = $this->createMiddleware($this->createMock(ComponentPreviewRendererInterface::class))
+            ->process($request, $handler);
+
+        self::assertSame('normal response', (string)$response->getBody());
+    }
+
     /**
      * @param array<string, string>|null $expectedSlotOverrides
      */
@@ -29,7 +48,6 @@ final class ComponentPreviewMiddlewareTest extends TestCase
     public function testForwardsSlotOverrides(?string $encodedSlots, ?array $expectedSlotOverrides): void
     {
         $queryParams = [
-            'frontendStudioComponentPreview' => '1',
             'frontendStudioPreviewFormat' => 'fragment',
             'componentVariant' => 'site:Card:Default',
         ];
@@ -37,7 +55,7 @@ final class ComponentPreviewMiddlewareTest extends TestCase
             $queryParams['componentVariantSlots'] = $encodedSlots;
         }
 
-        $request = new ServerRequest('https://example.test/')->withQueryParams($queryParams);
+        $request = $this->createPreviewRequest($queryParams);
         $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
         $renderer->expects(self::once())
             ->method('renderVariant')
@@ -50,6 +68,101 @@ final class ComponentPreviewMiddlewareTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('<article>Preview</article>', (string)$response->getBody());
+    }
+
+    public function testResolvesVariantNameAndComponentPathBeforeRendering(): void
+    {
+        $request = $this->createPreviewRequest([
+            'frontendStudioPreviewFormat' => 'fragment',
+            'componentVariantName' => 'Special Variant',
+            'componentPath' => '/packages/content_element_text/Components/Element/Text/Text.spec.ts',
+        ]);
+        $pathResolver = $this->createMock(ComponentPathResolverInterface::class);
+        $pathResolver->expects(self::once())
+            ->method('findVariantIdentifiers')
+            ->with('/packages/content_element_text/Components/Element/Text/Text.spec.ts', 'Special Variant')
+            ->willReturn(['site:element.text:Special Variant']);
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::once())
+            ->method('renderVariant')
+            ->with('site:element.text:Special Variant', self::identicalTo($request), null, null)
+            ->willReturn('<article>Preview</article>');
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects(self::never())->method('handle');
+
+        $response = $this->createMiddleware($renderer, $pathResolver)->process($request, $handler);
+
+        self::assertSame(200, $response->getStatusCode());
+    }
+
+    public function testRejectsMixedVariantSelectorFormats(): void
+    {
+        $request = $this->createPreviewRequest([
+            'frontendStudioPreviewFormat' => 'fragment',
+            'componentVariant' => 'site:Card:Default',
+            'componentVariantName' => 'Default',
+            'componentPath' => '/components/Card.spec.ts',
+        ]);
+        $pathResolver = $this->createMock(ComponentPathResolverInterface::class);
+        $pathResolver->expects(self::never())->method('findVariantIdentifiers');
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::never())->method('renderVariant');
+        $handler = $this->createMock(RequestHandlerInterface::class);
+
+        $response = $this->createMiddleware($renderer, $pathResolver)->process($request, $handler);
+
+        self::assertSame(400, $response->getStatusCode());
+    }
+
+    public function testRejectsIncompleteVariantNameAndComponentPathPair(): void
+    {
+        $request = $this->createPreviewRequest([
+            'frontendStudioPreviewFormat' => 'fragment',
+            'componentVariantName' => 'Default',
+        ]);
+        $pathResolver = $this->createMock(ComponentPathResolverInterface::class);
+        $pathResolver->expects(self::never())->method('findVariantIdentifiers');
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::never())->method('renderVariant');
+        $handler = $this->createMock(RequestHandlerInterface::class);
+
+        $response = $this->createMiddleware($renderer, $pathResolver)->process($request, $handler);
+
+        self::assertSame(400, $response->getStatusCode());
+    }
+
+    /**
+     * @param list<string> $matches
+     */
+    #[DataProvider('componentPathMatchDataProvider')]
+    public function testReturnsAnErrorWhenComponentPathDoesNotResolveUniquely(array $matches, int $expectedStatusCode): void
+    {
+        $request = $this->createPreviewRequest([
+            'frontendStudioPreviewFormat' => 'fragment',
+            'componentVariantName' => 'Default',
+            'componentPath' => '/components/Card.spec.ts',
+        ]);
+        $pathResolver = $this->createMock(ComponentPathResolverInterface::class);
+        $pathResolver->expects(self::once())
+            ->method('findVariantIdentifiers')
+            ->with('/components/Card.spec.ts', 'Default')
+            ->willReturn($matches);
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::never())->method('renderVariant');
+        $handler = $this->createMock(RequestHandlerInterface::class);
+
+        $response = $this->createMiddleware($renderer, $pathResolver)->process($request, $handler);
+
+        self::assertSame($expectedStatusCode, $response->getStatusCode());
+    }
+
+    /**
+     * @return iterable<string, array{list<string>, int}>
+     */
+    public static function componentPathMatchDataProvider(): iterable
+    {
+        yield 'no component match' => [[], 404];
+        yield 'multiple component matches' => [['site:Card:Default', 'other:Card:Default'], 409];
     }
 
     /**
@@ -70,11 +183,23 @@ final class ComponentPreviewMiddlewareTest extends TestCase
         yield 'array slot content' => ['{"default":[]}', null];
     }
 
-    private function createMiddleware(ComponentPreviewRendererInterface $renderer): ComponentPreviewMiddleware
+    /** @param array<string, mixed> $queryParams */
+    private function createPreviewRequest(array $queryParams): ServerRequest
+    {
+        return (new ServerRequest('https://example.test/'))
+            ->withQueryParams($queryParams)
+            ->withAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE, true);
+    }
+
+    private function createMiddleware(
+        ComponentPreviewRendererInterface $renderer,
+        ?ComponentPathResolverInterface $componentPathResolver = null,
+    ): ComponentPreviewMiddleware
     {
         return new ComponentPreviewMiddleware(
             $renderer,
             $this->createUninitialized(ComponentMetadataProvider::class),
+            $componentPathResolver ?? $this->createStub(ComponentPathResolverInterface::class),
             $this->createUninitialized(FluidUsageSnippetRenderer::class),
             $this->createUninitialized(HtmlSourceHighlighter::class),
             $this->createUninitialized(PreviewAssetRenderer::class),

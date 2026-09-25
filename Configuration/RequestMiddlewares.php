@@ -2,10 +2,20 @@
 
 declare(strict_types=1);
 
+use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
 
 return [
     'frontend' => [
+        'andersundsehr/frontend-studio/component-preview-context' => [
+            'target' => ComponentPreviewContextMiddleware::class,
+            'after' => [
+                'typo3/cms-core/normalized-params-attribute',
+            ],
+            'before' => [
+                'typo3/cms-frontend/site',
+            ],
+        ],
         'andersundsehr/frontend-studio/component-preview' => [
             'target' => ComponentPreviewMiddleware::class,
             'after' => [

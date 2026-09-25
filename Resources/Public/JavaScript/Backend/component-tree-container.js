@@ -558,9 +558,20 @@ class FrontendStudioComponentTreeContainer extends LitElement {
 
     const moduleMenu = top.TYPO3.ModuleMenu.App;
     const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
-    const contentUrl = createUrl(moduleConfiguration.link, {
+    const currentContentUrl = Viewport.ContentContainer.get()?.location?.href || Viewport.ContentContainer.getUrl();
+    const currentQueryParams = currentContentUrl !== null
+      ? new URL(currentContentUrl, window.location.origin).searchParams
+      : null;
+    const contentParameters = {
       componentVariant: node.identifier,
+    };
+    ['site', 'language'].forEach((parameter) => {
+      const value = currentQueryParams?.get(parameter);
+      if (value !== null && value !== undefined) {
+        contentParameters[parameter] = value;
+      }
     });
+    const contentUrl = createUrl(moduleConfiguration.link, contentParameters);
 
     Viewport.ContentContainer.setUrl(contentUrl);
   };

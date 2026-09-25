@@ -9,6 +9,7 @@ use RuntimeException;
 use JsonException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentPathResolverInterface;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
@@ -25,8 +26,6 @@ use TYPO3\CMS\Frontend\Resource\PublicUrlPrefixer;
 
 final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 {
-    private const string PREVIEW_PARAMETER = 'frontendStudioComponentPreview';
-
     private const string PREVIEW_FORMAT_PARAMETER = 'frontendStudioPreviewFormat';
 
     private const string PREVIEW_FORMAT_FRAGMENT = 'fragment';
@@ -39,9 +38,14 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
     private const string VARIANT_SLOTS_PARAMETER = 'componentVariantSlots';
 
+    private const string VARIANT_NAME_PARAMETER = 'componentVariantName';
+
+    private const string COMPONENT_PATH_PARAMETER = 'componentPath';
+
     public function __construct(
         private ComponentPreviewRendererInterface $componentPreviewRenderer,
         private ComponentMetadataProvider $componentMetadataProvider,
+        private ComponentPathResolverInterface $componentPathResolver,
         private FluidUsageSnippetRenderer $fluidUsageSnippetRenderer,
         private HtmlSourceHighlighter $htmlSourceHighlighter,
         private PreviewAssetRenderer $previewAssetRenderer,
@@ -63,10 +67,51 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         );
 
         $queryParams = $request->getQueryParams();
-        $variantIdentifier = isset($queryParams['componentVariant']) ? (string)$queryParams['componentVariant'] : '';
+        $isFragmentRequest = $this->isFragmentRequest($queryParams) || $this->isHighlightedFragmentRequest($queryParams);
+        $hasLegacyVariant = array_key_exists('componentVariant', $queryParams);
+        $hasVariantName = array_key_exists(self::VARIANT_NAME_PARAMETER, $queryParams);
+        $hasComponentPath = array_key_exists(self::COMPONENT_PATH_PARAMETER, $queryParams);
+
+        if ($hasLegacyVariant && ($hasVariantName || $hasComponentPath)) {
+            return $this->createErrorResponse('Invalid component preview request', 'Use either componentVariant or componentVariantName with componentPath.', 400, $isFragmentRequest);
+        }
+
+        if ($hasLegacyVariant) {
+            if (!is_string($queryParams['componentVariant'])) {
+                return $this->createErrorResponse('Invalid component preview request', 'The componentVariant parameter must be a string.', 400, $isFragmentRequest);
+            }
+
+            $variantIdentifier = $queryParams['componentVariant'];
+        } elseif ($hasVariantName && $hasComponentPath) {
+            $variantName = $queryParams[self::VARIANT_NAME_PARAMETER];
+            $componentPath = $queryParams[self::COMPONENT_PATH_PARAMETER];
+            if (!is_string($variantName) || $variantName === '' || !is_string($componentPath) || $componentPath === '') {
+                return $this->createErrorResponse('Invalid component preview request', 'componentVariantName and componentPath must be non-empty strings.', 400, $isFragmentRequest);
+            }
+
+            try {
+                $variantIdentifiers = $this->componentPathResolver->findVariantIdentifiers($componentPath, $variantName);
+            } catch (InvalidArgumentException $exception) {
+                return $this->createErrorResponse('Invalid component path', $exception->getMessage(), 400, $isFragmentRequest);
+            } catch (Throwable $throwable) {
+                return $this->createErrorResponse('Component path resolution failed', $throwable->getMessage(), 500, $isFragmentRequest);
+            }
+
+            if ($variantIdentifiers === []) {
+                return $this->createErrorResponse('Component not found', 'No registered component matches the supplied componentPath.', 404, $isFragmentRequest);
+            }
+
+            if (count($variantIdentifiers) > 1) {
+                return $this->createErrorResponse('Component path is ambiguous', 'More than one registered component matches the supplied componentPath.', 409, $isFragmentRequest);
+            }
+
+            $variantIdentifier = $variantIdentifiers[0];
+        } else {
+            return $this->createErrorResponse('Invalid component preview request', 'Provide componentVariant or both componentVariantName and componentPath.', 400, $isFragmentRequest);
+        }
+
         $variantValueOverrides = $this->getVariantValueOverrides($queryParams);
         $slotOverrides = $this->getSlotOverrides($queryParams);
-        $isFragmentRequest = $this->isFragmentRequest($queryParams) || $this->isHighlightedFragmentRequest($queryParams);
 
         if ($this->isFluidUsageRequest($queryParams)) {
             return $this->createHtmlResponse(
@@ -100,7 +145,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
     private function isPreviewRequest(ServerRequestInterface $request): bool
     {
-        return ($request->getQueryParams()[self::PREVIEW_PARAMETER] ?? null) === '1';
+        return $request->getAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE) === true;
     }
 
     /**

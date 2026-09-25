@@ -9,3 +9,6 @@ services:
 
   Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface:
     alias: Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer
+
+  Andersundsehr\FrontendStudio\Service\ComponentPathResolverInterface:
+    alias: Andersundsehr\FrontendStudio\Service\ComponentPathResolver

@@ -46,3 +46,15 @@ jobs:
       - uses: actions/checkout@v6
       - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }}
       - run: CI=true ./Build/Scripts/runTests.sh -p ${{ matrix.php }} -s unit
+
+  unit-tests-js:
+    name: "unit js"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm init --yes
+      - run: npm install --no-save --no-package-lock vitest@5.0.1
+      - run: npx vitest run Tests/Playwright/getUrlForVariant.node.test.ts

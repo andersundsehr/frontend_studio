@@ -19,7 +19,7 @@ so frontend developers can inspect and adjust a component without rebuilding a c
 
 ## Screenshot
 
-![Frontend Studio backend module](user-interface-example.png)
+![Frontend Studio backend module](Documentation/user-interface-example.png)
 
 ## Features
 
@@ -58,6 +58,19 @@ Then flush TYPO3 caches and make sure your project registers at least one Fluid 
 5. Preview the variant in the main render area.
 6. Use `Controls` to adjust its values, then use `Save` to persist them.
 7. Use the inspector tabs to review `Rendered HTML`, `Fluid Template`, and `Fluid Usage`.
+
+### Preview site and language
+
+When a variant is selected and the project has a configured TYPO3 site, the `Site` and `Language` selects appear to the left of `Copy file path`.
+`Site` lists configured sites, and `Language` lists the languages configured for the selected site.
+Changing the site keeps the current language when it is available there; otherwise, Frontend Studio selects that site's first language.
+
+The preview, `Rendered HTML`, `Fluid Usage`, and `Open rendered variant` link update to use the selected site and language.
+Unsaved values in `Controls` are preserved, and the selection is stored in the module URL so it is restored when you reload or revisit the module.
+
+![Site selector with its options open](Documentation/site-select-example.png)
+
+![Language selector with its options open](Documentation/language-select-example.png)
 
 The module works with component metadata provided by the registered Fluid component collection.
 Components without fixture variants can still appear in the tree.

@@ -30,11 +30,14 @@ final class ExtLocalconfTest extends TestCase
 
         self::assertSame([
             'existing',
-            'frontendStudioComponentPreview',
             'componentVariant',
+            'componentVariantName',
+            'componentPath',
             'componentVariantValues',
             'componentVariantSlots',
             'frontendStudioPreviewFormat',
+            'site',
+            'language',
         ], $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters']);
     }
 }
