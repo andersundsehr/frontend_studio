@@ -247,7 +247,10 @@ final class TypeTransformersTest extends UnitTestCase
         $stringableRequest = 'string|' . Stringable::class;
         self::assertTrue($subject->has($stringableRequest));
         self::assertSame($handler::class . '::stringable', $subject->get($stringableRequest)->from);
-        self::assertSame($handler::class . '::file', $subject->get('string|' . File::class)->from);
+        self::assertSame(
+            $handler::class . '::file',
+            $subject->get('string|' . Stringable::class . '|' . File::class)->from
+        );
     }
 
     private function createSubject(): TypeTransformers
