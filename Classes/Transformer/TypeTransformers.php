@@ -98,18 +98,26 @@ final class TypeTransformers
         }
 
         $maxPriority = PHP_INT_MIN;
+        $maxSpecificity = -1;
         $matched = null;
         foreach ($this->handlers as $type => $transformer) {
-            if (!$this->matchesRequestedType($type, $returnType)) {
+            // Cached lookups are not registrations and must not affect match specificity.
+            if (!isset($this->configuration[$type])) {
+                continue;
+            }
+
+            $specificity = $this->getMatchSpecificity($type, $returnType);
+            if ($specificity === null) {
                 continue;
             }
 
             $priority = $this->priorities[$type] ?? throw new RuntimeException('No priority found for transformer of type "' . $type . '".', 6799603216);
-            if ($priority < $maxPriority) {
+            if ($priority < $maxPriority || ($priority === $maxPriority && $specificity < $maxSpecificity)) {
                 continue;
             }
 
             $maxPriority = $priority;
+            $maxSpecificity = $specificity;
             $matched = $transformer;
         }
 
@@ -122,30 +130,20 @@ final class TypeTransformers
         return $matched;
     }
 
-    private function matchesRequestedType(string $registeredType, string $requestedType): bool
+    private function getMatchSpecificity(string $registeredType, string $requestedType): ?int
     {
+        $hasCompatibleMatch = false;
         foreach ($this->splitUnionType($registeredType) as $registeredTypePart) {
             foreach ($this->splitUnionType($requestedType) as $requestedTypePart) {
-                if ($this->matchesSingleRequestedType($registeredTypePart, $requestedTypePart)) {
-                    return true;
+                if ($this->normalizeType($registeredTypePart) === $this->normalizeType($requestedTypePart)) {
+                    return 1;
                 }
+
+                $hasCompatibleMatch = $hasCompatibleMatch || is_a($registeredTypePart, $requestedTypePart, true);
             }
         }
 
-        return false;
-    }
-
-    private function matchesSingleRequestedType(string $registeredType, string $requestedType): bool
-    {
-        if ($this->normalizeType($registeredType) === $this->normalizeType($requestedType)) {
-            return true;
-        }
-
-        if ($registeredType === $requestedType) {
-            return true;
-        }
-
-        return is_a($registeredType, $requestedType, true);
+        return $hasCompatibleMatch ? 0 : null;
     }
 
     /**

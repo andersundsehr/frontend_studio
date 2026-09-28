@@ -23,21 +23,6 @@ final readonly class DefaultTransformer
     }
 
     #[TypeTransformer(priority: 100)]
-    public function stringable(string $string): Stringable
-    {
-        return new readonly class ($string) implements Stringable {
-            public function __construct(private string $string)
-            {
-            }
-
-            public function __toString(): string
-            {
-                return $this->string;
-            }
-        };
-    }
-
-    #[TypeTransformer(priority: 100)]
     public function uri(string $url = self::DEFAULT_URL): Uri
     {
         return new Uri($url);
@@ -75,7 +60,7 @@ final readonly class DefaultTransformer
     }
 
     #[TypeTransformer(priority: 100)]
-    public function stringableString(string $string): Stringable
+    public function stringable(string $string): Stringable
     {
         return new readonly class ($string) implements Stringable {
             public function __construct(private string $string)
