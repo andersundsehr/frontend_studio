@@ -185,7 +185,8 @@ Scalars use native inputs, enums use selects, and `DateTime`, `DateTimeImmutable
 Built-in transformers cover `Stringable`, `Uri`, `File`, and `TypolinkParameter` arguments.
 
 For another reusable type, add a method to an autoconfigured service.
-Its typed inputs become controls, its return type must be compatible with the component argument, and the transformer with the highest priority is used:
+Its typed inputs become controls and its return type must be compatible with the component argument.
+Priority lets you prefer a transformer when several return types are compatible; an exact normalized return-type registration takes precedence regardless of priority:
 
 ```php
 use Andersundsehr\FrontendStudio\Transformer\Attribute\TypeTransformer;
@@ -203,7 +204,8 @@ final readonly class ComponentTransformer
 
 ### Transformer selection
 
-After incompatible transformers are excluded, the highest-priority transformer is selected.
+An exact registration for the normalized component argument type is selected immediately, regardless of priority.
+When there is no exact registration, incompatible transformers are excluded and the highest-priority transformer is selected.
 Every member of a transformer return union must be assignable to at least one member of the component argument type.
 At equal priority, the transformer with the highest proportion of exact type matches is selected: the number of exact matches divided by the larger union size.
 If priority and specificity tie, the later-registered transformer wins.
