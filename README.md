@@ -185,7 +185,7 @@ Scalars use native inputs, enums use selects, and `DateTime`, `DateTimeImmutable
 Built-in transformers cover `Stringable`, `Uri`, `File`, and `TypolinkParameter` arguments.
 
 For another reusable type, add a method to an autoconfigured service.
-Its typed inputs become controls, its return type must match the component argument, and the transformer with the highest priority is used:
+Its typed inputs become controls, its return type must be compatible with the component argument, and the transformer with the highest priority is used:
 
 ```php
 use Andersundsehr\FrontendStudio\Transformer\Attribute\TypeTransformer;
@@ -200,6 +200,17 @@ final readonly class ComponentTransformer
     }
 }
 ```
+
+### Transformer selection
+
+After incompatible transformers are excluded, the highest-priority transformer is selected.
+Every member of a transformer return union must be assignable to at least one member of the component argument type.
+At equal priority, the transformer with the highest proportion of exact type matches is selected: the number of exact matches divided by the larger union size.
+If priority and specificity tie, the later-registered transformer wins.
+
+For an argument of type `string|int|float`, a transformer returning `string|int` scores 2/3 and outranks one returning `string`, which scores 1/3, when their priorities are equal.
+For an argument of type `string|Stringable`, a transformer returning `string|int` is excluded because `int` matches neither argument type.
+For the same argument, an exact `Stringable` result outranks a `File` result that is only assignable through `Stringable`, when their priorities are equal.
 
 For a transformation that only applies to one argument, create a sibling `Card.transformer.php` file.
 It must return named `ArgumentTransformers` closures; container services may be typed closure parameters, while the remaining typed parameters become fixture inputs:

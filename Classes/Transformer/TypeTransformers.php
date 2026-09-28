@@ -7,8 +7,10 @@ namespace Andersundsehr\FrontendStudio\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use RuntimeException;
 
+use function count;
 use function explode;
 use function is_a;
+use function max;
 use function sort;
 use function str_contains;
 use function trim;
@@ -98,7 +100,7 @@ final class TypeTransformers
         }
 
         $maxPriority = PHP_INT_MIN;
-        $maxSpecificity = -1;
+        $maxSpecificity = -1.0;
         $matched = null;
         foreach ($this->handlers as $type => $transformer) {
             // Cached lookups are not registrations and must not affect match specificity.
@@ -130,20 +132,30 @@ final class TypeTransformers
         return $matched;
     }
 
-    private function getMatchSpecificity(string $registeredType, string $requestedType): ?int
+    private function getMatchSpecificity(string $registeredType, string $requestedType): ?float
     {
-        $hasCompatibleMatch = false;
-        foreach ($this->splitUnionType($registeredType) as $registeredTypePart) {
-            foreach ($this->splitUnionType($requestedType) as $requestedTypePart) {
+        $registeredTypeParts = $this->splitUnionType($registeredType);
+        $requestedTypeParts = $this->splitUnionType($requestedType);
+        $exactMatches = 0;
+
+        foreach ($registeredTypeParts as $registeredTypePart) {
+            $isAssignable = false;
+            foreach ($requestedTypeParts as $requestedTypePart) {
                 if ($this->normalizeType($registeredTypePart) === $this->normalizeType($requestedTypePart)) {
-                    return 1;
+                    $exactMatches++;
+                    $isAssignable = true;
+                    break;
                 }
 
-                $hasCompatibleMatch = $hasCompatibleMatch || is_a($registeredTypePart, $requestedTypePart, true);
+                $isAssignable = $isAssignable || is_a($registeredTypePart, $requestedTypePart, true);
+            }
+
+            if (!$isAssignable) {
+                return null;
             }
         }
 
-        return $hasCompatibleMatch ? 0 : null;
+        return $exactMatches / max(count($registeredTypeParts), count($requestedTypeParts));
     }
 
     /**

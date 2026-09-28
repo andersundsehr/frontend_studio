@@ -91,6 +91,14 @@ final class TypeTransformersTest extends UnitTestCase
             'type' => 'string|int',
             'expectedIndex' => 0,
         ];
+        yield 'more exact result members increase specificity' => [
+            'transformers' => [
+                ['type' => 'string', 'priority' => 10],
+                ['type' => 'string|int', 'priority' => 10],
+            ],
+            'type' => 'string|int|float',
+            'expectedIndex' => 1,
+        ];
         yield 'registered subtype resolves interface request' => [
             'transformers' => [
                 ['type' => RuntimeException::class, 'priority' => 10],
@@ -105,6 +113,14 @@ final class TypeTransformersTest extends UnitTestCase
             ],
             'type' => 'string|' . Stringable::class,
             'expectedIndex' => 0,
+        ];
+        yield 'partial result union cannot beat a compatible transformer' => [
+            'transformers' => [
+                ['type' => 'string|int', 'priority' => 100],
+                ['type' => File::class, 'priority' => 100],
+            ],
+            'type' => 'string|' . Stringable::class,
+            'expectedIndex' => 1,
         ];
         yield 'higher priority compatible match beats direct union member' => [
             'transformers' => [
