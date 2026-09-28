@@ -14,6 +14,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
 use Stringable;
+use TYPO3\CMS\Core\Resource\File;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 
 final class TypeTransformersTest extends UnitTestCase
@@ -96,6 +97,22 @@ final class TypeTransformersTest extends UnitTestCase
             ],
             'type' => Stringable::class,
             'expectedIndex' => 0,
+        ];
+        yield 'direct union member beats later compatible match at equal priority' => [
+            'transformers' => [
+                ['type' => Stringable::class, 'priority' => 100],
+                ['type' => File::class, 'priority' => 100],
+            ],
+            'type' => 'string|' . Stringable::class,
+            'expectedIndex' => 0,
+        ];
+        yield 'higher priority compatible match beats direct union member' => [
+            'transformers' => [
+                ['type' => Stringable::class, 'priority' => 100],
+                ['type' => File::class, 'priority' => 101],
+            ],
+            'type' => 'string|' . Stringable::class,
+            'expectedIndex' => 1,
         ];
         yield 'higher priority inherited subtype wins for parent request' => [
             'transformers' => [
@@ -190,6 +207,31 @@ final class TypeTransformersTest extends UnitTestCase
 
         self::assertSame($handler::class . '::transform', $transformer->from);
         self::assertSame('', $transformer->arguments['value']->getDescription());
+    }
+
+    #[Test]
+    public function getPrefersStringableForUnionArgumentAndIgnoresCachedMatchesAsRegistrations(): void
+    {
+        $handler = new class {
+            public function stringable(string $string): Stringable
+            {
+                throw new RuntimeException('This transformer is inspected, not executed.', 3088016791);
+            }
+
+            public function file(string $path): File
+            {
+                throw new RuntimeException('This transformer is inspected, not executed.', 8811725849);
+            }
+        };
+
+        $subject = $this->createSubject();
+        $subject->addTransformer($handler, 'stringable', Stringable::class, 100);
+        $subject->addTransformer($handler, 'file', File::class, 100);
+
+        $stringableRequest = 'string|' . Stringable::class;
+        self::assertTrue($subject->has($stringableRequest));
+        self::assertSame($handler::class . '::stringable', $subject->get($stringableRequest)->from);
+        self::assertSame($handler::class . '::file', $subject->get('string|' . File::class)->from);
     }
 
     private function createSubject(): TypeTransformers

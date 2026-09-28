@@ -9,10 +9,10 @@ Frontend Studio is a TYPO3 extension. PHP source lives in `Classes/` under the `
 `Build/Scripts/runTests.sh` runs checks in Docker or Podman and supports PHP 8.4 and 8.5. From the package root, use:
 
 ```bash
-./Build/Scripts/runTests.sh -p 8.5 -s unit
-./Build/Scripts/runTests.sh -p 8.5 -s functional -d mysql
-./Build/Scripts/runTests.sh -p 8.5 -s grumphpRun
-./Build/Scripts/runTests.sh -p 8.5 -s phpstan
+CI=true ./Build/Scripts/runTests.sh -p 8.5 -s unit
+CI=true ./Build/Scripts/runTests.sh -p 8.5 -s functional -d mysql
+CI=true ./Build/Scripts/runTests.sh -p 8.5 -s grumphpRun
+CI=true ./Build/Scripts/runTests.sh -p 8.5 -s phpstan
 ```
 
 Functional tests also support `mariadb` and `postgres` via `-d`.
