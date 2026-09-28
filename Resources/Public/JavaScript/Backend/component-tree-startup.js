@@ -1,4 +1,4 @@
-const frontendStudioModuleName = 'developer_frontendstudio';
+const frontendStudioModuleName = 'admin_frontendstudio';
 const componentTreeNavigationComponent = '@andersundsehr/frontend-studio/backend/component-tree-container';
 const componentTreeContainerSelector = 'andersundsehr-frontend-studio-component-tree-container';
 const maximumInitializationAttempts = 20;

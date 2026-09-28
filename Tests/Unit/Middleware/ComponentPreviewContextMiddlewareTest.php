@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Middleware;
 
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
+use Andersundsehr\FrontendStudio\Middleware\ComponentVariantListMiddleware;
 use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -226,6 +227,7 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
         $requestMiddlewares = require dirname(__DIR__, 3) . '/Configuration/RequestMiddlewares.php';
         $contextMiddleware = $requestMiddlewares['frontend']['andersundsehr/frontend-studio/component-preview-context'];
         $previewMiddleware = $requestMiddlewares['frontend']['andersundsehr/frontend-studio/component-preview'];
+        $variantListMiddleware = $requestMiddlewares['frontend']['andersundsehr/frontend-studio/component-variant-list'];
         $typo3RequestMiddlewares = require dirname(__DIR__, 3) . '/vendor/typo3/cms-frontend/Configuration/RequestMiddlewares.php';
         $orderedMiddlewareIdentifiers = array_keys(new DependencyOrderingService()->orderByDependencies(
             array_replace($typo3RequestMiddlewares['frontend'], $requestMiddlewares['frontend']),
@@ -233,6 +235,7 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
         $middlewarePositions = array_flip($orderedMiddlewareIdentifiers);
 
         self::assertSame(ComponentPreviewContextMiddleware::class, $contextMiddleware['target']);
+        self::assertSame(ComponentVariantListMiddleware::class, $variantListMiddleware['target']);
         self::assertSame(['typo3/cms-core/normalized-params-attribute'], $contextMiddleware['after']);
         self::assertSame(['typo3/cms-frontend/site'], $contextMiddleware['before']);
         self::assertContains('typo3/cms-frontend/site', $previewMiddleware['after']);
@@ -241,12 +244,18 @@ final class ComponentPreviewContextMiddlewareTest extends TestCase
         self::assertContains('typo3/cms-frontend/authentication', $previewMiddleware['before']);
         self::assertContains('typo3/cms-frontend/page-resolver', $previewMiddleware['before']);
         self::assertNotContains('typo3/cms-frontend/prepare-tsfe-rendering', $previewMiddleware['after']);
+        self::assertContains('andersundsehr/frontend-studio/component-preview', $variantListMiddleware['after']);
+        self::assertContains('typo3/cms-frontend/authentication', $variantListMiddleware['before']);
+        self::assertContains('typo3/cms-frontend/page-resolver', $variantListMiddleware['before']);
         self::assertLessThan($middlewarePositions['typo3/cms-frontend/site'], $middlewarePositions['andersundsehr/frontend-studio/component-preview-context']);
         self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-preview'], $middlewarePositions['typo3/cms-frontend/site']);
         self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-preview'], $middlewarePositions['typo3/cms-frontend/maintenance-mode']);
         self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-preview'], $middlewarePositions['typo3/cms-frontend/backend-user-authentication']);
         self::assertLessThan($middlewarePositions['typo3/cms-frontend/authentication'], $middlewarePositions['andersundsehr/frontend-studio/component-preview']);
         self::assertLessThan($middlewarePositions['typo3/cms-frontend/page-resolver'], $middlewarePositions['andersundsehr/frontend-studio/component-preview']);
+        self::assertLessThan($middlewarePositions['andersundsehr/frontend-studio/component-variant-list'], $middlewarePositions['andersundsehr/frontend-studio/component-preview']);
+        self::assertLessThan($middlewarePositions['typo3/cms-frontend/authentication'], $middlewarePositions['andersundsehr/frontend-studio/component-variant-list']);
+        self::assertLessThan($middlewarePositions['typo3/cms-frontend/page-resolver'], $middlewarePositions['andersundsehr/frontend-studio/component-variant-list']);
     }
 
     /** @param array<string, mixed> $context */

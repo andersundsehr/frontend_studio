@@ -132,6 +132,35 @@ test('renders the selected Text variant', async ({ page }) => {
 
 The `@frontend_studio/*` alias in this repository's `tsconfig.node.json` points to `packages/frontend_studio/Tests/Playwright/`. A different project can configure the same alias to the helper or import the helper through a relative path.
 
+## Discovering fixture variants
+
+The public `/__frontendStudio/variants` endpoint returns every discovered fixture variant with a root-relative `url` that opens its rendered preview. Playwright can fetch the index and visit each URL using the configured `baseURL`:
+
+```ts
+import { expect, test } from '@playwright/test';
+
+test('renders every registered fixture variant', async ({ page, request }) => {
+  const indexResponse = await request.get('/__frontendStudio/variants');
+  expect(indexResponse.ok()).toBe(true);
+
+  const { variants } = await indexResponse.json() as {
+    variants: Array<{
+      url: string;
+      componentName: string;
+      phpNamespace: string;
+      variantName: string;
+    }>;
+  };
+
+  for (const variant of variants) {
+    const response = await page.goto(variant.url);
+    expect(response?.ok(), `${variant.componentName} (${variant.variantName})`).toBe(true);
+  }
+});
+```
+
+Each entry includes the Fluid component identifier, its PHP component-collection namespace, and the fixture variant name.
+
 ## `getUrlForVariant()` options
 
 The helper has this signature:

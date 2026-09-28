@@ -12,7 +12,7 @@ import ClientStorage from '@typo3/backend/storage/client.js';
 import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.js';
 
 const componentTreeModuleStateType = 'frontend_studio_component_tree';
-const frontendStudioModuleName = 'developer_frontendstudio';
+const frontendStudioModuleName = 'admin_frontendstudio';
 const initialExpansionLevel = 10;
 const editableNodeSelectionDelay = 200;
 const componentFileActionStartedEventName = 'frontend-studio:component-file-action-started';

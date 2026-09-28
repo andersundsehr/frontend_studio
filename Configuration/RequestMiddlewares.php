@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
+use Andersundsehr\FrontendStudio\Middleware\ComponentVariantListMiddleware;
 
 return [
     'frontend' => [
@@ -29,6 +30,16 @@ return [
                 'typo3/cms-frontend/shortcut-and-mountpoint-redirect',
                 'typo3/cms-frontend/content-length-headers',
                 'typo3/cms-core/response-propagation ',
+            ],
+        ],
+        'andersundsehr/frontend-studio/component-variant-list' => [
+            'target' => ComponentVariantListMiddleware::class,
+            'after' => [
+                'andersundsehr/frontend-studio/component-preview',
+            ],
+            'before' => [
+                'typo3/cms-frontend/authentication',
+                'typo3/cms-frontend/page-resolver',
             ],
         ],
     ],

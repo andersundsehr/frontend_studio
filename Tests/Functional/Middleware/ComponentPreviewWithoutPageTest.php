@@ -6,9 +6,11 @@ namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
+use Andersundsehr\FrontendStudio\Middleware\ComponentVariantListMiddleware;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPathResolverInterface;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
+use Andersundsehr\FrontendStudio\Service\ComponentTreeDataProvider;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Andersundsehr\FrontendStudio\Service\PreviewAssetRenderer;
@@ -28,6 +30,7 @@ use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 #[CoversClass(ComponentPreviewMiddleware::class)]
+#[CoversClass(ComponentVariantListMiddleware::class)]
 #[CoversClass(PreviewTypoScriptContextBuilder::class)]
 final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
 {
@@ -56,10 +59,23 @@ final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
             ->executeQuery()
             ->fetchAssociative();
         self::assertFalse($pageRecord);
-        $request = new ServerRequest('https://preview.test/de/?frontendStudioPreviewFormat=fragment&componentVariant=site%3Acard%3ADefault&previewTest=yes')
+        $variants = $this->getListedVariants();
+        self::assertCount(1, $variants);
+        $variant = $variants[0];
+        self::assertSame('site:card', $variant['componentName']);
+        self::assertSame('Acme\\Preview\\Components', $variant['phpNamespace']);
+        self::assertSame('Default', $variant['variantName']);
+        self::assertSame('/__frontendStudio/preview?componentVariant=site%3Acard%3ADefault', $variant['url']);
+        self::assertSame('/__frontendStudio/preview', parse_url($variant['url'], PHP_URL_PATH));
+        parse_str(parse_url($variant['url'], PHP_URL_QUERY), $variantQuery);
+        $variantIdentifier = $variantQuery['componentVariant'] ?? null;
+        self::assertIsString($variantIdentifier);
+        self::assertSame('site:card:Default', $variantIdentifier);
+
+        $request = new ServerRequest('https://preview.test/de/?frontendStudioPreviewFormat=fragment&componentVariant=' . rawurlencode($variantIdentifier) . '&previewTest=yes')
             ->withQueryParams([
                 'frontendStudioPreviewFormat' => 'fragment',
-                'componentVariant' => 'site:card:Default',
+                'componentVariant' => $variantIdentifier,
                 'previewTest' => 'yes',
             ])
             ->withAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE, true)
@@ -95,5 +111,36 @@ final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
 
         self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
         self::assertSame('<article>Rendered from fixture</article>', (string)$response->getBody());
+    }
+
+    /**
+     * @return list<array{url: string, componentName: string, phpNamespace: string, variantName: string}>
+     */
+    private function getListedVariants(): array
+    {
+        $middleware = new ComponentVariantListMiddleware(
+            $this->get(ComponentTreeDataProvider::class),
+            $this->get(ComponentMetadataProvider::class),
+        );
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects(self::never())->method('handle');
+
+        $response = $middleware->process(
+            new ServerRequest('https://preview.test/__frontendStudio/variants'),
+            $handler,
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+
+        $payload = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($payload);
+        self::assertIsArray($payload['variants'] ?? null);
+
+        /** @var list<array{url: string, componentName: string, phpNamespace: string, variantName: string}> $variants */
+        $variants = $payload['variants'];
+
+        return $variants;
     }
 }
