@@ -5,10 +5,6 @@ declare(strict_types=1);
 use TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider;
 
 return [
-    'module-frontend-studio-developer' => [
-        'provider' => SvgIconProvider::class,
-        'source' => 'EXT:frontend_studio/Resources/Public/Icons/Developer.svg',
-    ],
     'module-frontend-studio-extension' => [
         'provider' => SvgIconProvider::class,
         'source' => 'EXT:frontend_studio/Resources/Public/Icons/Extension.svg',

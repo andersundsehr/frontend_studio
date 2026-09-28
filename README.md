@@ -52,7 +52,7 @@ Then flush TYPO3 caches and make sure your project registers at least one Fluid 
 ## Quick Start
 
 1. Open the TYPO3 backend.
-2. Go to `Developer > Frontend Studio`.
+2. Go to `Administration > Frontend Studio`.
 3. Select a component namespace and component from the navigation tree.
 4. Use `Create variant` to add a variant and enter its name.
 5. Preview the variant in the main render area.
@@ -122,7 +122,7 @@ The following Card is available as `<site:card>`:
 </article>
 ```
 
-Open `Developer > Frontend Studio`, select the `site` namespace and Card, then use `Create variant` to create `Default`.
+Open `Administration > Frontend Studio`, select the `site` namespace and Card, then use `Create variant` to create `Default`.
 Use `Controls` to change the values and `Save` to persist them.
 
 Frontend Studio creates the file `Components/Card/Card.fixture.yaml`:
