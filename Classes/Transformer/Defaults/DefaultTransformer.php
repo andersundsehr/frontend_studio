@@ -73,4 +73,9 @@ final readonly class DefaultTransformer
             ]
         );
     }
+
+    #[TypeTransformer(priority: 100)]
+    public function stringableString(string $string): string|Stringable {
+        return $string;
+    }
 }
