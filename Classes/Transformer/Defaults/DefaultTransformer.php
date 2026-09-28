@@ -75,7 +75,17 @@ final readonly class DefaultTransformer
     }
 
     #[TypeTransformer(priority: 100)]
-    public function stringableString(string $string): string|Stringable {
-        return $string;
+    public function stringableString(string $string): Stringable
+    {
+        return new readonly class ($string) implements Stringable {
+            public function __construct(private string $string)
+            {
+            }
+
+            public function __toString(): string
+            {
+                return $this->string;
+            }
+        };
     }
 }
