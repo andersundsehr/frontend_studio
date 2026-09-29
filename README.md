@@ -317,6 +317,7 @@ Auto reload is intentionally disabled outside development contexts.
 
 ## Further Reading
 
+- [Component browser tests with Playwright](Playwright/README.md).
 - [Fluid components](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/ApiOverview/Fluid/UsingFluidInTypo3.html)
 - [ViewHelper `f:argument`](https://docs.typo3.org/other/typo3/view-helper-reference/main/en-us/Global/Argument.html)
 - [ViewHelper `f:slot`](https://docs.typo3.org/other/typo3/view-helper-reference/main/en-us/Global/Slot.html)

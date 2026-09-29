@@ -41,15 +41,11 @@ final readonly class ComponentVariantListMiddleware implements MiddlewareInterfa
             }
 
             $variants[] = [
-                'url' => '/__frontendStudio/preview?' . http_build_query(
-                    ['componentVariant' => $variantIdentifier],
-                    '',
-                    '&',
-                    PHP_QUERY_RFC3986,
-                ),
+                'url' => '/__frontendStudio/preview?' . http_build_query(['componentVariant' => $variantIdentifier], '', '&', PHP_QUERY_RFC3986),
                 'componentName' => $metadata->componentIdentifier,
                 'phpNamespace' => $metadata->sourceNamespace,
                 'variantName' => $metadata->variantName,
+                'fileName' => $metadata->template->relativePath,
             ];
         }
 

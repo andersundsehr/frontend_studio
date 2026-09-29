@@ -6,6 +6,7 @@ namespace Andersundsehr\FrontendStudio\Tests\Unit\Service;
 
 use Andersundsehr\FrontendStudio\Dto\ComponentFixtureMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentTemplateMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
@@ -63,7 +64,7 @@ final class FluidUsageSnippetRendererTest extends TestCase
             false,
             [],
             [],
-            null,
+            new ComponentTemplateMetadata('Card', null, null, null, [], null, null),
             new ComponentFixtureMetadata(
                 null,
                 null,
@@ -96,7 +97,7 @@ final class FluidUsageSnippetRendererTest extends TestCase
             false,
             [],
             [],
-            null,
+            new ComponentTemplateMetadata('Card', null, null, null, [], null, null),
             new ComponentFixtureMetadata(
                 null,
                 null,

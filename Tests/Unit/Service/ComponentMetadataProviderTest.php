@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Service;
 
+use RuntimeException;
 use Andersundsehr\FrontendStudio\Service\ComponentDiscoveryProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
@@ -15,6 +16,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolver;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3\CMS\Fluid\View\TemplatePaths;
@@ -65,6 +67,7 @@ final class ComponentMetadataProviderTest extends TestCase
 
         self::assertNotNull($metadata);
         self::assertSame(['content', 'footer'], $metadata->slots);
+        self::assertSame('EXT:test/Card.html', $metadata->template->relativePath);
         self::assertNotNull($metadata->fixture?->selectedVariant);
         self::assertSame(
             ['content' => '<strong>Slot HTML</strong>', 'footer' => ''],
@@ -87,15 +90,61 @@ final class ComponentMetadataProviderTest extends TestCase
         );
     }
 
+    public function testThrowsWhenCollectionDoesNotResolveTemplates(): void
+    {
+        $resolverDelegate = new readonly class implements ComponentListProviderInterface, ViewHelperResolverDelegateInterface {
+            public function getAvailableComponents(): array
+            {
+                return ['Card'];
+            }
+
+            public function resolveViewHelperClassName(string $name): string
+            {
+                throw new UnresolvableViewHelperException('Test component resolver does not resolve ViewHelpers.', 9606519065);
+            }
+
+            public function getNamespace(): string
+            {
+                return self::class;
+            }
+        };
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The component collection does not provide template metadata.');
+
+        $this->createProvider([], resolverDelegate: $resolverDelegate)->getComponentMetadataForVariantIdentifier('test:Card:Default');
+    }
+
+    public function testThrowsWhenTemplateHasNoRelativePath(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No project-relative or EXT: path is available.');
+
+        $this->createProvider([], mapTemplatePath: false)->getComponentMetadataForVariantIdentifier('test:Card:Default');
+    }
+
+    public function testThrowsWhenTemplateFileIsMissing(): void
+    {
+        unlink($this->templatePath);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('does not exist.');
+
+        $this->createProvider([])->getComponentMetadataForVariantIdentifier('test:Card:Default');
+    }
+
     /**
      * @param list<string> $slotNames
      */
-    private function createProvider(array $slotNames): ComponentMetadataProvider
-    {
+    private function createProvider(
+        array $slotNames,
+        bool $mapTemplatePath = true,
+        ?ViewHelperResolverDelegateInterface $resolverDelegate = null,
+    ): ComponentMetadataProvider {
         $templatePaths = new TemplatePaths();
         $templatePaths->setTemplatePathAndFilename($this->templatePath);
 
-        $resolverDelegate = new readonly class ($templatePaths, $slotNames) implements
+        $resolverDelegate ??= new readonly class ($templatePaths, $slotNames) implements
             ComponentDefinitionProviderInterface,
             ComponentListProviderInterface,
             ComponentTemplateResolverInterface,
@@ -158,7 +207,10 @@ final class ComponentMetadataProviderTest extends TestCase
         $viewHelperResolverFactory = $this->createStub(ViewHelperResolverFactoryInterface::class);
         $viewHelperResolverFactory->method('create')->willReturn($viewHelperResolver);
         $packageManager = $this->createStub(PackageManager::class);
-        $packageManager->method('getActivePackages')->willReturn([]);
+        $package = $this->createStub(PackageInterface::class);
+        $package->method('getPackagePath')->willReturn(dirname($this->templatePath));
+        $package->method('getPackageKey')->willReturn('test');
+        $packageManager->method('getActivePackages')->willReturn($mapTemplatePath ? ['test' => $package] : []);
         $transformerFactory = new TransformerFactory($container);
 
         return new ComponentMetadataProvider(

@@ -1,0 +1,38 @@
+{
+  "name": "@frontend_studio/test",
+  "description": "Easy integration of frontend_studio into your playwright setup.",
+  "keywords": [
+    "playwright",
+    "testing",
+    "addon",
+    "e2e",
+    "integration"
+  ],
+  "version": "0.0.0",
+  "homepage": "https://github.com/andersundsehr/frontend_studio/",
+  "license": "GPL-2.0-or-later",
+  "bugs": "https://github.com/andersundsehr/frontend_studio/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andersundsehr/frontend_studio.git"
+  },
+  "type": "module",
+  "exports": "./index.ts",
+  "dependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "axe-html-reporter": "^2.2.11",
+    "axe-result-pretty-print": "^1.0.2"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.63.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types **/*.test.{cts,mts,ts}",
+    "test:watch": "npm run test -- --watch",
+    "typecheck": "tsc --noEmit"
+  }
+}

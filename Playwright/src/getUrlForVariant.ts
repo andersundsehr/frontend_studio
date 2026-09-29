@@ -41,7 +41,7 @@ function getCallerFile(): string {
     Error.prepareStackTrace = (_, stack) => stack;
 
     const error = new Error();
-    const stack = error.stack as unknown as Array<{ getFileName(): string | null }>;
+    const stack = error.stack as unknown as { getFileName(): string | null }[];
 
     if (stack.length > 2) {
       const callerFile = stack[2].getFileName();
