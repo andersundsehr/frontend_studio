@@ -6,3 +6,4 @@
 /public/
 /.codex
 /node_modules/
+/Playwright/node_modules/

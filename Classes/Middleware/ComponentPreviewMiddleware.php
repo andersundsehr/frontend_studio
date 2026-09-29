@@ -262,7 +262,7 @@ html, body {
 body {
     margin: 5px;
 
-    background: linear-gradient(45deg, rgba(0, 0, 0, 0.0980392) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.0980392) 75%, rgba(0, 0, 0, 0.0980392) 0), linear-gradient(45deg, rgba(0, 0, 0, 0.0980392) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.0980392) 75%, rgba(0, 0, 0, 0.0980392) 0), white;
+    background: linear-gradient(45deg, rgba(0, 0, 0, 0.098) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.098) 75%, rgba(0, 0, 0, 0.098) 0), linear-gradient(45deg, rgba(0, 0, 0, 0.098) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.098) 75%, rgba(0, 0, 0, 0.098) 0), white;
     background-repeat: repeat, repeat;
     background-position: 0 0, 5px 5px;
     background-clip: border-box, border-box;
@@ -271,7 +271,7 @@ body {
     transform: scaleX(1) scaleY(1) scaleZ(1);
 }
 @layer defaults {
-    :where(body > *) {
+    :where(#rendered-component > *) {
         background: white;
     }
 }
@@ -279,8 +279,8 @@ EOF;
         $body .= $this->previewAssetRenderer->renderAssets();
         return '<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>'
             . htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-            . '</title><style>' . $css . '</style></head><body>'
+            . '</title><style>' . $css . '</style></head><body><div id="rendered-component">'
             . $body
-            . '</body></html>';
+            . '</div></body></html>';
     }
 }

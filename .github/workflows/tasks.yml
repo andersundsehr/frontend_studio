@@ -71,4 +71,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: corepack pnpm dlx vitest@5.0.1 run Tests/Playwright/getUrlForVariant.node.test.ts
+      - run: npm install --prefix Playwright --no-package-lock
+      - run: npm test --prefix Playwright
+      - run: npm run typecheck --prefix Playwright

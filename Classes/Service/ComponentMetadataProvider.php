@@ -18,6 +18,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use DateTimeImmutable;
+use RuntimeException;
 use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Package\PackageManager;
@@ -60,16 +61,23 @@ final readonly class ComponentMetadataProvider
             return null;
         }
 
+        $resolverDelegate = $component['resolverDelegate'];
+        if (!$resolverDelegate instanceof ComponentTemplateResolverInterface) {
+            throw new RuntimeException('The component collection does not provide template metadata.', 4544542375);
+        }
+
+        $template = $this->getTemplateMetadata($resolverDelegate, $componentName);
+        if ($template->relativePath === null || $template->relativePath === '') {
+            throw new RuntimeException('Component template path could not be resolved: ' . ($template->error ?? 'No project-relative or EXT: path is available.'), 1622510750);
+        }
+
         $arguments = [];
         $additionalArgumentsAllowed = false;
         $slots = [];
         $annotations = [];
-        $template = null;
-        $fixture = null;
         $staticVariables = [];
         $errors = [];
         $transformers = null;
-        $resolverDelegate = $component['resolverDelegate'];
 
         if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
             try {
@@ -85,40 +93,35 @@ final readonly class ComponentMetadataProvider
             $errors[] = 'The component collection does not provide component definitions.';
         }
 
-        if ($resolverDelegate instanceof ComponentTemplateResolverInterface) {
-            $template = $this->getTemplateMetadata($resolverDelegate, $componentName);
-            $fixture = $this->getFixtureMetadata($resolverDelegate, $componentName, $variantName);
-            if ($fixture->error !== null) {
-                $errors[] = 'Fixture file could not be loaded: ' . $fixture->error;
-            } elseif ($fixture->variants !== [] && $fixture->selectedVariant === null) {
-                $errors[] = 'Selected variant was not found in the fixture file.';
-            }
+        $fixture = $this->getFixtureMetadata($resolverDelegate, $componentName, $variantName);
+        if ($fixture->error !== null) {
+            $errors[] = 'Fixture file could not be loaded: ' . $fixture->error;
+        } elseif ($fixture->variants !== [] && $fixture->selectedVariant === null) {
+            $errors[] = 'Selected variant was not found in the fixture file.';
+        }
 
-            if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
-                try {
-                    $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
-                } catch (Throwable $throwable) {
-                    $errors[] = 'Component transformers could not be loaded: ' . $throwable->getMessage();
-                }
-            }
-
+        if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
             try {
-                $slotValues = $fixture->selectedVariant !== null
-                    ? $this->componentFixtureProvider->getVariantSlots($resolverDelegate, $componentName, $variantName, $slots)
-                    : [];
+                $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
             } catch (Throwable $throwable) {
-                $slotValues = [];
-                $errors[] = 'Component slots could not be loaded: ' . $throwable->getMessage();
+                $errors[] = 'Component transformers could not be loaded: ' . $throwable->getMessage();
             }
+        }
 
-            $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments, $transformers, $slotValues);
-            try {
-                $staticVariables = $this->normalizeStaticVariables($resolverDelegate->getAdditionalVariables($componentName));
-            } catch (Throwable $throwable) {
-                $errors[] = 'Static variables could not be loaded: ' . $throwable->getMessage();
-            }
-        } else {
-            $errors[] = 'The component collection does not provide template metadata.';
+        try {
+            $slotValues = $fixture->selectedVariant !== null
+                ? $this->componentFixtureProvider->getVariantSlots($resolverDelegate, $componentName, $variantName, $slots)
+                : [];
+        } catch (Throwable $throwable) {
+            $slotValues = [];
+            $errors[] = 'Component slots could not be loaded: ' . $throwable->getMessage();
+        }
+
+        $fixture = $this->mergeFixtureValuesWithArguments($fixture, $arguments, $transformers, $slotValues);
+        try {
+            $staticVariables = $this->normalizeStaticVariables($resolverDelegate->getAdditionalVariables($componentName));
+        } catch (Throwable $throwable) {
+            $errors[] = 'Static variables could not be loaded: ' . $throwable->getMessage();
         }
 
         return new ComponentMetadata(

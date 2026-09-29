@@ -27,7 +27,7 @@ final readonly class ComponentMetadata
         public bool $additionalArgumentsAllowed,
         public array $slots,
         public array $annotations,
-        public ?ComponentTemplateMetadata $template,
+        public ComponentTemplateMetadata $template,
         public ?ComponentFixtureMetadata $fixture,
         public array $staticVariables,
         public array $errors,
