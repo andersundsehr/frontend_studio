@@ -1,0 +1,23 @@
+stylesheets:
+  - EXT:backend/Resources/Public/Css/backend.css
+variants:
+  Default:
+    selectedVariantIdentifier: 'frontend.studio:variant.header:Default'
+    selectedComponentMetadata:
+      variantIdentifier: 'frontend.studio:variant.header:Default'
+    componentPreviewUri: '/__frontendStudio/preview?componentVariant=frontend.studio%3Avariant.header%3ADefault'
+    previewSites:
+      - identifier: demo
+        title: Demo site
+        languagesJson: '[{"value":"en-US","title":"English"}]'
+    previewLanguages:
+      - value: en-US
+        title: English
+    selectedSiteIdentifier: demo
+    selectedLanguageHreflang: en-US
+  Empty:
+    selectedVariantIdentifier: ''
+    previewSites: []
+    previewLanguages: []
+    selectedSiteIdentifier: ''
+    selectedLanguageHreflang: ''

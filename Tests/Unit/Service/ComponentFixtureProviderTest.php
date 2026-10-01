@@ -13,6 +13,7 @@ use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Symfony\Component\Yaml\Yaml;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\View\TemplatePaths;
@@ -89,6 +90,26 @@ YAML);
         self::assertSame([], $metadata->variants);
         self::assertNull($metadata->content);
         self::assertNull($metadata->error);
+        self::assertSame([], $this->createProvider()->getPreviewStylesheets($this->createResolverDelegate(), 'Card'));
+    }
+
+    public function testReadsAndPreservesSharedPreviewStylesheets(): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', <<<YAML
+stylesheets:
+  - EXT:backend/Resources/Public/Css/backend.css
+variants:
+  Default: []
+YAML);
+
+        $provider = $this->createProvider();
+        $resolverDelegate = $this->createResolverDelegate();
+        $expected = ['EXT:backend/Resources/Public/Css/backend.css'];
+
+        self::assertSame($expected, $provider->getPreviewStylesheets($resolverDelegate, 'Card'));
+        $provider->updateVariantValues($resolverDelegate, 'Card', 'Default', ComponentVariantValues::empty());
+        $fixture = Yaml::parseFile(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml');
+        self::assertSame($expected, $fixture['stylesheets'] ?? null);
     }
 
     public function testStoresAndClearsSlotHtmlOutsideTheFixture(): void

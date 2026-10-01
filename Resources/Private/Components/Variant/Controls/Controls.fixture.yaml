@@ -1,0 +1,7 @@
+stylesheets:
+  - EXT:backend/Resources/Public/Css/backend.css
+variants:
+  Default:
+    selectedComponentMetadata:
+      variantIdentifier: 'frontend.studio:variant.controls:Default'
+    variantActiveTab: values

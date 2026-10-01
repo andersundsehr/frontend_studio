@@ -1,4 +1,5 @@
-.frontend-studio-variant-view {
+.frontend-studio-variant-view,
+#rendered-component {
     --frontend-studio-variant-sidebar-width: 360px;
     --frontend-studio-variant-header-height: var(--module-docheader-bar-height, 3.28125rem);
     --frontend-studio-variant-bg: var(--typo3-surface-base);
@@ -7,6 +8,9 @@
     --frontend-studio-variant-border-color: var(--typo3-component-border-color);
     --frontend-studio-variant-resize-color: var(--typo3-component-border-color);
     --frontend-studio-variant-resize-hover-color: var(--typo3-text-color-variant);
+}
+
+.frontend-studio-variant-view {
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -176,18 +180,22 @@
 
 @supports (field-sizing: content) {
     .frontend-studio-variant-view .form-control,
-    .frontend-studio-variant-view .form-select {
+    .frontend-studio-variant-view .form-select,
+    #rendered-component .form-control,
+    #rendered-component .form-select {
         width: auto;
         max-width: 100%;
         field-sizing: content;
     }
 }
 
-.frontend-studio-variant-view .form-control:invalid {
+.frontend-studio-variant-view .form-control:invalid,
+#rendered-component .form-control:invalid {
     --typo3-form-control-border-color: var(--typo3-state-danger-border-color);
 }
 
-.frontend-studio-variant-view .form-select:invalid {
+.frontend-studio-variant-view .form-select:invalid,
+#rendered-component .form-select:invalid {
     --typo3-form-select-border-color: var(--typo3-state-danger-border-color);
 }
 

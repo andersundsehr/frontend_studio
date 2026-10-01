@@ -1,0 +1,161 @@
+<html
+  xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+  xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+  xmlns:frontend.studio="http://typo3.org/ns/Andersundsehr/FrontendStudio/Components"
+  data-namespace-typo3-fluid="true"
+>
+<f:argument name="selectedComponentMetadata" type="Andersundsehr\FrontendStudio\Dto\ComponentMetadata"/>
+<f:argument name="variantActiveTab" type="string"/>
+<f:argument name="renderedHtmlSource" type="string"/>
+<f:argument name="renderedHtmlStatus" type="string"/>
+<f:argument name="fluidTemplateSource" type="string"/>
+<f:argument name="fluidUsageSource" type="string"/>
+<f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
+<f:asset.script identifier="frontend-studio-variant-view" src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js" type="module"/>
+
+<div
+  class="frontend-studio-variant-sidebar-resize-handle"
+  role="separator"
+  aria-orientation="vertical"
+  aria-label="Resize variant side panel"
+  tabindex="0"
+  data-frontend-studio-variant-sidebar-resize
+></div>
+<aside class="frontend-studio-variant-sidebar" aria-label="Variant tools">
+  <div class="frontend-studio-variant-sidebar-header">
+    <ul class="nav nav-tabs frontend-studio-variant-tabs" role="tablist" aria-label="Variant panel tabs">
+      <li class="nav-item" role="presentation">
+        <button
+          type="button"
+          class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'values\'', then: ' active is-active')}"
+          id="frontend-studio-variant-values-tab"
+          role="tab"
+          aria-selected="{f:if(condition: '{variantActiveTab} == \'values\'', then: 'true', else: 'false')}"
+          aria-controls="frontend-studio-variant-values-panel"
+          data-frontend-studio-variant-tab="values"
+        >
+          Controls
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          type="button"
+          class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'html\'', then: ' active is-active')}"
+          id="frontend-studio-variant-html-tab"
+          role="tab"
+          aria-selected="{f:if(condition: '{variantActiveTab} == \'html\'', then: 'true', else: 'false')}"
+          aria-controls="frontend-studio-variant-html-panel"
+          data-frontend-studio-variant-tab="html"
+        >
+          Rendered HTML
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          type="button"
+          class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'template\'', then: ' active is-active')}"
+          id="frontend-studio-variant-template-tab"
+          role="tab"
+          aria-selected="{f:if(condition: '{variantActiveTab} == \'template\'', then: 'true', else: 'false')}"
+          aria-controls="frontend-studio-variant-template-panel"
+          data-frontend-studio-variant-tab="template"
+        >
+          Fluid Template
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          type="button"
+          class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' active is-active')}"
+          id="frontend-studio-variant-usage-tab"
+          role="tab"
+          aria-selected="{f:if(condition: '{variantActiveTab} == \'usage\'', then: 'true', else: 'false')}"
+          aria-controls="frontend-studio-variant-usage-panel"
+          data-frontend-studio-variant-tab="usage"
+        >
+          Fluid Usage
+        </button>
+      </li>
+    </ul>
+  </div>
+  <div class="frontend-studio-variant-sidebar-body">
+    <frontend.studio:variant.controls
+      selectedComponentMetadata="{selectedComponentMetadata}"
+      variantActiveTab="{variantActiveTab}"
+    />
+    <div
+      class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'html\'', then: ' is-active', else: ' is-hidden')}"
+      id="frontend-studio-variant-html-panel"
+      role="tabpanel"
+      aria-labelledby="frontend-studio-variant-html-tab"
+      data-frontend-studio-variant-tab-panel="html"
+    >
+      <div
+        class="frontend-studio-variant-html-status{f:if(condition: renderedHtmlStatus, then: ' is-error')}"
+        data-frontend-studio-variant-html-status
+        hidden="{f:if(condition: renderedHtmlStatus, then: false, else: true)}"
+      >
+        {renderedHtmlStatus}
+      </div>
+      <div
+        class="frontend-studio-variant-html"
+        data-frontend-studio-variant-html
+      >{renderedHtmlSource -> f:format.raw()}
+      </div>
+    </div>
+    <div
+      class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'template\'', then: ' is-active', else: ' is-hidden')}"
+      id="frontend-studio-variant-template-panel"
+      role="tabpanel"
+      aria-labelledby="frontend-studio-variant-template-tab"
+      data-frontend-studio-variant-tab-panel="template"
+    >
+      <f:if condition="{selectedComponentMetadata.template.error}">
+        <f:then>
+          <div class="frontend-studio-variant-template-status is-error">
+            The Fluid template could not be loaded. {selectedComponentMetadata.template.error}
+          </div>
+        </f:then>
+        <f:else>
+          <f:if condition="{selectedComponentMetadata.template.content}">
+            <f:then>
+              <div class="frontend-studio-variant-template">
+                {fluidTemplateSource -> f:format.raw()}
+              </div>
+            </f:then>
+            <f:else>
+              <div class="frontend-studio-variant-template-status">
+                The Fluid template content is not available.
+              </div>
+            </f:else>
+          </f:if>
+        </f:else>
+      </f:if>
+    </div>
+    <div
+      class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' is-active', else: ' is-hidden')}"
+      id="frontend-studio-variant-usage-panel"
+      role="tabpanel"
+      aria-labelledby="frontend-studio-variant-usage-tab"
+      data-frontend-studio-variant-tab-panel="usage"
+    >
+      <div class="frontend-studio-variant-usage-actions">
+        <button
+          type="button"
+          class="btn btn-default btn-sm"
+          data-frontend-studio-copy-fluid-usage
+        >
+          Copy
+          <core:icon identifier="actions-edit-copy" size="small"/>
+        </button>
+      </div>
+      <div
+        class="frontend-studio-variant-usage"
+        data-frontend-studio-variant-usage
+      >
+        <pre class="frontend-studio-variant-html-source"><code data-frontend-studio-fluid-usage-code>{fluidUsageSource -> f:format.raw()}</code></pre>
+      </div>
+    </div>
+  </div>
+</aside>
+</html>

@@ -7,6 +7,9 @@ services:
   Andersundsehr\FrontendStudio\:
     resource: '../Classes/*'
 
+  Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider:
+    public: true
+
   Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface:
     alias: Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer
 

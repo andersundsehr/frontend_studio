@@ -354,6 +354,31 @@ final readonly class ComponentFixtureProvider
     }
 
     /**
+     * @return list<string>
+     */
+    public function getPreviewStylesheets(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): array
+    {
+        $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
+        if (!is_file($fixturePath)) {
+            return [];
+        }
+
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
+        $stylesheets = $fixture['stylesheets'] ?? [];
+        if (!is_array($stylesheets) || !array_is_list($stylesheets)) {
+            throw new InvalidArgumentException('Fixture "stylesheets" must be a list of paths.', 3430725123);
+        }
+
+        foreach ($stylesheets as $stylesheet) {
+            if (!is_string($stylesheet) || trim($stylesheet) === '') {
+                throw new InvalidArgumentException('Fixture "stylesheets" must contain non-empty paths.', 3430725124);
+            }
+        }
+
+        return $stylesheets;
+    }
+
+    /**
      * @param list<string> $slotNames
      * @return array<string, string>
      */

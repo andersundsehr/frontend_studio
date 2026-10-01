@@ -1,0 +1,11 @@
+stylesheets:
+  - EXT:backend/Resources/Public/Css/backend.css
+variants:
+  Default:
+    selectedComponentMetadata:
+      variantIdentifier: 'frontend.studio:variant.sidebar:Default'
+    variantActiveTab: values
+    renderedHtmlSource: ''
+    renderedHtmlStatus: ''
+    fluidTemplateSource: ''
+    fluidUsageSource: ''

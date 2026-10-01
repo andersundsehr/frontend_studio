@@ -9,6 +9,7 @@ use RuntimeException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
@@ -25,6 +26,7 @@ final readonly class ComponentPreviewRenderer implements ComponentPreviewRendere
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
         private TransformersFactory $transformersFactory,
         private ComponentVariantTransformer $componentVariantTransformer,
+        private AssetCollector $assetCollector,
     ) {
     }
 
@@ -37,6 +39,10 @@ final readonly class ComponentPreviewRenderer implements ComponentPreviewRendere
         $resolverDelegate = $this->resolveComponent($namespace, $componentName);
         $variantValues = $variantValueOverrides
             ?? $this->componentFixtureProvider->getVariantValues($resolverDelegate, $componentName, $variantName);
+        foreach ($this->componentFixtureProvider->getPreviewStylesheets($resolverDelegate, $componentName) as $index => $stylesheet) {
+            $this->assetCollector->addStyleSheet('frontend-studio-fixture-stylesheet-' . $index, $stylesheet);
+        }
+
         $renderingContext = $this->renderingContextFactory->create([], $request);
 
         $componentDefinition = $resolverDelegate->getComponentDefinition($componentName);

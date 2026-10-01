@@ -20,6 +20,7 @@ use TYPO3\CMS\Core\Cache\Backend\NullBackend;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\DependencyInjection\FailsafeContainer;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Fluid\Core\Cache\FluidTemplateCache;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolver;
@@ -184,6 +185,7 @@ final class ComponentPreviewRendererTest extends TestCase
             new ComponentDiscoveryProvider(),
             new TransformersFactory(new TypeTransformers($transformerFactory), $transformerFactory),
             new ComponentVariantTransformer(),
+            new AssetCollector(),
         );
     }
 

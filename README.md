@@ -76,6 +76,11 @@ The module works with component metadata provided by the registered Fluid compon
 Components without fixture variants can still appear in the tree.
 Use `Create variant` to make one previewable and editable; Frontend Studio creates the sibling fixture file when needed.
 
+Frontend Studio's own backend UI components are hidden from the tree by default.
+Enable `Show own components` under `System > Settings > Extension Configuration` to list them under the `frontend.studio` Fluid namespace.
+Each includes bundled fixture variants, so you can select one to inspect its rendered markup and source.
+Their isolated previews load the TYPO3 backend stylesheet through the fixture and the component stylesheet through `<f:asset.css>`.
+
 ## Register a Component Collection
 
 Frontend Studio discovers the Fluid component collections registered by the project.
@@ -272,7 +277,16 @@ where Frontend Studio can infer them from the argument type.
 ## Assets in Previews
 
 The preview includes CSS and JavaScript registered while rendering the component through TYPO3's `AssetCollector`.
-No Frontend Studio-specific asset setup is required.
+Declare component styles with `<f:asset.css>` in the component template.
+To load additional CSS only in the standalone preview, add stylesheet paths to the top-level `stylesheets` list in the sibling fixture file.
+The list applies to every variant in that fixture:
+
+```yaml
+stylesheets:
+  - EXT:backend/Resources/Public/Css/backend.css
+variants:
+  Default: {}
+```
 
 ## Auto Reload In Development
 

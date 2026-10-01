@@ -1,3 +1,12 @@
+<html
+  xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+  xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+  data-namespace-typo3-fluid="true"
+>
+<f:argument name="variantValue" type="Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata"/>
+<f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
+<f:asset.script identifier="frontend-studio-variant-view" src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js" type="module"/>
+
 <details class="frontend-studio-variant-argument-group panel panel-default" open>
   <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
     <strong>{variantValue.name}</strong>
@@ -32,7 +41,7 @@
           data-fixture-name="{variantValue.fixtureName}"
           data-fixture-type="{variantValue.type}"
           data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-          data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+          data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
           class="form-select"
           {f:if(condition: variantValue.required, then: 'required')}
         >
@@ -53,7 +62,7 @@
               data-fixture-name="{variantValue.fixtureName}"
               data-fixture-type="datetime"
               data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-              data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+              data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
               class="form-control"
               {f:if(condition: variantValue.required, then: 'required')}
               value="{variantValue.value}"
@@ -103,7 +112,7 @@
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
                   data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                   class="form-control"
                   {f:if(condition: variantValue.required, then: 'required')}
                   value="{variantValue.value}"
@@ -119,7 +128,7 @@
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
                   data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                   class="form-control"
                   {f:if(condition: variantValue.required, then: 'required')}
                   value="{variantValue.value}"
@@ -135,7 +144,7 @@
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
                   data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                   class="form-control"
                   {f:if(condition: variantValue.required, then: 'required')}
                   value="{variantValue.value}"
@@ -151,7 +160,7 @@
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
                   data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                   class="form-control"
                   {f:if(condition: variantValue.required, then: 'required')}
                   value="{variantValue.value}"
@@ -167,7 +176,7 @@
                       data-fixture-name="{variantValue.fixtureName}"
                       data-fixture-type="{variantValue.type}"
                       data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                      data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                      data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                       class="form-control"
                       {f:if(condition: variantValue.required, then: 'required')}
                       rows="3"
@@ -182,7 +191,7 @@
                       data-fixture-name="{variantValue.fixtureName}"
                       data-fixture-type="{variantValue.type}"
                       data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                      data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                      data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                       class="form-control"
                       {f:if(condition: variantValue.required, then: 'required')}
                       value="{variantValue.value}"
@@ -199,7 +208,7 @@
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
                   data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                   class="form-control"
                   {f:if(condition: variantValue.required, then: 'required')}
                   value=""
@@ -213,7 +222,7 @@
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
                   data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
-                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} == null', then: 'true', else: 'false')}"
+                  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
                   class="form-control"
                   {f:if(condition: variantValue.required, then: 'required')}
                   rows="3"
@@ -226,3 +235,4 @@
     </f:if>
   </div>
 </details>
+</html>

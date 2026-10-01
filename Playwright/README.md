@@ -38,7 +38,7 @@ npm install --save-dev @playwright/test@^1.63.0 ./vendor/andersundsehr/frontend_
 The helper uses the project's Playwright Test instance.
 It installs its accessibility dependencies.
 Start TYPO3 and register the component collections before running browser tests.
-Set `TEST_BASE_URL` to an address the Playwright process can reach.
+Set `DDEV_PRIMARY_URL` to an address the Playwright process can reach.
 The examples use `http://web` inside the DDEV Playwright container.
 
 ## TypeScript and Playwright configuration
@@ -70,8 +70,8 @@ export default defineConfig({
   reporter: 'html',
 
   use: {
-    // Set TEST_BASE_URL to a URL reachable by the runner; DDEV defaults to http://web.
-    baseURL: process.env.TEST_BASE_URL || 'http://web',
+    // Set DDEV_PRIMARY_URL to a URL reachable by the runner; DDEV defaults to http://web.
+    baseURL: process.env.DDEV_PRIMARY_URL || 'http://web',
     // Retain local failure traces; record a trace on the first CI retry.
     trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
   },
@@ -89,10 +89,10 @@ export default defineConfig({
 
 The config does not start TYPO3.
 The site must be running before Playwright loads the specs.
-For a host-based runner, set `TEST_BASE_URL` to a reachable site URL.
+For a host-based runner, set `DDEV_PRIMARY_URL` to a reachable site URL.
 
 ```bash
-TEST_BASE_URL=https://my-project.ddev.site npx playwright test
+DDEV_PRIMARY_URL=https://my-project.ddev.site npx playwright test
 ```
 
 ## Running the tests
@@ -168,7 +168,7 @@ groups them by component. (you only need one file like this in your project)
 import { fetchVariants, snapshotTest } from '@frontend_studio/test';
 import { test } from '@playwright/test';
 
-const variants = await fetchVariants(process.env.TEST_BASE_URL || 'http://web');
+const variants = await fetchVariants(process.env.DDEV_PRIMARY_URL || 'http://web');
 
 for (const variant of variants) {
   test.describe(`${variant.componentName}`, () =>

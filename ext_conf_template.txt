@@ -1,0 +1,2 @@
+# cat=basic; type=boolean; label=Show own components: List Frontend Studio's backend UI components in its component browser
+showOwnComponents = 0

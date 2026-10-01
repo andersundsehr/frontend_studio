@@ -1,0 +1,83 @@
+stylesheets:
+  - 'EXT:backend/Resources/Public/Css/backend.css'
+variants:
+  string:
+    variantValue:
+      name: title
+      type: string
+      description: Title
+      value: 'Example title'
+      required: true
+  bool:
+    variantValue:
+      name: enabled
+      type: bool
+      description: Enabled
+      value: 'true'
+  boolean:
+    variantValue:
+      name: disabled
+      type: boolean
+      description: Disabled
+      value: false
+  int:
+    variantValue:
+      name: count
+      type: int
+      description: Count
+      value: 42
+  integer:
+    variantValue:
+      name: quantity
+      type: integer
+      description: Quantity
+      value: 0
+  float:
+    variantValue:
+      name: ratio
+      type: float
+      description: Ratio
+      value: 3.14
+  double:
+    variantValue:
+      name: amount
+      type: double
+      description: Amount
+      value: 2.718
+  Multiline:
+    variantValue:
+      name: message
+      type: string
+      description: Message
+      value: "First line\nSecond line\n"
+      isMultiline: true
+  DateTime:
+    variantValue:
+      name: publishedAt
+      type: DateTimeImmutable
+      description: 'Published at'
+      value: '2026-09-30T10:30'
+      isDate: true
+  Select:
+    variantValue:
+      name: status
+      type: string
+      description: Status
+      value: second
+      options:
+        first: 'First option'
+        second: 'Second option'
+  'Null':
+    variantValue:
+      name: optionalValue
+      type: 'null'
+      description: 'Optional value'
+      value: null
+  Fallback:
+    variantValue:
+      name: items
+      type: array
+      description: Items
+      value:
+        - first
+        - second
