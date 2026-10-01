@@ -6,12 +6,14 @@ namespace Andersundsehr\FrontendStudio\Service;
 
 use Psr\Http\Message\ServerRequestInterface;
 use RuntimeException;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\TypoScript\FrontendTypoScriptFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 
+#[AsAlias(PreviewTypoScriptContextBuilderInterface::class)]
 final readonly class PreviewTypoScriptContextBuilder implements PreviewTypoScriptContextBuilderInterface
 {
     public function __construct(private FrontendTypoScriptFactory $frontendTypoScriptFactory)

@@ -6,15 +6,3 @@ services:
 
   Andersundsehr\FrontendStudio\:
     resource: '../Classes/*'
-
-  Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider:
-    public: true
-
-  Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface:
-    alias: Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer
-
-  Andersundsehr\FrontendStudio\Service\ComponentPathResolverInterface:
-    alias: Andersundsehr\FrontendStudio\Service\ComponentPathResolver
-
-  Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface:
-    alias: Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilder

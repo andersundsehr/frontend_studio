@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service;
 
 use InvalidArgumentException;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Throwable;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperResolverDelegateInterface;
 
+#[AsAlias(ComponentPathResolverInterface::class)]
 final readonly class ComponentPathResolver implements ComponentPathResolverInterface
 {
     public function __construct(

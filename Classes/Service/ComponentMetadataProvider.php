@@ -19,6 +19,7 @@ use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use DateTimeImmutable;
 use RuntimeException;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Throwable;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Package\PackageManager;
@@ -27,6 +28,7 @@ use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
 use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
+#[Autoconfigure(public: true)]
 final readonly class ComponentMetadataProvider
 {
     public function __construct(
