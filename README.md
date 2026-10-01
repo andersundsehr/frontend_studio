@@ -278,6 +278,20 @@ where Frontend Studio can infer them from the argument type.
 
 The preview includes CSS and JavaScript registered while rendering the component through TYPO3's `AssetCollector`.
 Declare component styles with `<f:asset.css>` in the component template.
+Register JavaScript modules with `<f:asset.module>` using their configured module identifier:
+
+```html
+<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-view.js"/>
+```
+
+The preview renders an import map including dependencies declared in `Configuration/JavaScriptModules.php`.
+
+JavaScript modules importing `~labels/...`, directly or through dependencies,
+require a valid TYPO3 backend session.
+Translation requests use TYPO3's backend endpoint.
+Without an authenticated session, these requests redirect to the backend login and the importing modules cannot execute.
+Automated browser tests using such modules must authenticate their browser context before opening the preview.
+
 To load additional CSS only in the standalone preview, add stylesheet paths to the top-level `stylesheets` list in the sibling fixture file.
 The list applies to every variant in that fixture:
 

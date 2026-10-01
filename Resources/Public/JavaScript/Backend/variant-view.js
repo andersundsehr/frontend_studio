@@ -1,4 +1,5 @@
 import AjaxRequest from '@typo3/core/ajax/ajax-request.js';
+import DocumentService from '@typo3/core/document-service.js';
 import Notification from '@typo3/backend/notification.js';
 import PersistentStorage from '@typo3/backend/storage/persistent.js';
 
@@ -991,4 +992,4 @@ class FrontendStudioVariantView {
 
 export default FrontendStudioVariantView;
 
-FrontendStudioVariantView.initialize();
+DocumentService.ready().then(() => FrontendStudioVariantView.initialize());

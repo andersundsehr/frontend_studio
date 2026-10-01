@@ -14,11 +14,21 @@ use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use Andersundsehr\FrontendStudio\Service\PreviewAssetRenderer;
 use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use TYPO3\CMS\Backend\Http\Application as BackendApplication;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Page\Event\ResolveVirtualJavaScriptImportEvent;
+use TYPO3\CMS\Core\Page\ImportMapFactory;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
@@ -71,6 +81,10 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringContainsString('data-frontend-studio-variant-save', $html);
         self::assertStringContainsString('data-fixture-name="title"', $html);
         self::assertStringContainsString('data-frontend-studio-fluid-usage-code', $html);
+        self::assertSame(
+            ['@andersundsehr/frontend-studio/backend/variant-view.js'],
+            $this->get(AssetCollector::class)->getJavaScriptModules(),
+        );
     }
 
     public function testOwnComponentsAreHiddenFromTheTreeByDefault(): void
@@ -151,16 +165,228 @@ final class OwnComponentsTest extends FunctionalTestCase
 
     public function testOwnVariantPreviewLoadsFixtureAndComponentStylesheets(): void
     {
+        $html = $this->renderPreview('frontend.studio:variant.valueField:bool');
+
+        self::assertStringContainsString('type="checkbox"', $html);
+        self::assertSame(1, substr_count($html, 'backend.css'));
+        self::assertSame(1, substr_count($html, 'variant-view.css'));
+        self::assertLessThan(strpos($html, 'variant-view.css'), strpos($html, 'backend.css'));
+    }
+
+    #[DataProvider('ownComponentVariants')]
+    public function testOwnVariantPreviewRegistersModuleAndDependenciesWithoutBackendSession(string $variantIdentifier): void
+    {
+        unset($GLOBALS['BE_USER'], $GLOBALS['LANG']);
+        $html = $this->renderPreview($variantIdentifier);
+        $imports = $this->getPreviewImports($html);
+
+        $moduleIdentifiers = [
+            '@andersundsehr/frontend-studio/backend/variant-view.js',
+            '@typo3/core/ajax/ajax-request.js',
+            '@typo3/backend/notification.js',
+            '@typo3/backend/storage/persistent.js',
+            'lit',
+            '~labels/',
+        ];
+        foreach ($moduleIdentifiers as $identifier) {
+            self::assertArrayHasKey($identifier, $imports);
+        }
+
+        self::assertSame(1, preg_match_all('/<script[^>]+src="[^"]*variant-view\.js[^"]*"[^>]*>/', $html, $scripts));
+        self::assertStringContainsString('type="module"', $scripts[0][0]);
+        self::assertLessThan(strpos($html, $scripts[0][0]), strpos($html, 'type="importmap"'));
+        self::assertStringStartsWith('/typo3/language/domain/en/', $imports['~labels/']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function ownComponentVariants(): iterable
+    {
+        yield 'controls' => ['frontend.studio:variant.controls:Default'];
+        yield 'header' => ['frontend.studio:variant.header:Default'];
+        yield 'sidebar' => ['frontend.studio:variant.sidebar:Default'];
+        yield 'value field' => ['frontend.studio:variant.valueField:bool'];
+    }
+
+    public function testModuleUrlsRespectTheInstallationSubdirectory(): void
+    {
+        $html = $this->renderPreview('frontend.studio:variant.valueField:bool', '/subdirectory/');
+        $imports = $this->getPreviewImports($html);
+
+        $moduleIdentifiers = [
+            '@andersundsehr/frontend-studio/backend/variant-view.js',
+            '@typo3/core/ajax/ajax-request.js',
+            '@typo3/backend/notification.js',
+            'lit',
+            '~labels/',
+        ];
+        foreach ($moduleIdentifiers as $identifier) {
+            self::assertStringStartsWith('/subdirectory/', $imports[$identifier]);
+        }
+
+        self::assertStringContainsString('src="' . htmlspecialchars($imports['@andersundsehr/frontend-studio/backend/variant-view.js'], ENT_QUOTES) . '"', $html);
+        self::assertStringStartsWith('/subdirectory/typo3/language/domain/', $imports['~labels/']);
+    }
+
+    public function testLabelModuleUrlsRespectTheBackendEntryPoint(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['BE']['entryPoint'] = '/admin';
+
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+
+        self::assertStringStartsWith('/admin/language/domain/en/', $imports['~labels/']);
+    }
+
+    public function testLabelModuleRequestsRedirectWithoutBackendSession(): void
+    {
+        unset($GLOBALS['BE_USER'], $GLOBALS['LANG']);
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+
+        $response = $this->requestLabelModule($imports['~labels/'] . 'core.core');
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertStringContainsString('/typo3/login', $response->getHeaderLine('Location'));
+        self::assertStringNotContainsString('javascript', $response->getHeaderLine('Content-Type'));
+    }
+
+    public function testLabelModuleRequestsReturnJavaScriptWithBackendSession(): void
+    {
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+
+        $response = $this->requestLabelModule($imports['~labels/'] . 'core.core', [
+            BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt(),
+        ]);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('text/javascript', $response->getHeaderLine('Content-Type'));
+        self::assertStringContainsString('export default new LabelProvider(', (string)$response->getBody());
+        self::assertStringNotContainsString('throw new Error', (string)$response->getBody());
+    }
+
+    public function testModuleRenderingPreservesTheExistingLanguageService(): void
+    {
+        $languageService = $this->get(LanguageServiceFactory::class)->create('de');
+        $GLOBALS['LANG'] = $languageService;
+
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+
+        self::assertSame($languageService, $GLOBALS['LANG']);
+        self::assertStringContainsString('/typo3/language/domain/de/', $imports['~labels/']);
+    }
+
+    public function testLabelImportListenerIsRegisteredBeforeRenderingAssets(): void
+    {
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->create('en');
+        $GLOBALS['TYPO3_REQUEST'] = new ServerRequest('https://preview.test/')
+            ->withAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE, true)
+            ->withAttribute('normalizedParams', new NormalizedParams(
+                ['HTTP_HOST' => 'preview.test', 'HTTPS' => 'on', 'SCRIPT_NAME' => '/index.php', 'REQUEST_URI' => '/'],
+                $GLOBALS['TYPO3_CONF_VARS']['SYS'],
+                Environment::getPublicPath() . '/index.php',
+                Environment::getPublicPath(),
+            ));
+        $event = new ResolveVirtualJavaScriptImportEvent('labels/', $this->get(ImportMapFactory::class)->create());
+
+        $this->get(EventDispatcherInterface::class)->dispatch($event);
+
+        self::assertStringStartsWith('/typo3/language/domain/en/', $event->resolution ?? '');
+    }
+
+    #[DataProvider('nonPreviewRequests')]
+    public function testLabelImportListenerIgnoresNonPreviewRequests(?int $applicationType, bool|string|null $previewAttribute): void
+    {
+        unset($GLOBALS['TYPO3_REQUEST']);
+        if ($applicationType !== null) {
+            $GLOBALS['TYPO3_REQUEST'] = new ServerRequest('https://preview.test/')
+                ->withAttribute('applicationType', $applicationType);
+            if ($previewAttribute !== null) {
+                $GLOBALS['TYPO3_REQUEST'] = $GLOBALS['TYPO3_REQUEST']->withAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE, $previewAttribute);
+            }
+        }
+
+        $event = new ResolveVirtualJavaScriptImportEvent('labels/', $this->get(ImportMapFactory::class)->create());
+
+        $this->get(EventDispatcherInterface::class)->dispatch($event);
+
+        self::assertNull($event->resolution);
+    }
+
+    /**
+     * @return iterable<string, array{?int, bool|string|null}>
+     */
+    public static function nonPreviewRequests(): iterable
+    {
+        yield 'no request' => [null, null];
+        yield 'frontend request' => [SystemEnvironmentBuilder::REQUESTTYPE_FE, null];
+        yield 'backend request' => [SystemEnvironmentBuilder::REQUESTTYPE_BE, null];
+        yield 'disabled preview' => [SystemEnvironmentBuilder::REQUESTTYPE_FE, false];
+        yield 'truthy preview marker' => [SystemEnvironmentBuilder::REQUESTTYPE_FE, '1'];
+    }
+
+    public function testPreviewWithoutModulesKeepsOrdinaryAssets(): void
+    {
+        $this->get(AssetCollector::class)->addInlineJavaScript('preview-test', 'window.previewTest = true;');
+
+        $html = $this->renderPreview('site:card:Default');
+
+        self::assertStringContainsString('window.previewTest = true;', $html);
+        self::assertStringNotContainsString('type="importmap"', $html);
+        self::assertStringNotContainsString('type="module"', $html);
+    }
+
+    public function testOwnVariantFragmentDoesNotIncludeModuleAssets(): void
+    {
+        $html = $this->renderPreview('frontend.studio:variant.valueField:bool', '/', 'fragment');
+
+        self::assertStringContainsString('type="checkbox"', $html);
+        self::assertStringNotContainsString('<script', $html);
+    }
+
+    /**
+     * @param array<string, string> $cookies
+     */
+    private function requestLabelModule(string $path, array $cookies = []): ResponseInterface
+    {
+        $request = new ServerRequest('https://preview.test' . $path, 'GET', null, [], [
+            'HTTP_HOST' => 'preview.test',
+            'HTTP_USER_AGENT' => 'TYPO3 Functional Test Request',
+            'HTTPS' => 'on',
+            'REMOTE_ADDR' => '127.0.0.1',
+            'SCRIPT_NAME' => '/index.php',
+            'SCRIPT_FILENAME' => Environment::getPublicPath() . '/index.php',
+            'REQUEST_URI' => $path,
+            'REQUEST_METHOD' => 'GET',
+        ])->withCookieParams($cookies);
+        $GLOBALS['TYPO3_REQUEST'] = $request;
+
+        return $this->get(BackendApplication::class)->handle($request);
+    }
+
+    private function renderPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null): string
+    {
         $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
         $site = $this->get(SiteFinder::class)->getSiteByIdentifier('preview');
-        $variantIdentifier = 'frontend.studio:variant.valueField:bool';
-        $request = new ServerRequest('https://preview.test/__frontendStudio/preview?componentVariant=' . rawurlencode($variantIdentifier) . '&previewTest=yes')
-            ->withQueryParams(['componentVariant' => $variantIdentifier, 'previewTest' => 'yes'])
+        $queryParams = ['componentVariant' => $variantIdentifier, 'previewTest' => 'yes'];
+        if ($format !== null) {
+            $queryParams['frontendStudioPreviewFormat'] = $format;
+        }
+
+        $requestPath = $installationPath . '__frontendStudio/preview?' . http_build_query($queryParams);
+        $request = new ServerRequest('https://preview.test' . $requestPath)
+            ->withQueryParams($queryParams)
             ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_FE)
             ->withAttribute(ComponentPreviewContextMiddleware::PREVIEW_ATTRIBUTE, true)
             ->withAttribute('site', $site)
-            ->withAttribute('language', $site->getDefaultLanguage());
-        $request = $request->withAttribute('normalizedParams', NormalizedParams::createFromRequest($request));
+            ->withAttribute('language', $site->getDefaultLanguage())
+            ->withAttribute('normalizedParams', new NormalizedParams(
+                ['HTTP_HOST' => 'preview.test', 'HTTPS' => 'on', 'SCRIPT_NAME' => $installationPath . 'index.php', 'REQUEST_URI' => $requestPath],
+                $GLOBALS['TYPO3_CONF_VARS']['SYS'],
+                Environment::getPublicPath() . '/index.php',
+                Environment::getPublicPath(),
+            ));
 
         $middleware = new ComponentPreviewMiddleware(
             $this->get(ComponentPreviewRendererInterface::class),
@@ -172,15 +398,22 @@ final class OwnComponentsTest extends FunctionalTestCase
             $this->get(ListenerProvider::class),
             $this->get(PreviewTypoScriptContextBuilderInterface::class),
         );
-
         $response = $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
         $html = (string)$response->getBody();
-
         self::assertSame(200, $response->getStatusCode(), $html);
-        self::assertStringContainsString('type="checkbox"', $html);
-        self::assertSame(1, substr_count($html, 'backend.css'));
-        self::assertSame(1, substr_count($html, 'variant-view.css'));
-        self::assertLessThan(strpos($html, 'variant-view.css'), strpos($html, 'backend.css'));
+        return $html;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getPreviewImports(string $html): array
+    {
+        if (preg_match('/<script type="importmap">(.*?)<\/script>/s', $html, $matches) !== 1) {
+            self::fail('The preview does not include an import map.');
+        }
+
+        return json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR)['imports'];
     }
 
     /**

@@ -7,7 +7,7 @@
 <f:argument name="selectedComponentMetadata" type="Andersundsehr\FrontendStudio\Dto\ComponentMetadata"/>
 <f:argument name="variantActiveTab" type="string"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
-<f:asset.script identifier="frontend-studio-variant-view" src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/variant-view.js" type="module"/>
+<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-view.js"/>
 
 <div
   class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'values\'', then: ' is-active', else: ' is-hidden')}"
