@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
@@ -346,6 +347,154 @@ final class OwnComponentsTest extends FunctionalTestCase
     }
 
     /**
+     * @param array<string, string> $slots
+     */
+    #[DataProvider('usageSlotsDataProvider')]
+    public function testFluidUsageResponseReflectsOverridesAndInlineAvailability(array $slots, bool $inlineAvailable): void
+    {
+        $response = $this->requestPreview('site:card:Default', format: 'fluid-usage', overrides: [
+            'componentVariantValues' => json_encode(['title' => 'Overridden title'], JSON_THROW_ON_ERROR),
+            'componentVariantSlots' => json_encode($slots, JSON_THROW_ON_ERROR),
+        ]);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        self::assertSame('noindex, nofollow', $response->getHeaderLine('X-Robots-Tag'));
+        $snippets = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(['tag', 'inline'], array_keys($snippets));
+        self::assertSame($inlineAvailable, $snippets['inline'] !== '');
+        self::assertStringContainsString('Overridden title', $snippets['tag']);
+        foreach ($slots as $content) {
+            self::assertStringContainsString($content, html_entity_decode(strip_tags($snippets['tag']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+    }
+
+    /**
+     * @param array<string, string> $slots
+     */
+    #[DataProvider('usageSlotsDataProvider')]
+    public function testSidebarRendersSeparateCopyableExamples(array $slots, bool $inlineAvailable): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        $html = $this->renderVariantView([
+            'selectedVariantIdentifier' => 'site:card:Default',
+            'selectedComponentMetadata' => $metadata,
+            'variantActiveTab' => 'usage',
+            'fluidUsageSource' => $this->get(FluidUsageSnippetRenderer::class)->render($metadata, slotOverrides: $slots),
+        ]);
+
+        self::assertStringContainsString('Tag syntax', $html);
+        self::assertStringContainsString('Inline syntax', $html);
+        self::assertStringContainsString('data-frontend-studio-copy-fluid-usage="tag"', $html);
+        self::assertStringContainsString('data-frontend-studio-copy-fluid-usage="inline"', $html);
+        self::assertStringContainsString('data-frontend-studio-fluid-usage-code="tag"', $html);
+        self::assertStringContainsString('data-frontend-studio-fluid-usage-code="inline"', $html);
+        self::assertSame(
+            !$inlineAvailable,
+            preg_match('/<div[^>]*data-frontend-studio-fluid-usage-block="inline"[^>]*\bhidden\b/', $html) === 1,
+        );
+        if ($inlineAvailable) {
+            self::assertSame(1, preg_match('/<code[^>]*data-frontend-studio-fluid-usage-code="inline"[^>]*>(.*?)<\/code>/s', $html, $matches));
+            $inlineSource = $matches[1] ?? '';
+            self::assertStringContainsString('<span class="frontend-studio-variant-html-source__tag">site:card</span>', $inlineSource);
+            self::assertStringContainsString('<span class="frontend-studio-variant-html-source__attribute">title</span>', $inlineSource);
+            self::assertSame(
+                $this->get(FluidUsageSnippetRenderer::class)->buildInline($metadata, slotOverrides: $slots),
+                html_entity_decode(strip_tags($inlineSource), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            );
+        }
+    }
+
+    /**
+     * @param array<string, string> $slots
+     */
+    #[DataProvider('usageSlotsDataProvider')]
+    public function testGeneratedUsageExamplesRenderThroughFluid(array $slots, bool $inlineAvailable): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        $renderer = $this->get(FluidUsageSnippetRenderer::class);
+        $values = ComponentVariantValues::fromSubmittedValues(['title' => 'Overridden title']);
+        $sources = [$renderer->build($metadata, $values, $slots)];
+        if ($inlineAvailable) {
+            $sources[] = $renderer->buildInline($metadata, $values, $slots);
+        }
+
+        foreach ($sources as $source) {
+            $context = $this->get(RenderingContextFactory::class)->create([], new ServerRequest('https://preview.test/'));
+            $context->getTemplatePaths()->setTemplateSource($source);
+            $output = (string)new TemplateView($context)->render();
+
+            self::assertStringContainsString('<article>Overridden title', $output);
+            foreach ($slots as $content) {
+                self::assertStringContainsString($content, $output);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{array<string, string>, bool}>
+     */
+    public static function usageSlotsDataProvider(): iterable
+    {
+        yield 'no populated slots' => [['default' => '', 'footer' => ''], true];
+        yield 'default only' => [['default' => '<strong>Content</strong>', 'footer' => ''], true];
+        yield 'named only' => [['default' => '', 'footer' => '<small>Footer</small>'], false];
+        yield 'default and named' => [['default' => '<strong>Content</strong>', 'footer' => '<small>Footer</small>'], false];
+        yield 'quoted default' => [['default' => "<strong>It's \\ready</strong>"], true];
+    }
+
+    public function testUsagePreservesQuotedArgumentValuesWhenRendered(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        $renderer = $this->get(FluidUsageSnippetRenderer::class);
+        $title = 'A "quote" & \path';
+        $values = ComponentVariantValues::fromSubmittedValues(['title' => $title]);
+        foreach ([$renderer->build($metadata, $values), $renderer->buildInline($metadata, $values)] as $source) {
+            $context = $this->get(RenderingContextFactory::class)->create([], new ServerRequest('https://preview.test/'));
+            $context->getTemplatePaths()->setTemplateSource($source);
+            $output = (string)new TemplateView($context)->render();
+
+            self::assertSame('<article>' . htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</article>', trim($output));
+        }
+    }
+
+    #[DataProvider('usageNumericValuesDataProvider')]
+    public function testUsagePreservesNumericArgumentValuesWhenRendered(int|float $value, string $expected): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        $renderer = $this->get(FluidUsageSnippetRenderer::class);
+        $values = ComponentVariantValues::fromSubmittedValues(['title' => $value]);
+        foreach ([$renderer->build($metadata, $values, []), $renderer->buildInline($metadata, $values, [])] as $source) {
+            $context = $this->get(RenderingContextFactory::class)->create([], new ServerRequest('https://preview.test/'));
+            $context->getTemplatePaths()->setTemplateSource($source);
+            $output = (string)new TemplateView($context)->render();
+
+            self::assertSame('<article>' . $expected . '</article>', trim($output));
+        }
+    }
+
+    /**
+     * @return iterable<string, array{int|float, string}>
+     */
+    public static function usageNumericValuesDataProvider(): iterable
+    {
+        yield 'zero integer' => [0, '0'];
+        yield 'zero float' => [0.0, '0'];
+        yield 'positive integer' => [12, '12'];
+        yield 'integral float' => [12.0, '12'];
+        yield 'positive decimal' => [1.5, '1.5'];
+        yield 'negative integer' => [-1, '-1'];
+        yield 'negative decimal' => [-1.5, '-1.5'];
+        yield 'large positive float' => [1.0E+20, '1.0E+20'];
+        yield 'large negative float' => [-1.0E+20, '-1.0E+20'];
+        yield 'small positive float' => [1.0E-20, '1.0E-20'];
+        yield 'small negative float' => [-1.0E-20, '-1.0E-20'];
+        yield 'maximum integer' => [PHP_INT_MAX, (string)PHP_INT_MAX];
+        yield 'minimum integer' => [PHP_INT_MIN, (string)PHP_INT_MIN];
+    }
+
+    /**
      * @param array<string, string> $cookies
      */
     private function requestLabelModule(string $path, array $cookies = []): ResponseInterface
@@ -367,9 +516,21 @@ final class OwnComponentsTest extends FunctionalTestCase
 
     private function renderPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null): string
     {
+        $response = $this->requestPreview($variantIdentifier, $installationPath, $format);
+        $html = (string)$response->getBody();
+        self::assertSame(200, $response->getStatusCode(), $html);
+
+        return $html;
+    }
+
+    /**
+     * @param array<string, string> $overrides
+     */
+    private function requestPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null, array $overrides = []): ResponseInterface
+    {
         $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
         $site = $this->get(SiteFinder::class)->getSiteByIdentifier('preview');
-        $queryParams = ['componentVariant' => $variantIdentifier, 'previewTest' => 'yes'];
+        $queryParams = array_replace(['componentVariant' => $variantIdentifier, 'previewTest' => 'yes'], $overrides);
         if ($format !== null) {
             $queryParams['frontendStudioPreviewFormat'] = $format;
         }
@@ -398,10 +559,7 @@ final class OwnComponentsTest extends FunctionalTestCase
             $this->get(ListenerProvider::class),
             $this->get(PreviewTypoScriptContextBuilderInterface::class),
         );
-        $response = $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
-        $html = (string)$response->getBody();
-        self::assertSame(200, $response->getStatusCode(), $html);
-        return $html;
+        return $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
     }
 
     /**
@@ -439,7 +597,7 @@ final class OwnComponentsTest extends FunctionalTestCase
             'renderedHtmlSource' => '',
             'renderedHtmlStatus' => '',
             'fluidTemplateSource' => '',
-            'fluidUsageSource' => '',
+            'fluidUsageSource' => ['tag' => '', 'inline' => ''],
         ], $assignments));
 
         return (string)$view->render('FrontendStudio/Variant');

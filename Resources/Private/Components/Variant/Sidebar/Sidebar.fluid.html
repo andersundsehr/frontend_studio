@@ -9,7 +9,7 @@
 <f:argument name="renderedHtmlSource" type="string"/>
 <f:argument name="renderedHtmlStatus" type="string"/>
 <f:argument name="fluidTemplateSource" type="string"/>
-<f:argument name="fluidUsageSource" type="string"/>
+<f:argument name="fluidUsageSource" type="array"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
 <f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-view.js"/>
 
@@ -139,22 +139,25 @@
       aria-labelledby="frontend-studio-variant-usage-tab"
       data-frontend-studio-variant-tab-panel="usage"
     >
-      <div class="frontend-studio-variant-usage-actions">
-        <button
-          type="button"
-          class="btn btn-default btn-sm"
-          data-frontend-studio-copy-fluid-usage
-        >
-          Copy
-          <core:icon identifier="actions-edit-copy" size="small"/>
-        </button>
-      </div>
-      <div
-        class="frontend-studio-variant-usage"
-        data-frontend-studio-variant-usage
-      >
-        <pre class="frontend-studio-variant-html-source"><code data-frontend-studio-fluid-usage-code>{fluidUsageSource -> f:format.raw()}</code></pre>
-      </div>
+      <f:for each="{fluidUsageSource}" as="source" key="syntax">
+        <div class="mb-3" data-frontend-studio-fluid-usage-block="{syntax}" {f:if(condition: source, else: 'hidden')}>
+          <div class="frontend-studio-variant-usage-actions">
+            <strong>{f:if(condition: '{syntax} == \'tag\'', then: 'Tag syntax', else: 'Inline syntax')}</strong>
+            <button
+              type="button"
+              class="btn btn-default btn-sm"
+              data-frontend-studio-copy-fluid-usage="{syntax}"
+              aria-label="Copy {syntax} syntax"
+            >
+              Copy
+              <core:icon identifier="actions-edit-copy" size="small"/>
+            </button>
+          </div>
+          <div class="frontend-studio-variant-usage" data-frontend-studio-variant-usage="{syntax}">
+            <pre class="frontend-studio-variant-html-source"><code data-frontend-studio-fluid-usage-code="{syntax}">{source -> f:format.raw()}</code></pre>
+          </div>
+        </div>
+      </f:for>
     </div>
   </div>
 </aside>

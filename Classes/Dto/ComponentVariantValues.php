@@ -158,7 +158,11 @@ final readonly class ComponentVariantValues
             return $this->normalizeSubmittedCompoundValue($value);
         }
 
-        return self::normalizeYamlValue($value);
+        return match ($type) {
+            'int', 'integer' => is_numeric($value) ? (int)$value : $value,
+            'float', 'double' => is_numeric($value) ? (float)$value : $value,
+            default => self::normalizeYamlValue($value),
+        };
     }
 
     private function normalizeSubmittedBooleanValue(mixed $value): bool

@@ -15,6 +15,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentTemplateMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentTemplateRootPathMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use DateTimeImmutable;
@@ -231,6 +232,20 @@ final readonly class ComponentMetadataProvider
             return $fixture;
         }
 
+        $argumentTypes = [];
+        foreach ($arguments as $argument) {
+            $argumentTypes[$argument->name] = $argument->type;
+            $transformer = $transformers?->arguments[$argument->name] ?? null;
+            foreach ($transformer->arguments ?? [] as $inputName => $inputDefinition) {
+                $argumentTypes[$argument->name . '.' . $inputName] = $inputDefinition->getType();
+            }
+        }
+
+        $argumentTypes = array_filter($argumentTypes, static fn(string $type): bool => in_array($type, ['int', 'integer', 'float', 'double'], true));
+        $values = ComponentVariantValues::fromYamlValues(array_column($fixture->selectedVariant->values, 'nativeValue', 'name'))
+            ->normalizeForArgumentTypes($argumentTypes)
+            ->toMetadataList();
+
         return new ComponentFixtureMetadata(
             $fixture->absolutePath,
             $fixture->extensionPath,
@@ -239,7 +254,7 @@ final readonly class ComponentMetadataProvider
             $fixture->error,
             new ComponentVariantMetadata(
                 $fixture->selectedVariant->name,
-                $this->mergeVariantValuesWithArguments($fixture->selectedVariant->values, $arguments, $transformers),
+                $this->mergeVariantValuesWithArguments($values, $arguments, $transformers),
                 $slots,
             ),
         );

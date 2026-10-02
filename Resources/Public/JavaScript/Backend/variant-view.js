@@ -33,7 +33,7 @@ class FrontendStudioVariantView {
     this.sidebar = root.querySelector('.frontend-studio-variant-sidebar');
     this.sidebarResizeHandle = root.querySelector('[data-frontend-studio-variant-sidebar-resize]');
     this.copyComponentPathButton = root.querySelector('[data-frontend-studio-copy-component-path]');
-    this.copyFluidUsageButton = root.querySelector('[data-frontend-studio-copy-fluid-usage]');
+    this.copyFluidUsageButtons = Array.from(root.querySelectorAll('[data-frontend-studio-copy-fluid-usage]'));
     this.saveButton = root.querySelector('[data-frontend-studio-variant-save]');
     this.copyVariantButton = root.querySelector('[data-frontend-studio-variant-copy]');
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
@@ -42,7 +42,7 @@ class FrontendStudioVariantView {
     this.tabPanels = Array.from(root.querySelectorAll('[data-frontend-studio-variant-tab-panel]'));
     this.htmlContainer = root.querySelector('[data-frontend-studio-variant-html]');
     this.htmlStatus = root.querySelector('[data-frontend-studio-variant-html-status]');
-    this.fluidUsageCode = root.querySelector('[data-frontend-studio-fluid-usage-code]');
+    this.fluidUsageBlocks = Array.from(root.querySelectorAll('[data-frontend-studio-fluid-usage-block]'));
     this.fields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-value]'));
     this.slotFields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-slot]'));
     this.initialFieldValues = {};
@@ -94,6 +94,7 @@ class FrontendStudioVariantView {
     this.slotFields.forEach((field) => {
       const handleFieldChange = () => {
         this.updateDirtyState();
+        this.refreshFluidUsageSnippet();
         this.updatePreview();
         this.scheduleRenderedHtmlRefresh();
       };
@@ -122,9 +123,11 @@ class FrontendStudioVariantView {
       this.copyComponentFilePath();
     });
 
-    this.copyFluidUsageButton?.addEventListener('click', (event) => {
-      event.preventDefault();
-      this.copyFluidUsageSnippet();
+    this.copyFluidUsageButtons.forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        this.copyFluidUsageSnippet(button.dataset.frontendStudioCopyFluidUsage);
+      });
     });
 
     document.addEventListener('keydown', (event) => {
@@ -681,7 +684,7 @@ class FrontendStudioVariantView {
   }
 
   async refreshFluidUsageSnippet() {
-    if (this.fluidUsageCode === null) {
+    if (this.fluidUsageBlocks.length === 0) {
       return;
     }
 
@@ -702,7 +705,12 @@ class FrontendStudioVariantView {
       throw new Error(fluidUsageSource || `The Fluid usage request failed with status ${response.status}.`);
     }
 
-    this.fluidUsageCode.innerHTML = fluidUsageSource;
+    const snippets = JSON.parse(fluidUsageSource);
+    this.fluidUsageBlocks.forEach((block) => {
+      const source = snippets[block.dataset.frontendStudioFluidUsageBlock];
+      block.querySelector('[data-frontend-studio-fluid-usage-code]').innerHTML = source;
+      block.hidden = source === '';
+    });
   }
 
   scheduleRenderedHtmlRefresh() {
@@ -969,8 +977,8 @@ class FrontendStudioVariantView {
     }
   }
 
-  async copyFluidUsageSnippet() {
-    const usageSnippet = this.fluidUsageCode.textContent || '';
+  async copyFluidUsageSnippet(syntax) {
+    const usageSnippet = this.root.querySelector('[data-frontend-studio-fluid-usage-code="' + syntax + '"]')?.textContent || '';
     if (usageSnippet === '') {
       return;
     }

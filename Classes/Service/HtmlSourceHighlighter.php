@@ -6,6 +6,10 @@ namespace Andersundsehr\FrontendStudio\Service;
 
 final class HtmlSourceHighlighter
 {
+    private const string FLUID_EXPRESSION_PATTERN = <<<'REGEX'
+        (?<fluid>\{(?:[^{}'"]+|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?&fluid))*\})
+        REGEX;
+
     public function highlight(string $html): string
     {
         return $this->highlightSource($html);
@@ -18,10 +22,10 @@ final class HtmlSourceHighlighter
 
     public function highlightFluidUsage(string $fluidUsage): string
     {
-        return $this->highlightTag($fluidUsage, true);
+        return $this->highlightSource($fluidUsage, true, false);
     }
 
-    private function highlightSource(string $html, bool $highlightFluidExpressions = false): string
+    private function highlightSource(string $html, bool $highlightFluidExpressions = false, bool $wrapSource = true): string
     {
         $source = '';
         $offset = 0;
@@ -29,6 +33,17 @@ final class HtmlSourceHighlighter
 
         while ($offset < $length) {
             $nextTagOffset = strpos($html, '<', $offset);
+            if (
+                $highlightFluidExpressions
+                && preg_match('/' . self::FLUID_EXPRESSION_PATTERN . '/s', $html, $expression, PREG_OFFSET_CAPTURE, $offset) === 1
+                && ($nextTagOffset === false || $expression[0][1] < $nextTagOffset)
+            ) {
+                $source .= $this->wrapText(substr($html, $offset, $expression[0][1] - $offset));
+                $source .= $this->highlightFluidExpression($expression[0][0]);
+                $offset = $expression[0][1] + strlen($expression[0][0]);
+                continue;
+            }
+
             if ($nextTagOffset === false) {
                 $source .= $this->wrapText(substr($html, $offset), $highlightFluidExpressions);
                 break;
@@ -46,7 +61,7 @@ final class HtmlSourceHighlighter
                 continue;
             }
 
-            $tagEndOffset = $this->findTagEndOffset($html, $nextTagOffset);
+            $tagEndOffset = $this->findTagEndOffset($html, $nextTagOffset, $highlightFluidExpressions);
             if ($tagEndOffset === null) {
                 $source .= $this->wrapText(substr($html, $nextTagOffset), $highlightFluidExpressions);
                 break;
@@ -57,10 +72,10 @@ final class HtmlSourceHighlighter
             $offset = $tagEndOffset + 1;
         }
 
-        return '<pre class="frontend-studio-variant-html-source"><code>' . $source . '</code></pre>';
+        return $wrapSource ? '<pre class="frontend-studio-variant-html-source"><code>' . $source . '</code></pre>' : $source;
     }
 
-    private function findTagEndOffset(string $html, int $tagStartOffset): ?int
+    private function findTagEndOffset(string $html, int $tagStartOffset, bool $fluid = false): ?int
     {
         $quote = null;
         $length = strlen($html);
@@ -68,10 +83,20 @@ final class HtmlSourceHighlighter
         for ($offset = $tagStartOffset + 1; $offset < $length; $offset++) {
             $character = $html[$offset];
             if ($quote !== null) {
+                if ($fluid && $character === '\\') {
+                    $offset++;
+                    continue;
+                }
+
                 if ($character === $quote) {
                     $quote = null;
                 }
 
+                continue;
+            }
+
+            if ($fluid && $character === '{' && preg_match('/\G' . self::FLUID_EXPRESSION_PATTERN . '/s', $html, $expression, 0, $offset) === 1) {
+                $offset += strlen($expression[0]) - 1;
                 continue;
             }
 
@@ -109,7 +134,8 @@ final class HtmlSourceHighlighter
         $highlightedAttributes = '';
         $offset = 0;
 
-        preg_match_all('/([^\\s"\\\'<>\\/=]+)(\\s*=\\s*)?("([^"]*)"|\\\'([^\\\']*)\\\'|[^\\s"\\\'=<>`]+)?/s', $attributes, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        $pattern = '(?<attribute>[^\\s"\\\'<>\\/=]+)(?<equals>\\s*=\\s*)?(?<value>"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\\.|[^\\\'\\\\])*\\\'|[^\\s"\\\'=<>`]+)?';
+        preg_match_all('/' . ($highlightFluidExpressions ? self::FLUID_EXPRESSION_PATTERN . '|' : '') . $pattern . '/s', $attributes, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
         foreach ($matches as $match) {
             $attributeOffset = $match[0][1];
@@ -117,16 +143,22 @@ final class HtmlSourceHighlighter
                 $highlightedAttributes .= $this->wrapText(substr($attributes, $offset, $attributeOffset - $offset));
             }
 
-            $highlightedAttributes .= $this->wrap('attribute', $match[1][0]);
-
-            if (($match[2][0] ?? '') !== '') {
-                $highlightedAttributes .= $this->wrap('punctuation', $match[2][0]);
+            if (($match['fluid'][0] ?? '') !== '') {
+                $highlightedAttributes .= $this->highlightFluidExpression($match['fluid'][0]);
+                $offset = $attributeOffset + strlen($match[0][0]);
+                continue;
             }
 
-            if (($match[3][0] ?? '') !== '') {
+            $highlightedAttributes .= $this->wrap('attribute', $match['attribute'][0]);
+
+            if (($match['equals'][0] ?? '') !== '') {
+                $highlightedAttributes .= $this->wrap('punctuation', $match['equals'][0]);
+            }
+
+            if (($match['value'][0] ?? '') !== '') {
                 $highlightedAttributes .= $highlightFluidExpressions
-                    ? $this->highlightFluidExpressions($match[3][0], 'string')
-                    : $this->wrap('string', $match[3][0]);
+                    ? $this->highlightFluidExpressions($match['value'][0], 'string')
+                    : $this->wrap('string', $match['value'][0]);
             }
 
             $offset = $attributeOffset + strlen($match[0][0]);
@@ -157,19 +189,39 @@ final class HtmlSourceHighlighter
         $source = '';
         $offset = 0;
 
-        preg_match_all('/\\{[^{}]*}/s', $text, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        preg_match_all('/' . self::FLUID_EXPRESSION_PATTERN . '/s', $text, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
         foreach ($matches as $match) {
             $expressionOffset = $match[0][1];
             if ($expressionOffset > $offset) {
                 $source .= $this->wrap($plainToken, substr($text, $offset, $expressionOffset - $offset));
             }
 
-            $source .= $this->wrap('fluid-expression', $match[0][0]);
+            $source .= $this->highlightFluidExpression($match[0][0]);
             $offset = $expressionOffset + strlen($match[0][0]);
         }
 
         if ($offset < strlen($text)) {
             $source .= $this->wrap($plainToken, substr($text, $offset));
+        }
+
+        return $source;
+    }
+
+    private function highlightFluidExpression(string $expression): string
+    {
+        preg_match_all('~(?<string>"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\\.|[^\\\'\\\\])*\\\')|(?<tag>[\\w.]+:[\\w.]+(?=\\s*\\())|(?<attribute>[\\w-]+(?=\\s*[:=]))|-?\\d+(?:\\.\\d+)?|[\\w.]+(?:-[\\w.]+)*|(?<punctuation>->|[{}(),:=|+*/%<>!?&^\\[\\]\\-])|(?<text>\\s+)|.~su', $expression, $matches, PREG_SET_ORDER);
+        $source = '';
+
+        foreach ($matches as $match) {
+            $token = match (true) {
+                ($match['string'] ?? '') !== '' => 'string',
+                ($match['tag'] ?? '') !== '' => 'tag',
+                ($match['attribute'] ?? '') !== '' => 'attribute',
+                ($match['punctuation'] ?? '') !== '' => 'punctuation',
+                ($match['text'] ?? '') !== '' => 'text',
+                default => 'fluid-expression',
+            };
+            $source .= $this->wrap($token, $match[0]);
         }
 
         return $source;

@@ -22,6 +22,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Throwable;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\HtmlResponse;
+use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
 use TYPO3\CMS\Frontend\Resource\PublicUrlPrefixer;
 
@@ -116,11 +117,14 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         $slotOverrides = $this->getSlotOverrides($queryParams);
 
         if ($this->isFluidUsageRequest($queryParams)) {
-            return $this->createHtmlResponse(
+            return new JsonResponse(
                 $this->fluidUsageSnippetRenderer->render(
                     $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($variantIdentifier),
                     $variantValueOverrides,
+                    $slotOverrides,
                 ),
+                200,
+                ['Cache-Control' => 'no-store', 'X-Robots-Tag' => 'noindex, nofollow'],
             );
         }
 

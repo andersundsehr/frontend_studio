@@ -59,6 +59,10 @@ Then flush TYPO3 caches and make sure your project registers at least one Fluid 
 6. Use `Controls` to adjust its values, then use `Save` to persist them.
 7. Use the inspector tabs to review `Rendered HTML`, `Fluid Template`, and `Fluid Usage`.
 
+`Fluid Usage` shows separately copyable tag and inline examples using the current argument and slot controls.
+Populated slots appear in the tag example; inline syntax is available when no slot is populated or only the default slot is populated.
+Calls longer than 80 characters put each argument and the closing delimiter on separate lines.
+
 ### Preview site and language
 
 When a variant is selected and the project has a configured TYPO3 site, the `Site` and `Language` selects appear to the left of `Copy file path`.
