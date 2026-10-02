@@ -293,7 +293,6 @@
         max-height: 45vh;
         border-left: 0;
         border-bottom: 1px solid var(--frontend-studio-variant-border-color);
-        order: -1;
     }
 
     .frontend-studio-variant-sidebar-resize-handle {
