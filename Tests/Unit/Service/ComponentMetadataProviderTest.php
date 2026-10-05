@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Service;
 
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Tests\Unit\Service\Fixtures\ItemsSelect;
+use UnitEnum;
 use RuntimeException;
 use Andersundsehr\FrontendStudio\Service\ComponentDiscoveryProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
@@ -133,19 +135,19 @@ PHP);
     }
 
     #[DataProvider('enumInputValuesDataProvider')]
-    public function testLoadsEnumTransformerInputSelection(bool $hasFixtureValue): void
+    public function testLoadsEnumTransformerInputSelection(bool $hasFixtureValue, UnitEnum $selectedCase, UnitEnum $defaultCase): void
     {
         $fixturePath = dirname($this->templatePath) . '/Card.fixture.yaml';
         $fixture = $hasFixtureValue
-            ? "variants:\n  Default:\n    items:\n      select: !php/enum " . TypolinkTargetEnum::class . "::_blank\n"
+            ? "variants:\n  Default:\n    items:\n      select: !php/enum " . $selectedCase::class . '::' . $selectedCase->name . "\n"
             : "variants:\n  Default: []\n";
         file_put_contents($fixturePath, $fixture);
-        file_put_contents(dirname($this->templatePath) . '/Card.transformer.php', <<<'PHP'
+        file_put_contents(dirname($this->templatePath) . '/Card.transformer.php', sprintf(<<<'PHP'
 <?php
 return new \Andersundsehr\FrontendStudio\Transformer\ArgumentTransformers(
-    items: static fn(\Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum $select = \Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum::none): string => throw new \RuntimeException('Metadata must not execute transformers.'),
+    items: static fn(\%s $select = \%s::%s): string => throw new \RuntimeException('Metadata must not execute transformers.'),
 );
-PHP);
+PHP, $defaultCase::class, $defaultCase::class, $defaultCase->name));
         $metadata = $this->createProvider([], argumentDefinitions: [
             'items' => new ArgumentDefinition('items', 'string', '', true),
         ])->getComponentMetadataForVariantIdentifier('test:Card:Default');
@@ -155,7 +157,7 @@ PHP);
         self::assertNotNull($metadata->fixture?->selectedVariant);
         $value = $metadata->fixture->selectedVariant->values[0];
         self::assertSame('items.select', $value->fixtureName);
-        $expected = $hasFixtureValue ? TypolinkTargetEnum::_blank : TypolinkTargetEnum::none;
+        $expected = $hasFixtureValue ? $selectedCase : $defaultCase;
         self::assertSame($expected, $value->nativeValue);
         self::assertSame($expected->name, $value->value);
         self::assertArrayHasKey($value->value, $value->options);
@@ -163,11 +165,13 @@ PHP);
         self::assertSame($fixture, file_get_contents($fixturePath));
     }
 
-    /** @return iterable<string, array{bool}> */
+    /** @return iterable<string, array{bool, UnitEnum, UnitEnum}> */
     public static function enumInputValuesDataProvider(): iterable
     {
-        yield 'YAML enum case' => [true];
-        yield 'default enum case' => [false];
+        yield 'YAML backed enum case' => [true, TypolinkTargetEnum::_blank, TypolinkTargetEnum::none];
+        yield 'default backed enum case' => [false, TypolinkTargetEnum::_blank, TypolinkTargetEnum::none];
+        yield 'YAML unit enum case' => [true, ItemsSelect::One, ItemsSelect::None];
+        yield 'default unit enum case' => [false, ItemsSelect::One, ItemsSelect::None];
     }
 
     public function testLoadsSelectedVariantSlots(): void
