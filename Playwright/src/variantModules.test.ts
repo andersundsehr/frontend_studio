@@ -72,6 +72,62 @@ test('isolated controls initialize once without a preview and remove listeners o
   assert.ok([...modules.loaded].every((name) => !/variant-(html|usage|preview|sidebar|file-watcher)\.js$/.test(name)));
 });
 
+test('cached navigation preserves controls, unsaved edits and the last saved Reset baseline', async (t) => {
+  const { root, field, save, reset } = controlsRoot();
+  const env = environment([root]);
+  const requests: any[] = [];
+  class AjaxRequest {
+    async post(payload: any) {
+      requests.push(payload);
+      return { resolve: async () => ({ success: true, variant: {} }) };
+    }
+  }
+  const modules = backendModules({ ...env, TYPO3: { settings: { ajaxUrls: {} } } }, {
+    '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+  });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  const controls = view.controls;
+  t.after(() => view.destroy());
+  field.value = 'Saved before navigation';
+  field.dispatchEvent(new Event('input'));
+  save.dispatchEvent(new Event('click'));
+  await new Promise(setImmediate);
+
+  for (let visit = 0; visit < 2; visit++) {
+    field.value = `Unsaved before navigation ${visit}`;
+    field.dispatchEvent(new Event('input'));
+    env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true }));
+    assert.equal(view.destroyed, false);
+    env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    assert.equal(getVariantState(root), view);
+    assert.equal(view.controls, controls);
+    assert.equal(view.hasUnsavedChanges, true);
+    assert.equal(field.value, `Unsaved before navigation ${visit}`);
+    reset.dispatchEvent(new Event('click'));
+    assert.equal(field.value, 'Saved before navigation');
+    assert.equal(view.hasUnsavedChanges, false);
+    const revision = view.revision;
+    field.value = 'Edited after restoration';
+    field.dispatchEvent(new Event('input'));
+    assert.equal(view.revision, revision + 1);
+    assert.equal(save.disabled, false);
+    reset.dispatchEvent(new Event('click'));
+  }
+
+  field.value = 'Saved after restoration';
+  field.dispatchEvent(new Event('input'));
+  env.document.dispatchEvent(Object.assign(new Event('keydown'), { ctrlKey: true, key: 's' }));
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].values.title, 'Saved after restoration');
+  assert.equal(view.hasUnsavedChanges, false);
+  env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false }));
+  assert.equal(view.destroyed, true);
+});
+
 test('value serialization preserves false, zero, null, nested values and omitted defaults', async () => {
   const root = element();
   const fields = [
@@ -286,7 +342,8 @@ test('host initialization deduplicates the change stream and cleanup closes it',
   assert.ok([...modules.loaded].every((name) => !name.endsWith('/variant-preview.js')));
   const view = getVariantState(root);
   const watcher = view.features.get('watcher');
-  const changed = () => watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+  const source = watcher.source;
+  const changed = () => source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
     data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
   }));
   view.fileAction('started');
@@ -302,4 +359,84 @@ test('host initialization deduplicates the change stream and cleanup closes it',
   assert.equal(closes, 1);
   changed();
   assert.equal(reloads, 1);
+});
+
+test('cached navigation suspends requests and watching, then resumes only the active panel', async (t) => {
+  const host = element({ variantIdentifier: 'site:card:Default', previewUri: '/preview', componentChangeStreamUri: '/changes' });
+  const root = element({ activeTab: 'values' });
+  root.closest = () => host;
+  const buttons = ['values', 'html'].map((name) => element({ frontendStudioVariantTab: name }));
+  const panels = ['values', 'html'].map((name) => element({ frontendStudioVariantTabPanel: name }));
+  const container = element();
+  panels[1].selectors.set('[data-frontend-studio-variant-html]', container);
+  panels[1].selectors.set('[data-frontend-studio-variant-html-status]', element());
+  root.selectors.set('[data-frontend-studio-variant-tab]', buttons);
+  root.selectors.set('[data-frontend-studio-variant-tab-panel]', panels);
+  const env = environment();
+  env.document.querySelectorAll = (selector?: string) => selector?.endsWith('sidebar]') ? [root] : [host];
+  const streams: EventSource[] = [];
+  class EventSource extends EventTarget {
+    closed = false;
+    constructor(_url: string) { super(); streams.push(this); }
+    close() { this.closed = true; }
+  }
+  const responses: { resolve: (response: any) => void; signal: AbortSignal }[] = [];
+  const modules = backendModules({ ...env, EventSource, fetch: (_url: string, options: { signal: AbortSignal }) =>
+    new Promise((resolve) => responses.push({ resolve, signal: options.signal })) });
+  const { default: Sidebar } = await modules.import('variant-sidebar.js');
+  const { default: View } = await modules.import('variant-view.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Sidebar.initialize();
+  await View.initialize();
+  const view = getVariantState(host);
+  t.after(() => view.destroy());
+  const sidebar = view.features.get(root);
+  env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
+  assert.equal(streams.length, 1);
+  await sidebar.activateTab('html');
+  const panel = sidebar.panels.get('html');
+  const pending = panel.refresh();
+  panel.schedule(10000);
+  env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true }));
+  assert.equal(view.destroyed, false);
+  assert.equal(responses[0].signal.aborted, true);
+  assert.equal(streams[0].closed, true);
+  responses[0].resolve({ ok: true, text: async () => 'Stale response while cached' });
+  await pending;
+  assert.equal(container.innerHTML, '');
+
+  env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(streams.length, 2);
+  assert.equal(sidebar.activeTab, 'html');
+  assert.equal(sidebar.panels.get('html'), panel);
+  assert.equal(responses.length, 2);
+  responses[1].resolve({ ok: true, text: async () => 'Refreshed after restoration' });
+  await new Promise(setImmediate);
+  assert.equal(container.innerHTML, 'Refreshed after restoration');
+  let fileChanges = 0;
+  view.hasUnsavedChanges = true;
+  view.addEventListener('files', () => { fileChanges++; });
+  const changed = (source: EventSource) => source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+    data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+  }));
+  changed(streams[0]);
+  assert.equal(fileChanges, 0);
+  changed(streams[1]);
+  assert.equal(fileChanges, 1);
+  buttons[0].dispatchEvent(new Event('click'));
+  assert.equal(panels[0].hidden, false);
+  assert.equal(panels[1].hidden, true);
+
+  env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true }));
+  assert.equal(streams[1].closed, true);
+  env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(streams.length, 3);
+  assert.equal(responses.length, 2, 'hidden panels must stay idle after restoration');
+  env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false }));
+  assert.equal(view.destroyed, true);
+  assert.equal(streams[2].closed, true);
+  changed(streams[2]);
+  assert.equal(fileChanges, 1);
 });

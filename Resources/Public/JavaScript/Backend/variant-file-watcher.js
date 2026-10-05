@@ -6,8 +6,11 @@ export default class VariantFileWatcher extends VariantFeature {
     super(root, view);
     this.componentIdentifier = this.getComponentIdentifierFromVariantIdentifier(view.variantIdentifier);
     this.ignoreNextComponentFilesChanged = false;
-    this.source = new EventSource(root.dataset.componentChangeStreamUri);
-    this.listen(this.source, 'component-files-changed', (event) => this.handleComponentFilesChanged(event));
+    this.source = null;
+    this.onFilesChanged = (event) => this.handleComponentFilesChanged(event);
+    this.connect();
+    this.listen(view, 'suspend', () => this.disconnect());
+    this.listen(view, 'resume', () => this.connect());
     this.listen(top.document, 'frontend-studio:component-file-action-started', () => {
       this.ignoreNextComponentFilesChanged = true;
     });
@@ -16,8 +19,22 @@ export default class VariantFileWatcher extends VariantFeature {
     });
   }
 
+  connect() {
+    if (this.source !== null || this.destroyed) {
+      return;
+    }
+    this.source = new EventSource(this.root.dataset.componentChangeStreamUri);
+    this.listen(this.source, 'component-files-changed', this.onFilesChanged);
+  }
+
+  disconnect() {
+    this.source?.removeEventListener('component-files-changed', this.onFilesChanged);
+    this.source?.close();
+    this.source = null;
+  }
+
   destroy() {
-    this.source.close();
+    this.disconnect();
     super.destroy();
   }
 

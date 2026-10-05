@@ -17,7 +17,7 @@ class VariantSidebar extends VariantFeature {
     this.tabButtons.forEach((button) => {
       this.listen(button, 'click', () => this.activateTab(button.dataset.frontendStudioVariantTab || 'values'));
     });
-    ['values', 'context', 'files', 'saved'].forEach((type) => this.listen(view, type, () => {
+    ['values', 'context', 'files', 'saved', 'resume'].forEach((type) => this.listen(view, type, () => {
       this.panels.forEach((panel) => panel.invalidate());
       this.refreshActivePanel(type === 'values' ? 250 : 0);
     }));

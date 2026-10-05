@@ -12,7 +12,18 @@ export class VariantState extends EventTarget {
     this.destroyed = false;
     this.features = new Map();
     this.abortController = new AbortController();
-    window.addEventListener('pagehide', () => this.destroy(), { signal: this.abortController.signal });
+    window.addEventListener('pagehide', (event) => {
+      if (event.persisted) {
+        this.changed('suspend');
+      } else {
+        this.destroy();
+      }
+    }, { signal: this.abortController.signal });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        this.changed('resume');
+      }
+    }, { signal: this.abortController.signal });
     if (typeof MutationObserver !== 'undefined') {
       this.observer = new MutationObserver(() => {
         if (!root.isConnected) {

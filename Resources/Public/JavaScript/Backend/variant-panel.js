@@ -23,6 +23,7 @@ export default class VariantPanel extends VariantFeature {
     this.previewUrl = '';
     this.timeout = null;
     this.request = null;
+    this.listen(view, 'suspend', () => this.invalidate());
   }
 
   invalidate() {
