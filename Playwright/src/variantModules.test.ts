@@ -826,7 +826,7 @@ for (const embedded of [false, true]) {
       } },
     });
     history(env.window);
-    const outer = embedded ? history({ location: { href: 'https://example.test/typo3?keep=outer' } }) : env.window;
+    const outer = embedded ? history({ document: new EventTarget(), location: { href: 'https://example.test/typo3?keep=outer' } }) : env.window;
     const modules = backendModules({ ...env, top: outer, Option: class {
       text: string;
       value: string;
@@ -1361,4 +1361,94 @@ test('switching away from a loading panel aborts its request and discards a late
   await second;
   assert.equal(container.innerHTML, 'Fresh active HTML');
 
+});
+
+for (const action of ['create', 'copy', 'delete']) {
+  for (const sameComponent of [true, false]) {
+    test(`tree ${action} before watcher import suppresses only its component (matching=${sameComponent})`, async (t) => {
+      const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
+      const env = environment([root]);
+      let reloads = 0;
+      let changes = 0;
+      env.window.location.reload = () => { reloads++; };
+      const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } });
+      const { default: View } = await modules.import('variant-view.js');
+      const { getVariantState } = await modules.import('variant-state.js');
+      const view = getVariantState(root);
+      t.after(() => view.destroy());
+      view.addEventListener('files', () => { changes++; });
+      const component = sameComponent ? 'site:card' : 'site:cardOther';
+      const identifier = action === 'create' ? component : `${component}:Other`;
+      const pending = View.initialize();
+      assert.equal(view.features.has('watcher'), false);
+      env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', {
+        detail: { action, identifier },
+      }));
+      await pending;
+      const source = view.features.get('watcher').source;
+      const changed = () => source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+        data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+      }));
+      changed();
+      assert.equal(reloads, sameComponent ? 0 : 1);
+      assert.equal(changes, sameComponent ? 0 : 1);
+      assert.equal(view.ignoreNextComponentFilesChanged, false);
+      changed();
+      assert.equal(reloads, sameComponent ? 1 : 2, 'later external changes must reload normally');
+    });
+  }
+
+  test(`tree ${action} cancellation restores watching only for the matching component`, async (t) => {
+    const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
+    const env = environment([root]);
+    let reloads = 0;
+    env.window.location.reload = () => { reloads++; };
+    const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } });
+    const { default: View } = await modules.import('variant-view.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    await View.initialize();
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    const identifier = action === 'create' ? 'site:card' : 'site:card:Other';
+    const dispatch = (type: string, identifier: string) => env.document.dispatchEvent(new CustomEvent(
+      `frontend-studio:component-file-action-${type}`, { detail: { action, identifier } },
+    ));
+    const changed = () => view.features.get('watcher').source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+      data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+    }));
+    dispatch('started', identifier);
+    dispatch('cancelled', 'site:cardOther:Default');
+    assert.equal(view.ignoreNextComponentFilesChanged, true, 'another component’s cancellation must not clear suppression');
+    changed();
+    assert.equal(reloads, 0);
+    dispatch('started', identifier);
+    dispatch('cancelled', identifier);
+    changed();
+    assert.equal(reloads, 1, 'the cancelled action must not swallow an external change');
+  });
+}
+
+test('tree listeners ignore controls and unidentified events and are removed with the state', async () => {
+  const root = element({ variantIdentifier: 'site:card:Default' });
+  const env = environment();
+  const { VariantState } = await backendModules(env).import('variant-state.js');
+  const view = new VariantState(root);
+  for (const detail of [undefined, {}, { identifier: 42 }, { identifier: '' }, { variantIdentifier: 'site:card:Default' },
+    { identifier: 'site:card', variantIdentifier: 'site:card:Default' }]) {
+    env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', { detail }));
+    assert.equal(view.ignoreNextComponentFilesChanged, false);
+  }
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', {
+    detail: { action: 'create', identifier: 'site:card' },
+  }));
+  assert.equal(view.ignoreNextComponentFilesChanged, true);
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled', {
+    detail: { variantIdentifier: 'site:card:Default' },
+  }));
+  assert.equal(view.ignoreNextComponentFilesChanged, true, 'a controls cancellation must not cancel a tree action');
+  view.destroy();
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled', {
+    detail: { action: 'create', identifier: 'site:card' },
+  }));
+  assert.equal(view.ignoreNextComponentFilesChanged, true, 'destroyed states must have no global listeners');
 });

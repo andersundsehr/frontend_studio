@@ -14,6 +14,20 @@ export class VariantState extends EventTarget {
     this.destroyed = false;
     this.features = new Map();
     this.abortController = new AbortController();
+    const identifierParts = this.variantIdentifier.split(':');
+    const componentIdentifier = identifierParts.length >= 3 ? identifierParts.slice(0, -1).join(':') : '';
+    // Tree actions carry identifier; controls actions carry variantIdentifier and stay local.
+    ['started', 'cancelled'].forEach((type) => {
+      top.document.addEventListener(`frontend-studio:component-file-action-${type}`, (event) => {
+        const identifier = event.detail?.identifier;
+        if (event.detail?.variantIdentifier !== undefined || typeof identifier !== 'string' || componentIdentifier === '') {
+          return;
+        }
+        if (identifier === componentIdentifier || identifier.startsWith(`${componentIdentifier}:`)) {
+          this.ignoreNextComponentFilesChanged = type === 'started';
+        }
+      }, { signal: this.abortController.signal });
+    });
     window.addEventListener('pagehide', (event) => {
       if (event.persisted) {
         this.changed('suspend');
