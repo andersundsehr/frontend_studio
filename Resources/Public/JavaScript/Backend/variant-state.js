@@ -5,6 +5,7 @@ export class VariantState extends EventTarget {
     super();
     this.root = root;
     this.previewUri = root.dataset.previewUri || '';
+    this.previewChanged = false;
     this.variantIdentifier = root.dataset.variantIdentifier || '';
     this.controls = null;
     this.hasUnsavedChanges = false;
@@ -14,11 +15,15 @@ export class VariantState extends EventTarget {
     this.features = new Map();
     this.abortController = new AbortController();
     // Remember file actions even before the optional watcher module has loaded.
-    top.document.addEventListener('frontend-studio:component-file-action-started', () => {
-      this.ignoreNextComponentFilesChanged = true;
+    top.document.addEventListener('frontend-studio:component-file-action-started', (event) => {
+      if (event.detail?.variantIdentifier === this.variantIdentifier) {
+        this.ignoreNextComponentFilesChanged = true;
+      }
     }, { signal: this.abortController.signal });
-    top.document.addEventListener('frontend-studio:component-file-action-cancelled', () => {
-      this.ignoreNextComponentFilesChanged = false;
+    top.document.addEventListener('frontend-studio:component-file-action-cancelled', (event) => {
+      if (event.detail?.variantIdentifier === this.variantIdentifier) {
+        this.ignoreNextComponentFilesChanged = false;
+      }
     }, { signal: this.abortController.signal });
     window.addEventListener('pagehide', (event) => {
       if (event.persisted) {
@@ -57,6 +62,9 @@ export class VariantState extends EventTarget {
       return;
     }
     this.revision += 1;
+    if (['values', 'context', 'files'].includes(type)) {
+      this.previewChanged = true;
+    }
     this.dispatchEvent(new Event(type));
   }
 
