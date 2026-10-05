@@ -7,7 +7,7 @@ export default class ComponentFileWatcher {
     this.uri = '';
     this.active = false;
     this.suspended = false;
-    this.pendingVariantActions = new Set();
+    this.pendingVariantActions = new Map();
     this.pendingTreeActions = new Set();
     this.abortController = new AbortController();
     const options = { signal: this.abortController.signal };
@@ -24,7 +24,11 @@ export default class ComponentFileWatcher {
         const actions = isVariantAction ? this.pendingVariantActions : this.pendingTreeActions;
         const key = isVariantAction ? event.detail.scope || identifier : identifier;
         if (type === 'started') {
-          actions.add(key);
+          if (isVariantAction) {
+            actions.set(key, identifier);
+          } else {
+            actions.add(key);
+          }
         } else {
           actions.delete(key);
         }
@@ -90,10 +94,18 @@ export default class ComponentFileWatcher {
     if (!Array.isArray(payload?.componentIdentifiers)) {
       return;
     }
-    const ownAction = this.pendingVariantActions.size > 0 || this.pendingTreeActions.size > 0;
-    const ownActionIdentifiers = Array.from(this.pendingTreeActions);
-    this.pendingVariantActions.clear();
-    this.pendingTreeActions.clear();
+    const matches = (identifier) => payload.componentIdentifiers.some((component) => (
+      identifier === component || identifier.startsWith(`${component}:`)
+    ));
+    const ownActionIdentifiers = Array.from(this.pendingTreeActions).filter(matches);
+    let ownAction = ownActionIdentifiers.length > 0;
+    ownActionIdentifiers.forEach((identifier) => this.pendingTreeActions.delete(identifier));
+    this.pendingVariantActions.forEach((identifier, key) => {
+      if (matches(identifier)) {
+        ownAction = true;
+        this.pendingVariantActions.delete(key);
+      }
+    });
     top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
       detail: { componentIdentifiers: payload.componentIdentifiers, ownAction, ownActionIdentifiers },
     }));

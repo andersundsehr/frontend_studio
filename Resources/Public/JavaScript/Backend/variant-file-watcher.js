@@ -12,7 +12,7 @@ export default class VariantFileWatcher extends VariantFeature {
   }
 
   handleComponentFilesChanged(event) {
-    if (!Array.isArray(event.detail?.componentIdentifiers)) {
+    if (this.suspended || !this.isCurrentComponentAffected(event)) {
       return;
     }
     const ownActionIdentifiers = event.detail.ownActionIdentifiers || [];
@@ -21,10 +21,6 @@ export default class VariantFileWatcher extends VariantFeature {
       this.view.ignoreNextComponentFilesChanged = false;
       return;
     }
-    if (this.suspended || !this.isCurrentComponentAffected(event)) {
-      return;
-    }
-
     this.view.changed('files');
 
     if (!this.view.hasUnsavedChanges) {
