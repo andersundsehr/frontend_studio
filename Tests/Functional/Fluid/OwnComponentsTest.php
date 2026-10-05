@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 
+use Psr\Http\Message\ServerRequestInterface;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
@@ -22,6 +23,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use TYPO3\CMS\Backend\Http\Application as BackendApplication;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Context\UserAspect;
+use TYPO3\CMS\Frontend\Middleware\BackendUserAuthenticator;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
@@ -414,6 +418,8 @@ final class OwnComponentsTest extends FunctionalTestCase
     #[DataProvider('usageSlotsDataProvider')]
     public function testFluidUsageResponseReflectsOverridesAndInlineAvailability(array $slots, bool $inlineAvailable): void
     {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $this->setUpBackendUser(1);
         $response = $this->requestPreview('site:card:Default', format: 'fluid-usage', overrides: [
             'componentVariantValues' => json_encode(['title' => 'Overridden title'], JSON_THROW_ON_ERROR),
             'componentVariantSlots' => json_encode($slots, JSON_THROW_ON_ERROR),
@@ -585,10 +591,40 @@ final class OwnComponentsTest extends FunctionalTestCase
         return $html;
     }
 
+    public function testProductionControlsKeepTemporaryPreviewEditingAvailable(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        $metadata = new ComponentMetadata(...array_replace(get_object_vars($metadata), ['readOnly' => true]));
+        $html = $this->renderVariantView(['selectedVariantIdentifier' => 'site:card:Default', 'selectedComponentMetadata' => $metadata]);
+        self::assertStringContainsString('Production: fixture files are read-only.', $html);
+        self::assertStringNotContainsString('data-frontend-studio-variant-save', $html);
+        self::assertStringNotContainsString('data-frontend-studio-variant-copy', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-reset', $html);
+    }
+
+    public function testPreviewOverridesRequireARealBackendSession(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $cookie = $backendUser->getSession()->getJwt();
+        $overrides = ['componentVariantValues' => '{"title":"Session preview"}'];
+        $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: $cookie);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('Session preview', (string)$response->getBody());
+
+        $backendUser->logoff();
+        $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: $cookie);
+        self::assertSame(403, $response->getStatusCode());
+
+        $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: 'forged-session');
+        self::assertSame(403, $response->getStatusCode());
+    }
+
     /**
      * @param array<string, string> $overrides
      */
-    private function requestPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null, array $overrides = []): ResponseInterface
+    private function requestPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null, array $overrides = [], ?string $backendCookie = null): ResponseInterface
     {
         $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
         $site = $this->get(SiteFinder::class)->getSiteByIdentifier('preview');
@@ -620,7 +656,16 @@ final class OwnComponentsTest extends FunctionalTestCase
             $this->get(PreviewAssetRenderer::class),
             $this->get(ListenerProvider::class),
             $this->get(PreviewTypoScriptContextBuilderInterface::class),
+            $this->get(Context::class),
         );
+        if ($backendCookie !== null) {
+            $this->get(Context::class)->setAspect('backend.user', new UserAspect());
+            $request = $request->withCookieParams([BackendUserAuthentication::getCookieName() => $backendCookie]);
+            $handler = $this->createMock(RequestHandlerInterface::class);
+            $handler->method('handle')->willReturnCallback(fn(ServerRequestInterface $authenticatedRequest): ResponseInterface => $middleware->process($authenticatedRequest, $this->createMock(RequestHandlerInterface::class)));
+            return $this->get(BackendUserAuthenticator::class)->process($request, $handler);
+        }
+
         return $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
     }
 

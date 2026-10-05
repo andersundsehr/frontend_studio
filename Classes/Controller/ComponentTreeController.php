@@ -7,6 +7,7 @@ namespace Andersundsehr\FrontendStudio\Controller;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentFolderArchiveProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentTreeDataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentWriteDeniedException;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -58,6 +59,8 @@ final readonly class ComponentTreeController
                 'success' => true,
                 'variant' => $this->componentTreeDataProvider->renameVariant($identifier, $name),
             ]);
+        } catch (ComponentWriteDeniedException $exception) {
+            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 403);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -89,6 +92,8 @@ final readonly class ComponentTreeController
                 'success' => true,
                 'variant' => $this->componentTreeDataProvider->createVariant($identifier, $name),
             ]);
+        } catch (ComponentWriteDeniedException $exception) {
+            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 403);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -124,6 +129,8 @@ final readonly class ComponentTreeController
                 'success' => true,
                 'variant' => $this->componentTreeDataProvider->copyVariant($identifier, $name, $values, $slotValues),
             ]);
+        } catch (ComponentWriteDeniedException $exception) {
+            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 403);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -154,6 +161,8 @@ final readonly class ComponentTreeController
                 'success' => true,
                 'variant' => $this->componentTreeDataProvider->deleteVariant($identifier),
             ]);
+        } catch (ComponentWriteDeniedException $exception) {
+            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 403);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -219,6 +228,8 @@ final readonly class ComponentTreeController
                 'success' => true,
                 'variant' => $this->componentTreeDataProvider->updateVariantValues($identifier, $values, $slotValues),
             ]);
+        } catch (ComponentWriteDeniedException $exception) {
+            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 403);
         } catch (InvalidArgumentException $exception) {
             return new JsonResponse([
                 'success' => false,

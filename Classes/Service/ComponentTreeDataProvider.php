@@ -33,6 +33,7 @@ final readonly class ComponentTreeDataProvider
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
         private TransformersFactory $transformersFactory,
+        private ComponentWritePolicy $writePolicy = new ComponentWritePolicy(),
     ) {
     }
 
@@ -320,7 +321,8 @@ final readonly class ComponentTreeDataProvider
             'name' => $name,
             'depth' => $depth,
             'hasChildren' => $hasChildren,
-            'editable' => $nodeType === 'variant',
+            'editable' => $nodeType === 'variant' && !$this->writePolicy->isReadOnly(),
+            'readOnly' => $this->writePolicy->isReadOnly(),
             'loaded' => true,
             'icon' => $this->getIconForNode($nodeType, $name),
             'nodeType' => $nodeType,
