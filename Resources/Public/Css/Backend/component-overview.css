@@ -8,3 +8,4 @@
 .frontend-studio-overview pre { white-space: pre-wrap; }
 .frontend-studio-overview img { max-width: 100%; }
 .frontend-studio-overview [hidden] { display: none !important; }
+.frontend-studio-overview .frontend-studio-variant-values-actions { flex-wrap: wrap; }
