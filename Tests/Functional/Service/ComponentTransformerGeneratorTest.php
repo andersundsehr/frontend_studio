@@ -228,6 +228,8 @@ final class ComponentTransformerGeneratorTest extends FunctionalTestCase
         $permissions = fileperms($directory) & 0777;
         chmod($directory, 0555);
         try {
+            clearstatcache(true, $directory);
+            self::assertFalse(is_writable($directory), 'Run the filesystem permission test as an unprivileged user.');
             $this->expectException(RuntimeException::class);
             $this->get(ComponentTransformerGenerator::class)->create('site:missingTransformer:Default');
         } finally {
