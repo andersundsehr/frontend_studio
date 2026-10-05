@@ -7,7 +7,7 @@
 <f:argument name="selectedComponentMetadata" type="Andersundsehr\FrontendStudio\Dto\ComponentMetadata"/>
 <f:argument name="variantActiveTab" type="string"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
-<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-view.js"/>
+<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-controls.js"/>
 
 <div
   class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'values\'', then: ' is-active', else: ' is-hidden')}"
@@ -15,6 +15,11 @@
   role="tabpanel"
   aria-labelledby="frontend-studio-variant-values-tab"
   data-frontend-studio-variant-tab-panel="values"
+  data-frontend-studio-variant-controls
+  data-save-uri="{f:be.uri(route: 'ajax_frontend_studio_component_tree_update_variant_values')}"
+  data-copy-uri="{f:be.uri(route: 'ajax_frontend_studio_component_tree_copy_variant')}"
+  data-create-transformer-uri="{f:be.uri(route: 'ajax_frontend_studio_component_create_transformer')}"
+  data-variant-identifier="{selectedComponentMetadata.selectedVariantIdentifier}"
 >
   <f:if condition="{selectedComponentMetadata.missingTransformerError}">
     <f:then>

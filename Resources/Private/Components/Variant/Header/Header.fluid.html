@@ -11,9 +11,16 @@
 <f:argument name="selectedSiteIdentifier" type="string"/>
 <f:argument name="selectedLanguageHreflang" type="string"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
-<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-view.js"/>
+<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-header.js"/>
 
-<div class="frontend-studio-variant-header">
+<div class="frontend-studio-variant-header"
+  data-frontend-studio-variant-header
+  data-variant-identifier="{selectedVariantIdentifier}"
+  data-preview-uri="{componentPreviewUri}"
+  data-component-file-path="{selectedComponentMetadata.template.relativePath}"
+  data-selected-site-identifier="{selectedSiteIdentifier}"
+  data-selected-language-hreflang="{selectedLanguageHreflang}"
+>
   <f:if condition="{selectedVariantIdentifier}">
     <f:then>
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">

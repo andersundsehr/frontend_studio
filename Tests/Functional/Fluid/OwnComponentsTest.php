@@ -111,7 +111,12 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringContainsString('data-fixture-name="title"', $html);
         self::assertStringContainsString('data-frontend-studio-fluid-usage-code', $html);
         self::assertSame(
-            ['@andersundsehr/frontend-studio/backend/variant-view.js'],
+            [
+                '@andersundsehr/frontend-studio/backend/variant-view.js',
+                '@andersundsehr/frontend-studio/backend/variant-header.js',
+                '@andersundsehr/frontend-studio/backend/variant-sidebar.js',
+                '@andersundsehr/frontend-studio/backend/variant-controls.js',
+            ],
             $this->get(AssetCollector::class)->getJavaScriptModules(),
         );
     }
@@ -263,49 +268,95 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertLessThan(strpos($html, 'variant-view.css'), strpos($html, 'backend.css'));
     }
 
+    /** @param list<string> $modules */
     #[DataProvider('ownComponentVariants')]
-    public function testOwnVariantPreviewRegistersModuleAndDependenciesWithoutBackendSession(string $variantIdentifier): void
+    public function testOwnVariantPreviewLoadsOnlyItsComponentEntries(string $variantIdentifier, array $modules): void
     {
         unset($GLOBALS['BE_USER'], $GLOBALS['LANG']);
         $html = $this->renderPreview($variantIdentifier);
-        $imports = $this->getPreviewImports($html);
-
-        $moduleIdentifiers = [
-            '@andersundsehr/frontend-studio/backend/variant-view.js',
-            '@typo3/core/ajax/ajax-request.js',
-            '@typo3/backend/notification.js',
-            '@typo3/backend/storage/persistent.js',
-            'lit',
-            '~labels/',
-        ];
-        foreach ($moduleIdentifiers as $identifier) {
-            self::assertArrayHasKey($identifier, $imports);
+        self::assertSame($modules, $this->get(AssetCollector::class)->getJavaScriptModules());
+        self::assertDoesNotMatchRegularExpression('/<script[^>]+src="[^"]*component-tree-startup\\.js/', $html);
+        if ($modules === []) {
+            self::assertStringNotContainsString('type="module"', $html);
+            self::assertStringNotContainsString('type="importmap"', $html);
+            return;
         }
 
-        self::assertSame(1, preg_match_all('/<script[^>]+src="[^"]*variant-view\.js[^"]*"[^>]*>/', $html, $scripts));
-        self::assertStringContainsString('type="module"', $scripts[0][0]);
-        self::assertLessThan(strpos($html, $scripts[0][0]), strpos($html, 'type="importmap"'));
+        $imports = $this->getPreviewImports($html);
+        foreach ($modules as $identifier) {
+            self::assertArrayHasKey($identifier, $imports);
+            self::assertStringContainsString('src="' . htmlspecialchars($imports[$identifier], ENT_QUOTES) . '"', $html);
+        }
+
+        self::assertStringNotContainsString('src="' . ($imports['@andersundsehr/frontend-studio/backend/variant-view.js'] ?? 'variant-view.js') . '"', $html);
         self::assertStringStartsWith('/typo3/language/domain/en/', $imports['~labels/']);
     }
 
-    /**
-     * @return iterable<string, array{string}>
-     */
+    /** @return iterable<string, array{string, list<string>}> */
     public static function ownComponentVariants(): iterable
     {
-        yield 'controls' => ['frontend.studio:variant.controls:Default'];
-        yield 'header' => ['frontend.studio:variant.header:Default'];
-        yield 'sidebar' => ['frontend.studio:variant.sidebar:Default'];
-        yield 'value field' => ['frontend.studio:variant.valueField:bool'];
+        $prefix = '@andersundsehr/frontend-studio/backend/';
+        yield 'controls' => ['frontend.studio:variant.controls:Default', [$prefix . 'variant-controls.js']];
+        yield 'header' => ['frontend.studio:variant.header:Default', [$prefix . 'variant-header.js']];
+        yield 'sidebar' => ['frontend.studio:variant.sidebar:Default', [$prefix . 'variant-sidebar.js', $prefix . 'variant-controls.js']];
+        yield 'value field' => ['frontend.studio:variant.valueField:bool', []];
+    }
+
+    public function testIsolatedControlsProvideAuthenticatedWriteEndpoints(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
+        $response = $this->requestPreview('frontend.studio:variant.controls:Default', backendCookie: $cookie);
+        $html = (string)$response->getBody();
+        self::assertSame(200, $response->getStatusCode(), $html);
+        self::assertStringNotContainsString('TYPO3.settings.ajaxUrls', $html);
+
+        foreach (['save', 'copy', 'create-transformer'] as $action) {
+            if (preg_match('/data-' . $action . '-uri="([^"]+)"/', $html, $matches) !== 1) {
+                self::fail('The isolated controls do not provide the ' . $action . ' endpoint.');
+            }
+
+            $uri = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            self::assertStringStartsWith('/typo3/ajax/frontend-studio/', $uri);
+            parse_str((string)parse_url($uri, PHP_URL_QUERY), $query);
+            self::assertNotEmpty($query['token'] ?? null);
+            $request = new ServerRequest('https://preview.test' . $uri, 'POST', null, [], [
+                'HTTP_HOST' => 'preview.test', 'HTTPS' => 'on', 'REMOTE_ADDR' => '127.0.0.1',
+                'HTTP_USER_AGENT' => 'TYPO3 Functional Test Request', 'SCRIPT_NAME' => '/index.php',
+                'SCRIPT_FILENAME' => Environment::getPublicPath() . '/index.php',
+                'REQUEST_URI' => $uri, 'REQUEST_METHOD' => 'POST',
+            ])->withQueryParams($query)->withParsedBody([])
+                ->withCookieParams([BackendUserAuthentication::getCookieName() => $cookie]);
+            $GLOBALS['TYPO3_REQUEST'] = $request;
+            $writeResponse = $this->get(BackendApplication::class)->handle($request);
+
+            // An empty payload reaches the controller, rather than login or CSRF rejection.
+            self::assertSame(400, $writeResponse->getStatusCode(), (string)$writeResponse->getBody());
+            self::assertFalse(json_decode((string)$writeResponse->getBody(), true, 512, JSON_THROW_ON_ERROR)['success']);
+        }
+    }
+
+    public function testIsolatedControlsWriteEndpointsRespectTheInstallationSubdirectory(): void
+    {
+        $html = $this->renderPreview('frontend.studio:variant.controls:Default', '/subdirectory/');
+        foreach (['save', 'copy', 'create-transformer'] as $action) {
+            if (preg_match('/data-' . $action . '-uri="([^"]+)"/', $html, $matches) !== 1) {
+                self::fail('The isolated controls do not provide the ' . $action . ' endpoint.');
+            }
+
+            self::assertStringStartsWith('/subdirectory/typo3/ajax/frontend-studio/', $matches[1]);
+        }
     }
 
     public function testModuleUrlsRespectTheInstallationSubdirectory(): void
     {
-        $html = $this->renderPreview('frontend.studio:variant.valueField:bool', '/subdirectory/');
+        $html = $this->renderPreview('frontend.studio:variant.header:Default', '/subdirectory/');
         $imports = $this->getPreviewImports($html);
 
         $moduleIdentifiers = [
-            '@andersundsehr/frontend-studio/backend/variant-view.js',
+            '@andersundsehr/frontend-studio/backend/variant-header.js',
             '@typo3/core/ajax/ajax-request.js',
             '@typo3/backend/notification.js',
             'lit',
@@ -315,7 +366,7 @@ final class OwnComponentsTest extends FunctionalTestCase
             self::assertStringStartsWith('/subdirectory/', $imports[$identifier]);
         }
 
-        self::assertStringContainsString('src="' . htmlspecialchars($imports['@andersundsehr/frontend-studio/backend/variant-view.js'], ENT_QUOTES) . '"', $html);
+        self::assertStringContainsString('src="' . htmlspecialchars($imports['@andersundsehr/frontend-studio/backend/variant-header.js'], ENT_QUOTES) . '"', $html);
         self::assertStringStartsWith('/subdirectory/typo3/language/domain/', $imports['~labels/']);
     }
 
@@ -323,7 +374,7 @@ final class OwnComponentsTest extends FunctionalTestCase
     {
         $GLOBALS['TYPO3_CONF_VARS']['BE']['entryPoint'] = '/admin';
 
-        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.header:Default'));
 
         self::assertStringStartsWith('/admin/language/domain/en/', $imports['~labels/']);
     }
@@ -331,7 +382,7 @@ final class OwnComponentsTest extends FunctionalTestCase
     public function testLabelModuleRequestsRedirectWithoutBackendSession(): void
     {
         unset($GLOBALS['BE_USER'], $GLOBALS['LANG']);
-        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.header:Default'));
 
         $response = $this->requestLabelModule($imports['~labels/'] . 'core.core');
 
@@ -342,7 +393,7 @@ final class OwnComponentsTest extends FunctionalTestCase
 
     public function testLabelModuleRequestsReturnJavaScriptWithBackendSession(): void
     {
-        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.header:Default'));
         $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
         $backendUser = $this->setUpBackendUser(1);
 
@@ -361,7 +412,7 @@ final class OwnComponentsTest extends FunctionalTestCase
         $languageService = $this->get(LanguageServiceFactory::class)->create('de');
         $GLOBALS['LANG'] = $languageService;
 
-        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.valueField:bool'));
+        $imports = $this->getPreviewImports($this->renderPreview('frontend.studio:variant.header:Default'));
 
         self::assertSame($languageService, $GLOBALS['LANG']);
         self::assertStringContainsString('/typo3/language/domain/de/', $imports['~labels/']);

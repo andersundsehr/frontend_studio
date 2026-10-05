@@ -11,7 +11,7 @@
 <f:argument name="fluidTemplateSource" type="string"/>
 <f:argument name="fluidUsageSource" type="array"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
-<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-view.js"/>
+<f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-sidebar.js"/>
 
 <div
   class="frontend-studio-variant-sidebar-resize-handle"
@@ -21,7 +21,11 @@
   tabindex="0"
   data-frontend-studio-variant-sidebar-resize
 ></div>
-<aside class="frontend-studio-variant-sidebar" aria-label="Variant tools">
+<aside class="frontend-studio-variant-sidebar" aria-label="Variant tools"
+  data-frontend-studio-variant-sidebar
+  data-variant-identifier="{selectedComponentMetadata.selectedVariantIdentifier}"
+  data-active-tab="{variantActiveTab}"
+>
   <div class="frontend-studio-variant-sidebar-header">
     <ul class="nav nav-tabs frontend-studio-variant-tabs" role="tablist" aria-label="Variant panel tabs">
       <li class="nav-item" role="presentation">
