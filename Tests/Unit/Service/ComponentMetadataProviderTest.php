@@ -132,6 +132,44 @@ PHP);
         self::assertSame('{test:Card(title: title)}', new FluidUsageSnippetRenderer(new HtmlSourceHighlighter())->buildInline($metadata));
     }
 
+    #[DataProvider('enumInputValuesDataProvider')]
+    public function testLoadsEnumTransformerInputSelection(bool $hasFixtureValue): void
+    {
+        $fixturePath = dirname($this->templatePath) . '/Card.fixture.yaml';
+        $fixture = $hasFixtureValue
+            ? "variants:\n  Default:\n    items:\n      select: !php/enum " . TypolinkTargetEnum::class . "::_blank\n"
+            : "variants:\n  Default: []\n";
+        file_put_contents($fixturePath, $fixture);
+        file_put_contents(dirname($this->templatePath) . '/Card.transformer.php', <<<'PHP'
+<?php
+return new \Andersundsehr\FrontendStudio\Transformer\ArgumentTransformers(
+    items: static fn(\Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum $select = \Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum::none): string => throw new \RuntimeException('Metadata must not execute transformers.'),
+);
+PHP);
+        $metadata = $this->createProvider([], argumentDefinitions: [
+            'items' => new ArgumentDefinition('items', 'string', '', true),
+        ])->getComponentMetadataForVariantIdentifier('test:Card:Default');
+
+        self::assertNotNull($metadata);
+        self::assertSame([], $metadata->errors);
+        self::assertNotNull($metadata->fixture?->selectedVariant);
+        $value = $metadata->fixture->selectedVariant->values[0];
+        self::assertSame('items.select', $value->fixtureName);
+        $expected = $hasFixtureValue ? TypolinkTargetEnum::_blank : TypolinkTargetEnum::none;
+        self::assertSame($expected, $value->nativeValue);
+        self::assertSame($expected->name, $value->value);
+        self::assertArrayHasKey($value->value, $value->options);
+        self::assertSame($hasFixtureValue, $value->isFixtureValue);
+        self::assertSame($fixture, file_get_contents($fixturePath));
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function enumInputValuesDataProvider(): iterable
+    {
+        yield 'YAML enum case' => [true];
+        yield 'default enum case' => [false];
+    }
+
     public function testLoadsSelectedVariantSlots(): void
     {
         mkdir(dirname($this->templatePath) . '/_slots');
