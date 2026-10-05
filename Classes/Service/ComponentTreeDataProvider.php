@@ -40,7 +40,7 @@ final readonly class ComponentTreeDataProvider
     /**
      * @return list<array<string, mixed>>
      */
-    public function getTreeNodes(): array
+    public function getTreeNodes(bool $strict = false): array
     {
         $nodes = [];
         $componentsByNamespace = [];
@@ -95,9 +95,14 @@ final readonly class ComponentTreeDataProvider
 
                 $componentIdentifier = $namespace . ':' . $component;
                 $componentDepth = count($folderFragments) + 1;
-                $variants = $resolverDelegate instanceof ComponentTemplateResolverInterface
-                    ? $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $component)->variants
-                    : [];
+                $fixture = $resolverDelegate instanceof ComponentTemplateResolverInterface
+                    ? $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $component)
+                    : null;
+                if ($strict && $fixture?->error !== null) {
+                    throw new RuntimeException($componentIdentifier . ': ' . $fixture->error, 6712648841);
+                }
+
+                $variants = $fixture->variants ?? [];
 
                 $nodes[] = $this->createNode($componentIdentifier, $componentIdentifier, $componentDepth, $variants !== [], 'component');
 

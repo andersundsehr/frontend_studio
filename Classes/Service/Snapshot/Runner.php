@@ -1,0 +1,116 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Andersundsehr\FrontendStudio\Service\Snapshot;
+
+use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentTreeDataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentWritePolicy;
+use RuntimeException;
+use Throwable;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+
+#[Autoconfigure(public: true)]
+final readonly class Runner
+{
+    public function __construct(
+        private ComponentTreeDataProvider $tree,
+        private ComponentMetadataProvider $metadata,
+        private FrontendRenderer $renderer,
+        private HtmlFormatter $formatter,
+        private Comparison $comparison,
+        private BaselineStorage $storage,
+        private ComponentWritePolicy $writePolicy,
+    ) {
+    }
+
+    /** @return list<string> */
+    public function discover(string $scope = ''): array
+    {
+        $nodes = $this->tree->getTreeNodes(true);
+        $selected = $scope === '';
+        $depth = -1;
+        $variants = [];
+        $found = $selected;
+        foreach ($nodes as $node) {
+            if ($node['identifier'] === $scope) {
+                $selected = true;
+                $found = true;
+                $depth = (int)$node['depth'];
+            } elseif ($scope !== '' && $selected && (int)$node['depth'] <= $depth) {
+                break;
+            }
+
+            if ($selected && $node['nodeType'] === 'variant') {
+                $variants[] = (string)$node['identifier'];
+            }
+        }
+
+        if (!$found || $variants === []) {
+            throw new RuntimeException('Snapshot scope is unknown or contains no fixture variants.', 3349110734);
+        }
+
+        return $variants;
+    }
+
+    /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string} */
+    public function run(string $identifier, string $site, string $language): array
+    {
+        $path = '';
+        $expected = '';
+        $actual = '';
+        try {
+            $metadata = $this->metadata->getComponentMetadataForVariantIdentifier($identifier);
+            if ($metadata === null || $metadata->fixture?->selectedVariant === null || $metadata->errors !== [] || $metadata->template->absolutePath === null) {
+                throw new RuntimeException('Invalid variant or fixture: ' . implode('; ', $metadata->errors ?? []), 4582022199);
+            }
+
+            $path = $this->storage->path($metadata->template->absolutePath, $identifier, $site, $language);
+            $baseline = $this->storage->read($path);
+            $expected = $baseline ?? '';
+            $actual = $this->formatter->format($this->renderer->render($identifier, $site, $language));
+            sleep(1);
+            $second = $this->formatter->format($this->renderer->render($identifier, $site, $language));
+            if ($baseline === null) {
+                $expected = $this->comparison->create($actual, $second);
+                $message = 'Missing baseline; creation blocked in Production.';
+                if (!$this->writePolicy->isReadOnly()) {
+                    $this->storage->create($path, $expected);
+                    $message = 'Created baseline. Review its dynamic markers and commit it before rerunning.';
+                }
+
+                $status = 'missing';
+            } elseif ($this->comparison->matches($baseline, $actual) && $this->comparison->matches($baseline, $second)) {
+                $status = 'passed';
+                $message = 'Both samples match the saved baseline.';
+            } else {
+                $status = 'failed';
+                $message = 'Rendered HTML differs from the saved baseline.';
+                if ($this->comparison->matches($baseline, $actual)) {
+                    $actual = $second;
+                }
+            }
+        } catch (Throwable $throwable) {
+            $status = 'error';
+            $message = $throwable->getMessage();
+        }
+
+        return ['identifier' => $identifier, 'status' => $status, 'message' => $message, 'path' => $path, 'expected' => $expected, 'actual' => $actual];
+    }
+
+    /** @param list<array{status: string}> $results */
+    public static function exitCode(array $results): int
+    {
+        $code = $results === [] ? 1 : 0;
+        foreach ($results as $result) {
+            $code |= match ($result['status']) {
+                'passed' => 0,
+                'missing' => 2,
+                default => 1,
+            };
+        }
+
+        return $code;
+    }
+}

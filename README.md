@@ -401,6 +401,44 @@ The `variants` value must also be a map.
 Confirm that TYPO3 runs in `Development` context or a Development subcontext.
 Auto reload is intentionally disabled outside development contexts.
 
+## HTML regression snapshots
+
+Run `vendor/bin/typo3 frontend-studio:test <site-identifier> <language-hreflang>`
+against an installed project. The selected language needs an absolute HTTP(S) base URL.
+Use `--scope=site:card:Default`, a component identifier, or a folder/namespace
+identifier from the tree to narrow the run. Saved fixture values and slots render
+through the preview renderer and site TypoScript, including fixture wrappers but
+excluding the preview document and collected assets.
+
+Each variant renders twice, one second apart. Missing baselines are created with a
+warning outside Production; review and commit them, then rerun. Production and
+its subcontexts only compare and never create files. Exit codes are `0` for all
+passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or newly
+created baselines, and `3` when both failure categories occur. Invalid fixtures and
+empty/unknown scopes fail; a newly created baseline is never counted as a pass.
+
+Baselines live beside the resolved template in `_html-snapshots/`. The filename is
+the SHA-256 of the JSON tuple `[template basename, full variant identifier, site
+identifier, language hreflang]`; the command prints its full path. This avoids
+sanitized-name collisions between components, variants, sites and languages.
+Normal runs never overwrite baselines. To accept an intentional change, delete
+only the reviewed baseline, rerun outside Production, inspect the new diff and
+commit it. Concurrent creation publishes a complete file without replacement.
+
+Tags start on separate lines, and start tags longer than 80 characters split
+attributes onto separate lines. Comments and raw/whitespace-sensitive blocks
+(`script`, `style`, `pre`, `textarea`) retain their contents. These are comparison
+representations, not HTML intended for serving. Changing lines become explicit
+`<!-- frontend-studio:dynamic-line -->` markers. Existing markers alone control
+later comparisons; a new mismatch never expands the ignored region. Insertions,
+removals and detected line moves during baseline creation fail for manual review.
+Two samples cannot discover all nondeterminism, and a whole-line marker can hide
+other changes on that line. Review markers carefully, especially short opening
+tags containing both dynamic IDs and stable attributes.
+
+These HTML baselines are separate from the Playwright screenshot, ARIA and
+accessibility checks, which remain useful for browser layout and behavior.
+
 ## Further Reading
 
 - [Component browser tests with Playwright](Playwright/README.md).

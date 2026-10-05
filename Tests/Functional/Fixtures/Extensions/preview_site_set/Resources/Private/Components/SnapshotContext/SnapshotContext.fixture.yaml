@@ -1,0 +1,5 @@
+variants:
+  Default:
+    title: Context test
+  Second:
+    title: Second variant

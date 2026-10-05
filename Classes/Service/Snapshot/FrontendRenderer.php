@@ -1,0 +1,83 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Andersundsehr\FrontendStudio\Service\Snapshot;
+
+use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
+use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
+use RuntimeException;
+use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
+use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
+use TYPO3\CMS\Frontend\Resource\PublicUrlPrefixer;
+use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Context\DateTimeAspect;
+use TYPO3\CMS\Core\Context\LanguageAspectFactory;
+use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Localization\Locales;
+use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Routing\SiteRouteResult;
+use TYPO3\CMS\Core\Site\SiteFinder;
+use DateTimeImmutable;
+
+final readonly class FrontendRenderer
+{
+    public function __construct(
+        private SiteFinder $siteFinder,
+        private PreviewTypoScriptContextBuilderInterface $contextBuilder,
+        private ComponentPreviewRendererInterface $renderer,
+        private AssetCollector $assets,
+        private Context $context,
+        private ListenerProvider $listenerProvider,
+    ) {
+    }
+
+    public function render(string $identifier, string $siteIdentifier, string $hreflang): string
+    {
+        $site = $this->siteFinder->getSiteByIdentifier($siteIdentifier);
+        $language = array_find($site->getLanguages(), static fn($language): bool => $language->getHreflang() === $hreflang);
+        if ($language === null || $site->invalidSets !== []) {
+            throw new RuntimeException('Invalid snapshot site, language or site sets.', 6736937330);
+        }
+
+        $uri = $language->getBase();
+        if ($uri->getHost() === '' || !in_array($uri->getScheme(), ['https', 'http'], true)) {
+            throw new RuntimeException('Snapshot rendering requires an absolute HTTP(S) site language base URL.', 3531165321);
+        }
+
+        $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;
+        $oldAssets = $this->assets->getState();
+        $oldLanguage = $this->context->getAspect('language');
+        $oldDate = $this->context->getAspect('date');
+        $oldLocale = setlocale(LC_ALL, '0');
+        try {
+            $this->listenerProvider->addListener(GeneratePublicUrlForResourceEvent::class, PublicUrlPrefixer::class, 'prefixWithAbsRefPrefix');
+            $this->assets->updateState(new AssetCollector()->getState());
+            $this->context->setAspect('language', LanguageAspectFactory::createFromSiteLanguage($language));
+            $this->context->setAspect('date', new DateTimeAspect(new DateTimeImmutable()));
+            Locales::setSystemLocaleFromSiteLanguage($language);
+            $request = new ServerRequest($uri)
+                ->withAttribute('applicationType', 1)
+                ->withAttribute('site', $site)
+                ->withAttribute('language', $language)
+                ->withAttribute('routing', new SiteRouteResult($uri, $site, $language, '/'));
+            $GLOBALS['TYPO3_REQUEST'] = $request;
+            $request = $this->contextBuilder->build($request);
+            $GLOBALS['TYPO3_REQUEST'] = $request;
+            return $this->renderer->renderVariant($identifier, $request);
+        } finally {
+            if ($oldRequest === null) {
+                unset($GLOBALS['TYPO3_REQUEST']);
+            } else {
+                $GLOBALS['TYPO3_REQUEST'] = $oldRequest;
+            }
+
+            $this->assets->updateState($oldAssets);
+            $this->context->setAspect('language', $oldLanguage);
+            $this->context->setAspect('date', $oldDate);
+            if ($oldLocale !== false) {
+                setlocale(LC_ALL, $oldLocale);
+            }
+        }
+    }
+}
