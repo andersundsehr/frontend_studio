@@ -1,3 +1,5 @@
 variants:
   Default:
     title: Rendered from fixture
+  'Mobile:Dark':
+    title: Colon variant from fixture

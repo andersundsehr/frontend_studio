@@ -4,7 +4,6 @@ export default class VariantFileWatcher extends VariantFeature {
 
   constructor(root, view) {
     super(root, view);
-    this.componentIdentifier = this.getComponentIdentifierFromVariantIdentifier(view.variantIdentifier);
     this.suspended = false;
     this.listen(view, 'suspend', () => { this.suspended = true; });
     this.listen(view, 'resume', () => { this.suspended = false; });
@@ -16,7 +15,7 @@ export default class VariantFileWatcher extends VariantFeature {
       return;
     }
     const ownActionIdentifiers = event.detail.ownActionIdentifiers || [];
-    if (ownActionIdentifiers.some((identifier) => identifier === this.componentIdentifier || identifier.startsWith(`${this.componentIdentifier}:`))
+    if (ownActionIdentifiers.some((identifier) => identifier === this.view.componentIdentifier || identifier.startsWith(`${this.view.componentIdentifier}:`))
       || this.view.ignoreNextComponentFilesChanged) {
       this.view.ignoreNextComponentFilesChanged = false;
       return;
@@ -29,7 +28,7 @@ export default class VariantFileWatcher extends VariantFeature {
   }
 
   isCurrentComponentAffected(event) {
-    if (this.componentIdentifier === '') {
+    if (this.view.componentIdentifier === '') {
       return false;
     }
 
@@ -38,15 +37,6 @@ export default class VariantFileWatcher extends VariantFeature {
       return false;
     }
 
-    return payload.componentIdentifiers.includes(this.componentIdentifier);
-  }
-
-  getComponentIdentifierFromVariantIdentifier(variantIdentifier) {
-    const identifierParts = variantIdentifier.split(':');
-    if (identifierParts.length < 3) {
-      return '';
-    }
-
-    return identifierParts.slice(0, -1).join(':');
+    return payload.componentIdentifiers.includes(this.view.componentIdentifier);
   }
 }
