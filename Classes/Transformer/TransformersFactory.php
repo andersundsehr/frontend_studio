@@ -8,6 +8,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use RuntimeException;
+use Symfony\Component\Filesystem\Path;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinition;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
@@ -92,7 +93,7 @@ final readonly class TransformersFactory
             }
 
             if (!$this->typeTransformers->has($type)) {
-                throw new MissingTransformerException($argumentName, $type, $pdaFileName);
+                throw new MissingTransformerException($argumentName, $type, Path::makeRelative($pdaFileName, Environment::getProjectPath()));
             }
 
             $transformers[$argumentName] = $this->typeTransformers->get($type);

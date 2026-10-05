@@ -46,7 +46,7 @@ final class TransformersFactoryTest extends UnitTestCase
         } catch (MissingTransformerException $missingTransformerException) {
             self::assertSame('title', $missingTransformerException->argumentName);
             self::assertSame(Stringable::class, $missingTransformerException->argumentType);
-            self::assertSame(substr($template, 0, -5) . '.transformer.php', $missingTransformerException->transformerFile);
+            self::assertSame('Tests/Functional/Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.transformer.php', $missingTransformerException->transformerFile);
             self::assertSame(6790927084, $missingTransformerException->getCode());
         }
     }
