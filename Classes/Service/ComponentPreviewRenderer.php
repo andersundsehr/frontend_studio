@@ -39,6 +39,7 @@ final readonly class ComponentPreviewRenderer implements ComponentPreviewRendere
     {
         [$namespace, $componentName, $variantName] = $this->parseVariantIdentifier($variantIdentifier);
         $resolverDelegate = $this->resolveComponent($namespace, $componentName);
+        $wrapper = $this->componentFixtureProvider->getPreviewWrapper($resolverDelegate, $componentName);
         $variantValues = $variantValueOverrides
             ?? $this->componentFixtureProvider->getVariantValues($resolverDelegate, $componentName, $variantName);
         foreach ($this->componentFixtureProvider->getPreviewStylesheets($resolverDelegate, $componentName) as $index => $stylesheet) {
@@ -65,12 +66,13 @@ final readonly class ComponentPreviewRenderer implements ComponentPreviewRendere
             $slots[$slotName] = static fn(): string => $slotValue;
         }
 
-        return trim($resolverDelegate->getComponentRenderer()->renderComponent(
+        $html = trim($resolverDelegate->getComponentRenderer()->renderComponent(
             $componentName,
             $values,
             $slots,
             $renderingContext,
         ));
+        return $wrapper === null ? $html : str_replace('{{component}}', $html, $wrapper);
     }
 
     /**

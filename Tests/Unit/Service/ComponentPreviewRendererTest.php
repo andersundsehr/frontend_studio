@@ -14,6 +14,7 @@ use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Cache\Backend\NullBackend;
@@ -90,6 +91,15 @@ final class ComponentPreviewRendererTest extends TestCase
         self::assertSame('<article><em>Draft</em></article>', $result);
         self::assertStringNotContainsString('&lt;em&gt;', $result);
         self::assertSame('<strong>Saved</strong>', file_get_contents($this->getSlotPath()));
+    }
+
+    public function testWrapperInsertsRawHtmlExactlyOnceWithoutEvaluatingFluid(): void
+    {
+        $this->writeSlot('<strong>{{component}}</strong>');
+        $wrapper = '<section data-example="{literal}"><f:if condition="1">{{component}}</f:if></section>';
+        file_put_contents(dirname($this->templatePath) . '/Card.fixture.yaml', Yaml::dump(['wrapper' => $wrapper, 'variants' => ['Default' => []]]));
+        $result = $this->createRenderer()->renderVariant('test:Card:Default', $this->createStub(ServerRequestInterface::class));
+        self::assertSame('<section data-example="{literal}"><f:if condition="1"><article><strong>{{component}}</strong></article></f:if></section>', $result);
     }
 
     private function createRenderer(): ComponentPreviewRenderer

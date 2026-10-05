@@ -1,0 +1,4 @@
+wrapper: '<section class="wrapper-example">{{component}}</section>'
+variants:
+  Default:
+    title: Wrapped preview

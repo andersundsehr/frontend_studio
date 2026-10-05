@@ -62,6 +62,8 @@ final readonly class ComponentFixtureProvider
                     ComponentVariantValues::fromYamlValues($variantValues)->toMetadataList(),
                 );
             }
+
+            $this->parsePreviewWrapper($fixture);
         } catch (Throwable $throwable) {
             $error = $throwable->getMessage();
         }
@@ -357,6 +359,36 @@ final readonly class ComponentFixtureProvider
 
         $variantValues = $fixture['variants'][$variantName];
         return ComponentVariantValues::fromYamlValues($variantValues);
+    }
+
+    public function getPreviewWrapper(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): ?string
+    {
+        $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
+        if (!is_file($fixturePath)) {
+            return null;
+        }
+
+        $fixture = Yaml::parseFile($fixturePath, Yaml::PARSE_CONSTANT);
+        if (!is_array($fixture)) {
+            throw new InvalidArgumentException('Fixture file must contain a top-level map.', 1791192000);
+        }
+
+        return $this->parsePreviewWrapper($fixture);
+    }
+
+    /** @param array<mixed> $fixture */
+    private function parsePreviewWrapper(array $fixture): ?string
+    {
+        if (!array_key_exists('wrapper', $fixture)) {
+            return null;
+        }
+
+        $wrapper = $fixture['wrapper'];
+        if (!is_string($wrapper) || trim($wrapper) === '' || substr_count($wrapper, '{{component}}') !== 1) {
+            throw new InvalidArgumentException('Fixture "wrapper" must be a non-empty string containing exactly one {{component}} placeholder.', 1791192001);
+        }
+
+        return $wrapper;
     }
 
     /**
