@@ -19,6 +19,8 @@ final class TransformerTemplateGeneratorTest extends TestCase
     {
         $template = new TransformerTemplateGenerator()->generate(['payload' => 'stdClass', 'domain' => 'ArrayObject', 'optional' => '?Stringable', 'union' => 'ArrayObject|Stringable', 'items' => 'ArrayObject[]']);
         self::assertTrue($template['hasTodos']);
+        self::assertStringContainsString("return new ArgumentTransformers(\n    payload: static function", $template['source']);
+        self::assertStringNotContainsString('...[', $template['source']);
         $transformers = $this->load($template['source']);
         self::assertSame(['payload', 'domain', 'optional', 'union', 'items'], array_keys($transformers->arguments));
         self::assertInstanceOf(stdClass::class, ($transformers->arguments['payload'])());
@@ -46,12 +48,41 @@ final class TransformerTemplateGeneratorTest extends TestCase
         $payload('[]');
     }
 
-    public function testArgumentNamesAreQuotedAsData(): void
+    #[DataProvider('namedArgumentNames')]
+    public function testPhpIdentifiersUseNamedArgumentSyntax(string $name): void
     {
-        $name = "name'); throw new RuntimeException('injected'); //";
-        $transformers = $this->load(new TransformerTemplateGenerator()->generate([$name => 'stdClass'])['source']);
-        self::assertSame([$name], array_keys($transformers->arguments));
+        $template = new TransformerTemplateGenerator()->generate([$name => 'stdClass']);
+        self::assertStringContainsString($name . ': static function', $template['source']);
+        self::assertStringNotContainsString('...[', $template['source']);
+        $transformers = $this->load($template['source']);
         self::assertInstanceOf(stdClass::class, ($transformers->arguments[$name])());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function namedArgumentNames(): iterable
+    {
+        yield 'normal argument' => ['bodytext'];
+        yield 'underscore and digit' => ['_payload2'];
+        yield 'keyword' => ['class'];
+        yield 'non-ASCII identifier' => ['Grüße'];
+    }
+
+    #[DataProvider('nonIdentifierNames')]
+    public function testNonIdentifierNamesRemainSafelyQuoted(string $name): void
+    {
+        $template = new TransformerTemplateGenerator()->generate(['payload' => 'stdClass', $name => 'stdClass']);
+        self::assertStringContainsString('return new ArgumentTransformers(...[', $template['source']);
+        $transformers = $this->load($template['source']);
+        self::assertSame(['payload', $name], array_keys($transformers->arguments));
+        self::assertInstanceOf(stdClass::class, ($transformers->arguments[$name])());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function nonIdentifierNames(): iterable
+    {
+        yield 'hyphen' => ['some-name'];
+        yield 'leading digit' => ['1payload'];
+        yield 'injection' => ["name'); throw new RuntimeException('injected'); //"];
     }
 
     #[DataProvider('invalidTypes')]

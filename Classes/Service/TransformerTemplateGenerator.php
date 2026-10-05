@@ -19,7 +19,12 @@ final readonly class TransformerTemplateGenerator
             throw new InvalidArgumentException('There are no missing argument transformers.', 1791193000);
         }
 
-        $source = "<?php\n\ndeclare(strict_types=1);\n\nuse Andersundsehr\\FrontendStudio\\Transformer\\ArgumentTransformers;\n\nreturn new ArgumentTransformers(...[\n";
+        $useNamedArguments = array_all(
+            array_keys($arguments),
+            static fn(int|string $name): bool => is_string($name) && preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/D', $name) === 1,
+        );
+        $source = "<?php\n\ndeclare(strict_types=1);\n\nuse Andersundsehr\\FrontendStudio\\Transformer\\ArgumentTransformers;\n\nreturn new ArgumentTransformers("
+            . ($useNamedArguments ? '' : '...[') . "\n";
         $hasTodos = false;
         foreach ($arguments as $name => $type) {
             if (!is_string($name) || $name === '' || ctype_digit($name)) {
@@ -27,7 +32,7 @@ final readonly class TransformerTemplateGenerator
             }
 
             $returnType = $this->phpType($type);
-            $source .= '    ' . var_export($name, true) . ' => ';
+            $source .= '    ' . ($useNamedArguments ? $name . ': ' : var_export($name, true) . ' => ');
             if (ltrim($type, '\\') === 'stdClass') {
                 $source .= <<<'PHP'
 static function (string $value = '{}'): stdClass {
@@ -49,7 +54,7 @@ PHP;
             $source .= "\n";
         }
 
-        $source .= "]);\n";
+        $source .= ($useNamedArguments ? ')' : '])') . ";\n";
         try {
             if (token_get_all($source, TOKEN_PARSE) === []) {
                 throw new InvalidArgumentException('The transformer template is empty.', 1791193006);
