@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Transformer;
 
 use Closure;
+use Andersundsehr\FrontendStudio\Control\Attribute\Control;
 use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
 use ReflectionFunction;
@@ -33,6 +34,7 @@ final readonly class TransformerFactory
             5914437566,
         );
         $services = [];
+        $controls = [];
         foreach ($reflection->getParameters() as $parameter) {
             $type = $parameter->getType()?->__toString() ?? throw new InvalidArgumentException(
                 sprintf(
@@ -48,6 +50,10 @@ final readonly class TransformerFactory
             }
 
             $argumentName = $parameter->getName();
+            foreach ($parameter->getAttributes(Control::class) as $attribute) {
+                $controls[$argumentName] = $attribute->newInstance()->id;
+            }
+
             if (!in_array($type, TransformersFactory::DEFAULT_SUPPORTED_TYPES) && !class_exists($type) && !enum_exists($type)) {
                 throw new InvalidArgumentException(
                     sprintf(
@@ -75,7 +81,8 @@ final readonly class TransformerFactory
             from: $from,
             returnType: $returnType,
             arguments: $arguments,
-            services: $services
+            services: $services,
+            controls: $controls
         );
     }
 }

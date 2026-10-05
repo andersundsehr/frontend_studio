@@ -37,6 +37,14 @@ class VariantControls extends VariantValues {
         this.saveValues();
       }
     });
+    this.ready = this.mountControls().then(() => {
+      if (!this.destroyed) {
+        this.updateDirtyState();
+        view.changed('controls');
+      }
+    }).catch((error) => {
+      Notification.error('Control initialization failed', error.message || String(error));
+    });
     view.changed('controls');
   }
 
@@ -51,26 +59,32 @@ class VariantControls extends VariantValues {
   }
 
   updateDirtyState() {
+    if (this.copyVariantButton !== null) {
+      this.copyVariantButton.disabled = !this.controlsReady || this.copying;
+    }
     this.view.hasUnsavedChanges = JSON.stringify(this.collectValues()) !== JSON.stringify(this.savedValues)
       || JSON.stringify(this.collectSlotValues()) !== JSON.stringify(this.savedSlots);
-    const hasInvalidFields = [...this.fields, ...this.slotFields].some((field) => !field.checkValidity());
+    const hasInvalidFields = [...this.fields, ...this.slotFields].some((field) => !this.validateField(field));
 
     if (this.saveState !== null) {
       this.saveState.hidden = !this.view.hasUnsavedChanges;
     }
 
     if (this.saveButton !== null) {
-      this.saveButton.disabled = this.saving || !this.view.hasUnsavedChanges;
+      this.saveButton.disabled = !this.controlsReady || this.saving || !this.view.hasUnsavedChanges;
       this.saveButton.classList.toggle('frontend-studio-variant-save-invalid', this.view.hasUnsavedChanges && hasInvalidFields);
-      this.saveButton.setAttribute('aria-disabled', (this.saving || !this.view.hasUnsavedChanges || hasInvalidFields).toString());
+      this.saveButton.setAttribute('aria-disabled', (!this.controlsReady || this.saving || !this.view.hasUnsavedChanges || hasInvalidFields).toString());
     }
 
     if (this.resetButton !== null) {
-      this.resetButton.disabled = !this.view.hasUnsavedChanges;
+      this.resetButton.disabled = !this.controlsReady || !this.view.hasUnsavedChanges;
     }
   }
 
   resetValues() {
+    if (!this.controlsReady) {
+      return;
+    }
     this.fields.forEach((field) => {
       const name = field.dataset.fixtureName || field.name || '';
       if (name === '' || this.initialFieldValues[name] === undefined) {
@@ -82,7 +96,7 @@ class VariantControls extends VariantValues {
     this.slotFields.forEach((field) => {
       const name = field.dataset.slotName || field.name || '';
       if (name !== '') {
-        field.value = this.initialSlotValues[name] || '';
+        this.writeFieldValue(field, this.initialSlotValues[name] || '');
       }
     });
 
@@ -133,10 +147,10 @@ class VariantControls extends VariantValues {
   }
 
   async saveValues() {
-    if (this.view.variantIdentifier === '' || this.saveButton === null || !this.view.hasUnsavedChanges || this.saving) {
+    if (!this.controlsReady || this.view.variantIdentifier === '' || this.saveButton === null || !this.view.hasUnsavedChanges || this.saving) {
       return;
     }
-    const invalidField = [...this.fields, ...this.slotFields].find((field) => !field.reportValidity());
+    const invalidField = [...this.fields, ...this.slotFields].find((field) => !this.validateField(field, true));
     if (invalidField !== undefined) {
       invalidField.focus();
       return;
@@ -182,8 +196,8 @@ class VariantControls extends VariantValues {
   }
 
   async copyVariant(name) {
-    if (this.view.variantIdentifier === '' || this.copyVariantButton === null || this.copying
-      || ![...this.fields, ...this.slotFields].every((field) => field.reportValidity())) {
+    if (!this.controlsReady || this.view.variantIdentifier === '' || this.copyVariantButton === null || this.copying
+      || ![...this.fields, ...this.slotFields].every((field) => this.validateField(field, true))) {
       return;
     }
     this.copying = true;

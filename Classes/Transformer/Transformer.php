@@ -25,6 +25,8 @@ final readonly class Transformer
          * @var array<string, object>
          */
         public array $services,
+        /** @var array<string, string> */
+        public array $controls = [],
     ) {
     }
 

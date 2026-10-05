@@ -1,6 +1,8 @@
 <?php
 
 use Andersundsehr\FrontendStudio\Transformer\Attribute\TypeTransformer;
+use Andersundsehr\FrontendStudio\Control\Attribute\TypeControl;
+use Andersundsehr\FrontendStudio\Control\TypeControls;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
@@ -9,6 +11,27 @@ use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigura
 use Symfony\Component\DependencyInjection\Reference;
 
 return static function (ContainerConfigurator $container, ContainerBuilder $containerBuilder): void {
+    $containerBuilder->registerAttributeForAutoconfiguration(
+        TypeControl::class,
+        static function (ChildDefinition $definition, TypeControl $attribute, Reflector $reflector): void {
+            if (!$reflector instanceof ReflectionMethod || !$reflector->isPublic() || $reflector->isStatic() || $reflector->isAbstract()) {
+                throw new InvalidArgumentException('TypeControl must target a public instance method.', 1791200014);
+            }
+
+            $definition->addTag(TypeControl::TAG_NAME, ['method' => $reflector->getName(), 'id' => $attribute->id, 'type' => $attribute->type, 'priority' => $attribute->priority]);
+        }
+    );
+    $containerBuilder->addCompilerPass(new class implements CompilerPassInterface {
+        public function process(ContainerBuilder $container): void
+        {
+            $registry = $container->findDefinition(TypeControls::class);
+            foreach ($container->findTaggedServiceIds(TypeControl::TAG_NAME) as $id => $tags) {
+                foreach ($tags as $tag) {
+                    $registry->addMethodCall('addControl', [new Reference($id), $tag['method'], $tag['id'], $tag['type'], $tag['priority']]);
+                }
+            }
+        }
+    });
     $containerBuilder->registerAttributeForAutoconfiguration(
         TypeTransformer::class,
         static function (ChildDefinition $definition, TypeTransformer $attribute, Reflector $reflector): void {

@@ -3,12 +3,85 @@ import VariantFeature from '@andersundsehr/frontend-studio/backend/variant-lifec
 export default class VariantValues extends VariantFeature {
   constructor(root, view) {
     super(root, view);
+    this.adapters = new Map();
+    this.controlsReady = true;
     this.fields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-value]'));
     this.slotFields = Array.from(root.querySelectorAll('[data-frontend-studio-variant-slot]'));
     this.initialFieldValues = this.collectFieldValues();
     this.initialSlotValues = this.collectSlotValues();
     this.savedValues = this.collectValues();
     this.savedSlots = this.collectSlotValues();
+  }
+
+  async mountControls() {
+    const hosts = [...this.root.querySelectorAll('[data-frontend-studio-control]')];
+    if (hosts.length === 0) {
+      return;
+    }
+    this.controlsReady = false;
+    this.root.inert = true;
+    this.updateDirtyState();
+    try {
+      await Promise.all(hosts.map(async (host) => {
+        const field = host.querySelector('[data-frontend-studio-variant-value], [data-frontend-studio-variant-slot]');
+        if (field === null) {
+          throw new Error('Custom controls must contain one fixture input.');
+        }
+        const { default: mount } = await import(host.dataset.frontendStudioControl);
+        if (this.destroyed) {
+          return;
+        }
+        const adapter = await mount({
+          host, field, options: JSON.parse(host.dataset.controlOptions || '{}'),
+          signal: this.abortController.signal,
+          changed: () => {
+            if (this.controlsReady && !this.destroyed) {
+              field.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          },
+        });
+        if (this.destroyed) {
+          await adapter.destroy();
+          return;
+        }
+        for (const method of ['getValue', 'setValue', 'validate', 'destroy']) {
+          if (typeof adapter[method] !== 'function') {
+            throw new Error(`Custom control is missing ${method}().`);
+          }
+        }
+        this.adapters.set(field, adapter);
+      }));
+      if (!this.destroyed) {
+        this.initialFieldValues = this.collectFieldValues();
+        this.initialSlotValues = this.collectSlotValues();
+        this.savedValues = this.collectValues();
+        this.savedSlots = this.collectSlotValues();
+        this.controlsReady = true;
+        this.root.inert = false;
+      }
+    } catch (error) {
+      // Never save a partially mounted editor, or silently fall back to stale input data.
+      if (!this.destroyed) {
+        this.root.inert = false;
+        this.controlError = error;
+        this.root.setAttribute('data-control-error', String(error));
+        throw error;
+      }
+    }
+  }
+
+  destroy() {
+    super.destroy();
+    this.adapters.forEach((adapter) => { void adapter.destroy(); });
+    this.adapters.clear();
+  }
+
+  validateField(field, report = false) {
+    const adapter = this.adapters.get(field);
+    if (adapter) {
+      field.setCustomValidity(adapter.validate() || '');
+    }
+    return report ? field.reportValidity() : field.checkValidity();
   }
 
   collectValues() {
@@ -73,7 +146,7 @@ export default class VariantValues extends VariantFeature {
     this.slotFields.forEach((field) => {
       const name = field.dataset.slotName || field.name || '';
       if (name !== '') {
-        slots[name] = field.value;
+        slots[name] = this.readFieldValue(field);
       }
     });
 
@@ -89,6 +162,10 @@ export default class VariantValues extends VariantFeature {
   }
 
   readFieldValue(field) {
+    const adapter = this.adapters.get(field);
+    if (adapter) {
+      return adapter.getValue();
+    }
     const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
 
     if (fixtureType === 'bool' || fixtureType === 'boolean') {
@@ -137,6 +214,11 @@ export default class VariantValues extends VariantFeature {
   }
 
   writeFieldValue(field, value) {
+    const adapter = this.adapters.get(field);
+    if (adapter) {
+      adapter.setValue(value);
+      return;
+    }
     field.dataset.fixtureValueNull = value === null ? 'true' : 'false';
     const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
 
