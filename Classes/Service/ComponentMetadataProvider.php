@@ -46,6 +46,20 @@ final readonly class ComponentMetadataProvider
     ) {
     }
 
+    public function getComponentTemplateForIdentifier(string $identifier): ?ComponentTemplateMetadata
+    {
+        $parts = explode(':', $identifier);
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+            return null;
+        }
+
+        $component = $this->resolveComponent($parts[0], $parts[1]);
+        $resolver = $component['resolverDelegate'] ?? null;
+        return $resolver instanceof ComponentTemplateResolverInterface
+            ? $this->getTemplateMetadata($resolver, $parts[1])
+            : null;
+    }
+
     public function getComponentMetadataForVariantIdentifier(string $variantIdentifier): ?ComponentMetadata
     {
         $variantIdentifier = trim($variantIdentifier);

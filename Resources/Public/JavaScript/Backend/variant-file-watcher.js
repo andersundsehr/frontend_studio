@@ -23,7 +23,7 @@ export default class VariantFileWatcher extends VariantFeature {
     }
     this.view.changed('files');
 
-    if (!this.view.hasUnsavedChanges) {
+    if (!this.view.hasUnsavedChanges && !this.view.documentationDirty) {
       window.location.reload();
     }
   }

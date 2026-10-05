@@ -441,3 +441,24 @@ In every context, `componentVariantValues` and `componentVariantSlots` require a
 Anonymous requests containing either parameter return HTTP 403,
 even for empty or invalid values and for fragments or Fluid Usage.
 Site and language selection and stored variant previews do not require overrides.
+
+## Component documentation
+
+The **Doc** inspector tab edits Markdown shared by every variant of a component.
+`Card.html` and `Card.fluid.html` use the adjacent `Card.md` file.
+Opening a missing document does not create a file; **Save documentation** creates it explicitly.
+Production and Production subcontexts permit reading only.
+Documentation endpoints require a backend login and TYPO3 route tokens.
+
+The locally bundled ProseMirror editor supports paragraphs, headings, emphasis, lists, links, and code blocks.
+Use **Markdown source** for exact text editing. Documents that cannot roundtrip byte-for-byte through the rich-text editor stay in source mode,
+including raw HTML and tables. Previews display raw HTML as text and reject executable link schemes.
+Changing modes never silently normalizes an existing document.
+Documentation has its own Save button and unsaved-change warning, independent of fixture controls.
+A save uses an optimistic content revision; external edits or another editor's save produce a conflict instead of overwriting stale content.
+Copy your pending text before reloading a conflicting document.
+
+To rebuild the checked-in editor bundle, run `npm ci --prefix Build/MarkdownEditor`
+and `npm run build --prefix Build/MarkdownEditor`.
+Dependency versions and third-party licenses are kept in that directory.
+No CDN or additional TYPO3 RTE extension is required.
