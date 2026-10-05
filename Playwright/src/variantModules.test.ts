@@ -323,6 +323,98 @@ test('sidebar loads optional panel modules on activation and remains usable with
   view.destroy();
 });
 
+for (const action of ['save', 'copy']) {
+  test(`early ${action} suppresses its own SSE change before the watcher import completes`, async (t) => {
+    const { root, field } = controlsRoot();
+    root.dataset.componentChangeStreamUri = '/changes';
+    const env = environment([root]);
+    let reloads = 0;
+    env.window.location.reload = () => { reloads++; };
+    let resolve!: (response: any) => void;
+    class AjaxRequest {
+      post() { return new Promise((done) => { resolve = done; }); }
+    }
+    class EventSource extends EventTarget {
+      close() {}
+    }
+    const modules = backendModules({ ...env, EventSource, TYPO3: { settings: { ajaxUrls: {} } } }, {
+      '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+    });
+    const { default: Controls } = await modules.import('variant-controls.js');
+    const { default: View } = await modules.import('variant-view.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    Controls.initialize();
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    const initializing = View.initialize();
+    assert.equal(view.features.has('watcher'), false);
+    if (action === 'save') {
+      field.value = 'Changed';
+      field.dispatchEvent(new Event('input'));
+    }
+    const pending = action === 'save' ? view.controls.saveValues() : view.controls.copyVariant('New');
+    assert.equal(view.features.has('watcher'), false, 'the action must start before the watcher mounts');
+    await initializing;
+    const watcher = view.features.get('watcher');
+    const changed = () => watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+      data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+    }));
+    if (action === 'copy') {
+      changed();
+      assert.equal(reloads, 0, 'an own file change must not reload while copy navigation is pending');
+      assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:Default');
+    }
+    resolve({ resolve: async () => ({ success: true, variant: { identifier: 'site:card:New' } }) });
+    await pending;
+    assert.equal(view.hasUnsavedChanges, false);
+    if (action === 'save') {
+      changed();
+    } else {
+      assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:New');
+    }
+    assert.equal(reloads, 0);
+    changed();
+    assert.equal(reloads, 1, 'the next external change must still reload a clean view');
+  });
+
+  test(`early failed ${action} clears SSE suppression before the watcher import completes`, async (t) => {
+    const { root, field } = controlsRoot();
+    root.dataset.componentChangeStreamUri = '/changes';
+    const env = environment([root]);
+    let reloads = 0;
+    env.window.location.reload = () => { reloads++; };
+    class AjaxRequest {
+      async post() { throw new Error('Write failed'); }
+    }
+    class EventSource extends EventTarget {
+      close() {}
+    }
+    const modules = backendModules({ ...env, EventSource, TYPO3: { settings: { ajaxUrls: {} } } }, {
+      '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+    });
+    const { default: Controls } = await modules.import('variant-controls.js');
+    const { default: View } = await modules.import('variant-view.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    Controls.initialize();
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    if (action === 'save') {
+      field.value = 'Changed';
+      field.dispatchEvent(new Event('input'));
+    }
+    await (action === 'save' ? view.controls.saveValues() : view.controls.copyVariant('New'));
+    assert.equal(view.features.has('watcher'), false);
+    await View.initialize();
+    view.controls.resetValues();
+    assert.equal(view.hasUnsavedChanges, false);
+    const watcher = view.features.get('watcher');
+    watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+      data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+    }));
+    assert.equal(reloads, 1, 'a failed early write must not suppress an external change');
+  });
+}
+
 test('host initialization deduplicates the change stream and cleanup closes it', async () => {
   const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
   const env = environment([root]);

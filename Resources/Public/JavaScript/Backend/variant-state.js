@@ -8,10 +8,18 @@ export class VariantState extends EventTarget {
     this.variantIdentifier = root.dataset.variantIdentifier || '';
     this.controls = null;
     this.hasUnsavedChanges = false;
+    this.ignoreNextComponentFilesChanged = false;
     this.revision = 0;
     this.destroyed = false;
     this.features = new Map();
     this.abortController = new AbortController();
+    // Remember file actions even before the optional watcher module has loaded.
+    top.document.addEventListener('frontend-studio:component-file-action-started', () => {
+      this.ignoreNextComponentFilesChanged = true;
+    }, { signal: this.abortController.signal });
+    top.document.addEventListener('frontend-studio:component-file-action-cancelled', () => {
+      this.ignoreNextComponentFilesChanged = false;
+    }, { signal: this.abortController.signal });
     window.addEventListener('pagehide', (event) => {
       if (event.persisted) {
         this.changed('suspend');
