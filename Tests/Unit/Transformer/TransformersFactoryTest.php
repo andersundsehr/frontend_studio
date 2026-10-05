@@ -11,15 +11,46 @@ use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
+use Andersundsehr\FrontendStudio\Transformer\MissingTransformerException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
 use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinition;
+use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
+use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
+use TYPO3Fluid\Fluid\View\TemplatePaths;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
 final class TransformersFactoryTest extends UnitTestCase
 {
+    public function testMissingTransformerIncludesStructuredArgumentAndFileDetails(): void
+    {
+        $template = __DIR__ . '/../../Functional/Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.html';
+        $paths = new TemplatePaths();
+        $paths->setTemplatePathAndFilename($template);
+
+        /** @var ComponentDefinitionProviderInterface&ComponentTemplateResolverInterface&MockObject $collection */
+        $collection = $this->createMockForIntersectionOfInterfaces([
+            ComponentDefinitionProviderInterface::class,
+            ComponentTemplateResolverInterface::class,
+        ]);
+        $collection->method('getTemplatePaths')->willReturn($paths);
+        $collection->method('resolveTemplateName')->willReturn('Card');
+        $collection->method('getComponentDefinition')->willReturn($this->createComponentDefinition(Stringable::class));
+
+        try {
+            $this->createSubject()->get($collection, 'Card');
+            self::fail('A missing transformer must raise a structured exception.');
+        } catch (MissingTransformerException $missingTransformerException) {
+            self::assertSame('title', $missingTransformerException->argumentName);
+            self::assertSame(Stringable::class, $missingTransformerException->argumentType);
+            self::assertSame(substr($template, 0, -5) . '.transformer.php', $missingTransformerException->transformerFile);
+            self::assertSame(6790927084, $missingTransformerException->getCode());
+        }
+    }
+
     #[DataProvider('validReturnTypesDataProvider')]
     public function testValidateReturnTypeAcceptsCompatibleTypes(string $targetType, string $returnType): void
     {

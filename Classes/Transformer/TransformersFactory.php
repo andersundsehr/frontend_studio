@@ -92,13 +92,7 @@ final readonly class TransformersFactory
             }
 
             if (!$this->typeTransformers->has($type)) {
-                throw new RuntimeException(
-                    'component requires a transformer for argument "' . $argumentName . '" of type "' . $type . '", but no transformer is defined in the file ' . $pdaFileName . ". \n"
-                        . "Please add a transformer for this argument, \n"
-                        . "or add one for that type, \n"
-                        . "or remove the argument from the component definition.",
-                    6790927084
-                );
+                throw new MissingTransformerException($argumentName, $type, $pdaFileName);
             }
 
             $transformers[$argumentName] = $this->typeTransformers->get($type);

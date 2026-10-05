@@ -16,6 +16,7 @@ use Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
+use stdClass;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -147,6 +148,45 @@ PHP);
             $metadata->fixture->selectedVariant->slots,
         );
         self::assertSame([], $metadata->errors);
+    }
+
+    public function testMissingTransformerIsExposedAndClearedAfterAddingArgumentTransformer(): void
+    {
+        $definitions = ['payload' => new ArgumentDefinition('payload', stdClass::class, '', true)];
+        $metadata = $this->createProvider([], argumentDefinitions: $definitions)->getComponentMetadataForVariantIdentifier('test:Card:Default');
+
+        self::assertNotNull($metadata);
+        self::assertNotNull($metadata->missingTransformerError);
+        self::assertStringContainsString('argument "payload" of type "stdClass"', $metadata->missingTransformerError);
+        self::assertStringContainsString(dirname($this->templatePath) . '/Card.transformer.php', $metadata->missingTransformerError);
+        self::assertStringContainsString('ArgumentTransformers', $metadata->missingTransformerError);
+        self::assertStringContainsString('#[TypeTransformer]', $metadata->missingTransformerError);
+        self::assertSame(['Component transformers could not be loaded: ' . $metadata->missingTransformerError], $metadata->errors);
+
+        file_put_contents(dirname($this->templatePath) . '/Card.transformer.php', <<<'PHP'
+<?php
+return new \Andersundsehr\FrontendStudio\Transformer\ArgumentTransformers(
+    payload: static fn(string $value = ''): \stdClass => throw new \RuntimeException('Metadata must not execute transformers.'),
+);
+PHP);
+        $metadata = $this->createProvider([], argumentDefinitions: $definitions)->getComponentMetadataForVariantIdentifier('test:Card:Default');
+
+        self::assertNotNull($metadata);
+        self::assertNull($metadata->missingTransformerError);
+        self::assertSame([], $metadata->errors);
+        self::assertNotNull($metadata->fixture?->selectedVariant);
+        self::assertSame(['payload.value'], array_column($metadata->fixture->selectedVariant->values, 'fixtureName'));
+    }
+
+    public function testUnrelatedTransformerErrorDoesNotBecomeMissingTransformerError(): void
+    {
+        file_put_contents(dirname($this->templatePath) . '/Card.transformer.php', '<?php return null;');
+        $metadata = $this->createProvider([])->getComponentMetadataForVariantIdentifier('test:Card:Default');
+
+        self::assertNotNull($metadata);
+        self::assertNull($metadata->missingTransformerError);
+        self::assertCount(1, $metadata->errors);
+        self::assertStringContainsString('did not return an instance', $metadata->errors[0]);
     }
 
     public function testExposesCollidingSlotNamesAsMetadataError(): void

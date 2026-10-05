@@ -17,6 +17,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
+use Andersundsehr\FrontendStudio\Transformer\MissingTransformerException;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use DateTimeImmutable;
 use RuntimeException;
@@ -81,6 +82,7 @@ final readonly class ComponentMetadataProvider
         $staticVariables = [];
         $errors = [];
         $transformers = null;
+        $missingTransformerError = null;
 
         if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
             try {
@@ -106,6 +108,9 @@ final readonly class ComponentMetadataProvider
         if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
             try {
                 $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
+            } catch (MissingTransformerException $exception) {
+                $missingTransformerError = $exception->getMessage();
+                $errors[] = 'Component transformers could not be loaded: ' . $missingTransformerError;
             } catch (Throwable $throwable) {
                 $errors[] = 'Component transformers could not be loaded: ' . $throwable->getMessage();
             }
@@ -145,6 +150,7 @@ final readonly class ComponentMetadataProvider
             $fixture,
             $staticVariables,
             $errors,
+            $missingTransformerError,
         );
     }
 

@@ -211,6 +211,19 @@ final readonly class ComponentTransformer
 }
 ```
 
+### Missing transformers
+
+If a component argument requires a transformer that is not registered,
+the Controls tab displays an error instead of the argument and slot inputs.
+Reset, Save, and Save as new are unavailable until the transformer is added.
+Other inspector tabs remain accessible, including any rendering error details.
+
+The message names the argument, its expected type, and the component's
+`.transformer.php` file. Add an `ArgumentTransformers` entry to that file or
+register a service method with `#[TypeTransformer]` for the expected type,
+as shown in the [transformer examples](#complex-arguments-and-transformers).
+Reload the component after adding the transformer to restore its controls.
+
 ### Transformer selection
 
 An exact registration for the normalized component argument type is selected immediately, regardless of priority.

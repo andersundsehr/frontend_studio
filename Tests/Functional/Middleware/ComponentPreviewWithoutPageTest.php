@@ -60,7 +60,7 @@ final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
             ->fetchAssociative();
         self::assertFalse($pageRecord);
         $variants = $this->getListedVariants();
-        self::assertCount(1, $variants);
+        self::assertCount(2, $variants);
         $variant = $variants[0];
         self::assertSame('site:card', $variant['componentName']);
         self::assertSame('Acme\\Preview\\Components', $variant['phpNamespace']);
