@@ -11,6 +11,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Yaml\Yaml;
@@ -339,6 +340,58 @@ YAML);
 
         $this->expectException(InvalidArgumentException::class);
         $this->createProvider()->getVariantSlots($this->createResolverDelegate(), 'Card', 'A/B', ['default']);
+    }
+
+    #[DataProvider('invalidWrappers')]
+    public function testInvalidWrappersProduceActionableErrors(mixed $wrapper): void
+    {
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', Yaml::dump(['wrapper' => $wrapper, 'variants' => ['Default' => []]]));
+        $provider = $this->createProvider();
+        $metadata = $provider->getFixtureMetadata($this->createResolverDelegate(), 'Card');
+        self::assertStringContainsString('exactly one {{component}}', $metadata->error ?? '');
+        $this->expectException(InvalidArgumentException::class);
+        $provider->getPreviewWrapper($this->createResolverDelegate(), 'Card');
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidWrappers(): iterable
+    {
+        yield 'null' => [null];
+        yield 'number' => [42];
+        yield 'array' => [[]];
+        yield 'blank' => [' '];
+        yield 'missing placeholder' => ['<section></section>'];
+        yield 'duplicate placeholder' => ['{{component}}{{component}}'];
+    }
+
+    public function testVariantLifecyclePreservesWrapperAndOtherTopLevelMetadata(): void
+    {
+        $path = substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml';
+        $wrapper = '<section>{{component}}</section>';
+        file_put_contents($path, Yaml::dump(['wrapper' => $wrapper, 'stylesheets' => ['example.css'], 'custom' => 'retained', 'variants' => ['Default' => []]]));
+        $provider = $this->createProvider();
+        $resolver = $this->createResolverDelegate();
+        $operations = [
+            fn(): array => $provider->createVariant($resolver, 'Card', 'New'),
+            fn(): array => $provider->copyVariant($resolver, 'Card', 'Default', 'Copy'),
+            fn(): array => $provider->renameVariant($resolver, 'Card', 'Copy', 'Renamed'),
+            fn(): array => $provider->updateVariantValues($resolver, 'Card', 'Default', ComponentVariantValues::empty()),
+            fn(): array => $provider->deleteVariant($resolver, 'Card', 'Renamed'),
+        ];
+        foreach ($operations as $operation) {
+            $operation();
+            $fixture = Yaml::parseFile($path);
+            self::assertSame($wrapper, $fixture['wrapper']);
+            self::assertSame(['example.css'], $fixture['stylesheets']);
+            self::assertSame('retained', $fixture['custom']);
+        }
+    }
+
+    public function testAbsentWrapperLeavesPreviewsUnwrapped(): void
+    {
+        self::assertNull($this->createProvider()->getPreviewWrapper($this->createResolverDelegate(), 'Card'));
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
+        self::assertNull($this->createProvider()->getPreviewWrapper($this->createResolverDelegate(), 'Card'));
     }
 
     private function createProvider(): ComponentFixtureProvider

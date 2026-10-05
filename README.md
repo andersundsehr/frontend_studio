@@ -172,6 +172,31 @@ variants:
     highlighted: true
 ```
 
+## Preview HTML wrapper
+
+Use the optional top-level `wrapper` key to surround every variant with layout HTML:
+
+```yaml
+wrapper: |
+  <section class="component-demo">
+    {{component}}
+  </section>
+variants:
+  Default:
+    title: Example
+```
+
+The wrapper must be a nonempty string with exactly one `{{component}}` placeholder.
+Frontend Studio inserts the rendered component HTML there without evaluating the wrapper as Fluid.
+Invalid wrappers produce an error; omitting the key keeps the original output.
+Full previews, fragments and Rendered HTML include the wrapper.
+Fluid Usage still shows only the component invocation.
+
+Maintain wrappers in trusted project YAML; preview HTTP parameters cannot supply them.
+Variant edits preserve the wrapper and other top-level fixture metadata.
+Playwright screenshots of the page include the wrapper; a locator targeting only the inner component excludes its surrounding layout.
+Adjust selectors when adding a wrapper.
+
 ## Component Slots
 
 Declared component slots appear as HTML controls.

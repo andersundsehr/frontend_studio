@@ -389,6 +389,40 @@ final class OwnComponentsTest extends FunctionalTestCase
         yield 'truthy preview marker' => [SystemEnvironmentBuilder::REQUESTTYPE_FE, '1'];
     }
 
+    #[DataProvider('wrappedPreviewFormats')]
+    public function testWrapperAppearsInEveryHtmlPreviewFormat(?string $format): void
+    {
+        $this->get(AssetCollector::class)->addInlineJavaScript('wrapper-test', 'window.wrapperTest = true;');
+        $response = $this->requestPreview('site:wrappedCard:Default', format: $format);
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string)$response->getBody();
+        if ($format === 'highlighted-fragment') {
+            $html = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        self::assertStringContainsString('<section class="wrapper-example"><article>Wrapped preview</article></section>', $html);
+        if ($format === null) {
+            self::assertStringContainsString('window.wrapperTest = true;', $html);
+        }
+    }
+
+    /** @return iterable<string, array{?string}> */
+    public static function wrappedPreviewFormats(): iterable
+    {
+        yield 'full' => [null];
+        yield 'fragment' => ['fragment'];
+        yield 'highlighted' => ['highlighted-fragment'];
+    }
+
+    public function testWrapperDoesNotBecomePartOfFluidUsage(): void
+    {
+        $response = $this->requestPreview('site:wrappedCard:Default', format: 'fluid-usage');
+        self::assertSame(200, $response->getStatusCode());
+        $snippets = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertStringContainsString('wrappedCard', $snippets['tag']);
+        self::assertStringNotContainsString('wrapper-example', $snippets['tag'] . $snippets['inline']);
+    }
+
     public function testPreviewWithoutModulesKeepsOrdinaryAssets(): void
     {
         $this->get(AssetCollector::class)->addInlineJavaScript('preview-test', 'window.previewTest = true;');
