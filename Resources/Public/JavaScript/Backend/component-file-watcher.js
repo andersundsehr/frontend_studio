@@ -7,17 +7,21 @@ export default class ComponentFileWatcher {
     this.uri = '';
     this.active = false;
     this.suspended = false;
-    this.ignoreNextChange = false;
+    this.pendingActions = new Set();
     this.abortController = new AbortController();
     const options = { signal: this.abortController.signal };
     const moduleChanged = (event) => this.updateModule(event.detail);
     top.document.addEventListener('typo3-module-load', moduleChanged, options);
     top.document.addEventListener('typo3-module-loaded', moduleChanged, options);
-    top.document.addEventListener('frontend-studio:component-file-action-started', () => {
-      this.ignoreNextChange = true;
+    top.document.addEventListener('frontend-studio:component-file-action-started', (event) => {
+      const identifier = event.detail?.variantIdentifier || event.detail?.identifier;
+      if (typeof identifier === 'string' && identifier !== '') {
+        this.pendingActions.add(identifier);
+      }
     }, options);
-    top.document.addEventListener('frontend-studio:component-file-action-cancelled', () => {
-      this.ignoreNextChange = false;
+    top.document.addEventListener('frontend-studio:component-file-action-cancelled', (event) => {
+      const identifier = event.detail?.variantIdentifier || event.detail?.identifier;
+      this.pendingActions.delete(identifier);
     }, options);
     top.addEventListener('pagehide', (event) => {
       this.suspended = true;
@@ -42,7 +46,7 @@ export default class ComponentFileWatcher {
     this.active = detail.module === frontendStudioModuleName;
     if (!this.active) {
       this.uri = '';
-      this.ignoreNextChange = false;
+      this.pendingActions.clear();
       this.disconnect();
       return;
     }
@@ -78,10 +82,10 @@ export default class ComponentFileWatcher {
     if (!Array.isArray(payload?.componentIdentifiers)) {
       return;
     }
-    const ownAction = this.ignoreNextChange;
-    this.ignoreNextChange = false;
+    const ownActionIdentifiers = Array.from(this.pendingActions);
+    this.pendingActions.clear();
     top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
-      detail: { componentIdentifiers: payload.componentIdentifiers, ownAction },
+      detail: { componentIdentifiers: payload.componentIdentifiers, ownAction: ownActionIdentifiers.length > 0, ownActionIdentifiers },
     }));
   }
 

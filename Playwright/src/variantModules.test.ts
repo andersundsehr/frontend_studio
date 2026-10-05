@@ -526,6 +526,169 @@ for (const action of ['save', 'copy']) {
   });
 }
 
+for (const order of ['preview first', 'controls first']) {
+  test(`initialization keeps the server-rendered iframe navigation (${order})`, async (t) => {
+    const { root, field } = controlsRoot();
+    root.dataset.previewUri = '/preview?componentVariant=site:card:Default';
+    const env = environment([root]);
+    let src = new URL(root.dataset.previewUri, env.window.location.href).toString();
+    const navigations: string[] = [];
+    const iframe = {
+      get src() { return src; },
+      set src(value: string) { src = new URL(value, env.window.location.href).toString(); navigations.push(src); },
+    };
+    root.selectors.set('[data-frontend-studio-variant-frame]', iframe);
+    const modules = backendModules(env);
+    const { default: View } = await modules.import('variant-view.js');
+    const { default: Controls } = await modules.import('variant-controls.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    if (order === 'controls first') {
+      Controls.initialize();
+      await View.initialize();
+    } else {
+      await View.initialize();
+      Controls.initialize();
+    }
+    assert.equal(navigations.length, 0, 'initialization must not navigate the iframe');
+    field.value = 'Edited';
+    field.dispatchEvent(new Event('input'));
+    assert.equal(navigations.length, 1);
+    assert.deepEqual(JSON.parse(new URL(src).searchParams.get('componentVariantValues')!), { title: 'Edited' });
+    field.dispatchEvent(new Event('change'));
+    assert.equal(navigations.length, 1, 'an unchanged URL must not navigate again');
+    view.previewUri = '/preview?site=other';
+    view.changed('context');
+    assert.equal(navigations.length, 2);
+    assert.equal(new URL(src).searchParams.get('site'), 'other');
+    view.changed('files');
+    assert.equal(navigations.length, 3, 'file changes must reload even when the URL is unchanged');
+    assert.equal(navigations[2], navigations[1]);
+  });
+}
+
+test('preview catches edits made before its optional module finishes loading', async (t) => {
+  const { root, field } = controlsRoot();
+  root.dataset.previewUri = '/preview';
+  const env = environment([root]);
+  let src = new URL(root.dataset.previewUri, env.window.location.href).toString();
+  const navigations: string[] = [];
+  root.selectors.set('[data-frontend-studio-variant-frame]', {
+    get src() { return src; },
+    set src(value: string) { src = value; navigations.push(value); },
+  });
+  const modules = backendModules(env);
+  const { default: View } = await modules.import('variant-view.js');
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  t.after(() => view.destroy());
+  const initializing = View.initialize();
+  assert.equal(view.features.has('preview'), false);
+  field.value = 'Edited before preview loads';
+  field.dispatchEvent(new Event('input'));
+  assert.equal(navigations.length, 0);
+  await initializing;
+  assert.equal(navigations.length, 1);
+  assert.equal(JSON.parse(new URL(src).searchParams.get('componentVariantValues')!).title, field.value);
+});
+
+test('late controls initialization refreshes an active HTML panel', async (t) => {
+  const { root: host } = controlsRoot();
+  host.dataset.previewUri = '/preview';
+  const root = element({ activeTab: 'html' });
+  root.closest = () => host;
+  const panelRoot = element({ frontendStudioVariantTabPanel: 'html' });
+  const container = element();
+  panelRoot.selectors.set('[data-frontend-studio-variant-html]', container);
+  panelRoot.selectors.set('[data-frontend-studio-variant-html-status]', element());
+  root.selectors.set('[data-frontend-studio-variant-tab]', [element({ frontendStudioVariantTab: 'html' })]);
+  root.selectors.set('[data-frontend-studio-variant-tab-panel]', [panelRoot]);
+  const env = environment();
+  env.document.querySelectorAll = (selector?: string) => selector?.endsWith('sidebar]') ? [root] : [host];
+  const requests: { url: string; signal: AbortSignal; resolve: (response: any) => void }[] = [];
+  const modules = backendModules({ ...env, fetch: (url: string, options: { signal: AbortSignal }) =>
+    new Promise((resolve) => requests.push({ url, signal: options.signal, resolve })) });
+  const { default: Sidebar } = await modules.import('variant-sidebar.js');
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Sidebar.initialize();
+  const view = getVariantState(host);
+  t.after(() => view.destroy());
+  await view.features.get(root).activateTab('html');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(requests.length, 1);
+  Controls.initialize();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(requests.length, 2, 'the controls-ready signal must refresh the active panel');
+  assert.equal(requests[0].signal.aborted, true);
+  assert.equal(JSON.parse(new URL(requests[1].url).searchParams.get('componentVariantValues')!).title, 'Saved');
+  requests[0].resolve({ ok: true, text: async () => 'Stale preview' });
+  requests[1].resolve({ ok: true, text: async () => 'Preview with controls' });
+  await new Promise(setImmediate);
+  assert.equal(container.innerHTML, 'Preview with controls');
+});
+
+test('independent views with watchers scope save suppression and cancellation to their variant', async (t) => {
+  const first = controlsRoot();
+  const second = controlsRoot();
+  second.root.dataset.variantIdentifier = 'site:card:Second';
+  first.root.dataset.componentChangeStreamUri = '/changes';
+  second.root.dataset.componentChangeStreamUri = '/changes';
+  const env = environment([first.root, second.root]);
+  let reloads = 0;
+  env.window.location.reload = () => { reloads++; };
+  class AjaxRequest {
+    async post() { return { resolve: async () => ({ success: true, variant: {} }) }; }
+  }
+  class EventSource extends EventTarget {
+    close() {}
+  }
+  const modules = backendModules({ ...env, EventSource, TYPO3: { settings: { ajaxUrls: {} } } }, {
+    '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+  });
+  const { default: Watcher } = await modules.import('component-file-watcher.js');
+  const owner = new Watcher();
+  t.after(() => owner.destroy());
+  owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { default: View } = await modules.import('variant-view.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  await View.initialize();
+  const firstView = getVariantState(first.root);
+  const secondView = getVariantState(second.root);
+  t.after(() => { firstView.destroy(); secondView.destroy(); });
+  let firstChanges = 0;
+  let secondChanges = 0;
+  firstView.addEventListener('files', () => { firstChanges++; });
+  secondView.addEventListener('files', () => { secondChanges++; });
+  const changed = () => owner.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+    data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+  }));
+  first.field.value = 'Saved in first view';
+  first.field.dispatchEvent(new Event('input'));
+  await firstView.controls.saveValues();
+  changed();
+  assert.equal(secondChanges, 1, 'a save in another view must not suppress this view’s change');
+  assert.equal(reloads, 1);
+  assert.equal(firstChanges, 0, 'the saving view must still suppress its own change');
+  secondView.fileAction('started');
+  firstView.fileAction('cancelled');
+  changed();
+  assert.equal(secondChanges, 1, 'another view’s cancellation must not clear this view’s suppression');
+  assert.equal(reloads, 2);
+  secondView.fileAction('started');
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled'));
+  changed();
+  assert.equal(secondChanges, 1, 'unidentified actions must not change suppression');
+  changed();
+  assert.equal(secondChanges, 2);
+  assert.equal(reloads, 5, 'later external changes must still reload both clean views');
+});
+
 test('variant subscriptions deduplicate, filter changes and preserve dirty values without opening a stream', async () => {
   const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
   const env = environment([root]);

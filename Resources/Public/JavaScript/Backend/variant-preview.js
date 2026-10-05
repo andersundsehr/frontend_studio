@@ -4,12 +4,16 @@ export default class VariantPreview extends VariantFeature {
   constructor(root, view) {
     super(root, view);
     this.iframe = root.querySelector('[data-frontend-studio-variant-frame]');
-    ['values', 'context', 'files'].forEach((type) => this.listen(view, type, () => this.update()));
-    this.update();
+    ['values', 'context', 'files'].forEach((type) => this.listen(view, type, () => this.update(type === 'files')));
+    if (view.previewChanged) {
+      this.update();
+    }
   }
 
-  update() {
-    const url = this.view.buildPreviewUrl();
-    this.iframe.src = url?.toString() || 'about:blank';
+  update(force = false) {
+    const url = this.view.buildPreviewUrl()?.toString() || 'about:blank';
+    if (force || this.iframe.src !== url) {
+      this.iframe.src = url;
+    }
   }
 }

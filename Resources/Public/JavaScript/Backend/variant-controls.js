@@ -37,7 +37,7 @@ class VariantControls extends VariantValues {
         this.saveValues();
       }
     });
-    view.changed();
+    view.changed('controls');
   }
 
   destroy() {

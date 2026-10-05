@@ -77,12 +77,12 @@ test('shared events retain component identifiers and suppress successful own fil
   env.change('{}');
   assert.equal(events.length, 0);
   for (const action of ['save', 'copy', 'create', 'transformer']) {
-    env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', { detail: { action } }));
+    env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', { detail: { action, variantIdentifier: 'site:card:Default' } }));
     env.change();
     assert.equal(events.at(-1).ownAction, true);
   }
-  env.document.dispatchEvent(new Event('frontend-studio:component-file-action-started'));
-  env.document.dispatchEvent(new Event('frontend-studio:component-file-action-cancelled'));
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', { detail: { variantIdentifier: 'site:card:Default' } }));
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled', { detail: { variantIdentifier: 'site:card:Default' } }));
   env.change();
   assert.equal(events.at(-1).ownAction, false);
   assert.deepEqual(Array.from(events.at(-1).componentIdentifiers), ['site:card']);
