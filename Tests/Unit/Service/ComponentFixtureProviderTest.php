@@ -347,12 +347,16 @@ YAML);
     }
 
     #[DataProvider('invalidWrappers')]
-    public function testInvalidWrappersProduceActionableErrors(mixed $wrapper): void
+    public function testInvalidWrapperReportsAnErrorButStillExposesExistingVariants(mixed $wrapper): void
     {
-        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', Yaml::dump(['wrapper' => $wrapper, 'variants' => ['Default' => []]]));
+        file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', Yaml::dump(['wrapper' => $wrapper, 'variants' => ['Default' => [], 'Alternate' => ['title' => 'Alternate preview']]]));
         $provider = $this->createProvider();
         $metadata = $provider->getFixtureMetadata($this->createResolverDelegate(), 'Card');
         self::assertStringContainsString('exactly one {{component}}', $metadata->error ?? '');
+        self::assertSame(
+            ['Default', 'Alternate'],
+            array_map(static fn(ComponentVariantMetadata $variant): string => $variant->name, $metadata->variants),
+        );
         $this->expectException(InvalidArgumentException::class);
         $provider->getPreviewWrapper($this->createResolverDelegate(), 'Card');
     }

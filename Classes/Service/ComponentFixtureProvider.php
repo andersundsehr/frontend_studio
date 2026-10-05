@@ -56,13 +56,14 @@ final readonly class ComponentFixtureProvider
                 throw new RuntimeException('Fixture file must contain a top-level "variants" map.', 9491866460);
             }
 
-            $this->parsePreviewWrapper($fixture);
             foreach ($fixture['variants'] as $variantName => $variantValues) {
                 $variants[] = new ComponentVariantMetadata(
                     (string)$variantName,
                     ComponentVariantValues::fromYamlValues($variantValues)->toMetadataList(),
                 );
             }
+
+            $this->parsePreviewWrapper($fixture);
         } catch (Throwable $throwable) {
             $error = $throwable->getMessage();
         }
