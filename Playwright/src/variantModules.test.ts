@@ -4,9 +4,10 @@ import { backendModules } from './backendModules.ts';
 
 function element(dataset: Record<string, string> = {}) {
   const classes = new Set<string>();
+  const attributes = new Map<string, string>();
   const selectors = new Map<string, any>();
   return Object.assign(new EventTarget(), {
-    dataset, selectors, isConnected: true, value: '', checked: false, valueAsNumber: NaN,
+    dataset, selectors, attributes, isConnected: true, value: '', checked: false, valueAsNumber: NaN,
     disabled: false, hidden: false, innerHTML: '', textContent: '', src: '',
     querySelector: (selector: string) => selectors.get(selector) ?? null,
     querySelectorAll: (selector: string) => selectors.get(selector) ?? [],
@@ -15,8 +16,8 @@ function element(dataset: Record<string, string> = {}) {
       contains: (name: string) => classes.has(name),
       toggle: (name: string, enabled: boolean) => enabled ? classes.add(name) : classes.delete(name),
     },
-    setAttribute: (_name: string, _value: string) => {},
-    checkValidity: () => true, reportValidity: () => true, focus: () => {},
+    setAttribute: (name: string, value: string) => attributes.set(name, value),
+    checkValidity: (): boolean => true, reportValidity: (): boolean => true, focus: () => {},
   });
 }
 
@@ -800,4 +801,564 @@ test('cached navigation suspends requests and watching, then resumes only the ac
   assert.equal(streams[2].closed, true);
   changed(streams[2]);
   assert.equal(fileChanges, 1);
+});
+
+for (const embedded of [false, true]) {
+  test(`header context selectors preserve supported languages and clear unavailable previews (embedded=${embedded})`, async (t) => {
+    const root = element({
+      variantIdentifier: 'site:card:Default', selectedSiteIdentifier: 'first', selectedLanguageHreflang: 'de',
+    });
+    const site = Object.assign(element(), { selectedOptions: [{ dataset: { languages: '' } }] });
+    const language = Object.assign(element(), {
+      options: [] as any[], replaceChildren(...options: any[]) { this.options = options; },
+    });
+    const link = Object.assign(element(), { href: '' });
+    const iframe = element();
+    root.selectors.set('[data-frontend-studio-site-select]', site);
+    root.selectors.set('[data-frontend-studio-language-select]', language);
+    root.selectors.set('[data-frontend-studio-open-rendered-variant]', link);
+    root.selectors.set('[data-frontend-studio-variant-frame]', iframe);
+    const env = environment([root]);
+    const history = (context: any) => Object.assign(context, {
+      history: { state: { preserved: true }, replaceState(state: any, _title: string, url: string) {
+        assert.equal(state.preserved, true);
+        context.location.href = url;
+      } },
+    });
+    history(env.window);
+    const outer = embedded ? history({ location: { href: 'https://example.test/typo3?keep=outer' } }) : env.window;
+    const modules = backendModules({ ...env, top: outer, Option: class {
+      text: string;
+      value: string;
+      constructor(text: string, value: string) { this.text = text; this.value = value; }
+    } });
+    const { default: Header } = await modules.import('variant-header.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    Header.initialize();
+    Header.initialize();
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    assert.equal(view.features.size, 1);
+    assert.equal(site.value, 'first');
+    assert.equal(language.value, 'de');
+    let changes = 0;
+    view.addEventListener('context', () => { changes++; });
+    site.value = 'second';
+    site.selectedOptions[0].dataset.languages = JSON.stringify([
+      { value: 'en', title: 'English' }, { value: 'de', title: 'Deutsch' },
+    ]);
+    site.dispatchEvent(new Event('change'));
+    assert.equal(language.value, 'de');
+    assert.equal(language.options.length, 2);
+    assert.equal(language.disabled, false);
+    assert.equal(changes, 1, 'reinitialization must not duplicate the selector listener');
+    assert.equal(new URL(view.previewUri).searchParams.get('componentVariant'), 'site:card:Default');
+    assert.equal(new URL(link.href).searchParams.get('site'), 'second');
+    assert.equal(new URL(link.href).searchParams.get('language'), 'de');
+    assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:Default');
+    if (embedded) assert.equal(new URL(outer.location.href).searchParams.get('keep'), 'outer');
+    language.value = 'en';
+    language.dispatchEvent(new Event('change'));
+    assert.equal(new URL(view.previewUri).searchParams.get('language'), 'en');
+    site.selectedOptions[0].dataset.languages = JSON.stringify([{ value: 'fr', title: 'French' }]);
+    site.dispatchEvent(new Event('change'));
+    assert.equal(language.value, 'fr', 'unsupported languages fall back to the first site language');
+    site.selectedOptions[0].dataset.languages = 'invalid JSON';
+    site.dispatchEvent(new Event('change'));
+    assert.equal(language.disabled, true);
+    assert.equal(language.options.length, 0);
+    assert.equal(view.previewUri, '');
+    assert.equal(iframe.src, 'about:blank');
+    assert.equal(link.hidden, true);
+    assert.equal(new URL(env.window.location.href).searchParams.has('language'), false);
+    assert.equal(new URL(outer.location.href).searchParams.has('language'), false);
+    view.destroy();
+    const finalChanges = changes;
+    language.dispatchEvent(new Event('change'));
+    assert.equal(changes, finalChanges);
+  });
+}
+
+for (const module of ['variant-header.js', 'variant-usage.js']) {
+  test(`${module} copies visible text, reports clipboard errors and ignores completion after cleanup`, async (t) => {
+    const root = element({ componentFilePath: 'EXT:site/Resources/Private/Card.fluid.html' });
+    const code = element();
+    const button = element({ frontendStudioCopyFluidUsage: 'inline' });
+    root.selectors.set('[data-frontend-studio-copy-component-path]', button);
+    root.selectors.set('[data-frontend-studio-copy-fluid-usage]', [button]);
+    code.textContent = '<site:card title="A & B" />';
+    root.selectors.set('[data-frontend-studio-fluid-usage-code="inline"]', code);
+    root.selectors.set('[data-frontend-studio-fluid-usage-block]', []);
+    const copied: string[] = [];
+    const notifications: any[][] = [];
+    let mode = 'success';
+    let complete!: () => void;
+    const modules = backendModules({ ...environment(), navigator: { clipboard: { writeText: (text: string) => {
+      copied.push(text);
+      if (mode === 'error') return Promise.reject(new Error('Clipboard unavailable'));
+      if (mode === 'pending') return new Promise<void>((resolve) => { complete = resolve; });
+      return Promise.resolve();
+    } } } }, { '@typo3/backend/notification.js': {
+      success: (...args: any[]) => notifications.push(['success', ...args]),
+      error: (...args: any[]) => notifications.push(['error', ...args]),
+    } });
+    const { VariantState } = await modules.import('variant-state.js');
+    const { default: Feature } = await modules.import(module);
+    const view = new VariantState(root);
+    const feature = view.mount(root, () => new Feature(root, view));
+    t.after(() => view.destroy());
+    const copy = () => module === 'variant-header.js' ? feature.copyComponentFilePath() : feature.copy('inline');
+    const expected = module === 'variant-header.js' ? root.dataset.componentFilePath : code.textContent;
+    button.dispatchEvent(new Event('click'));
+    await new Promise(setImmediate);
+    assert.equal(copied[0], expected);
+    assert.equal(notifications[0][0], 'success');
+    mode = 'error';
+    await copy();
+    assert.deepEqual(notifications[1], ['error', 'Copy failed', 'Clipboard unavailable']);
+    feature.componentFilePath = '';
+    code.textContent = '';
+    await copy();
+    assert.equal(copied.length, 2, 'empty paths and snippets must not overwrite the clipboard');
+    feature.componentFilePath = expected;
+    code.textContent = expected;
+    mode = 'pending';
+    const pending = copy();
+    view.destroy();
+    complete();
+    await pending;
+    assert.equal(notifications.length, 2);
+  });
+}
+
+test('Fluid Usage renders both syntaxes, hides missing snippets and retries malformed responses', async (t) => {
+  const root = element();
+  const blocks = ['inline', 'tag'].map((name) => element({ frontendStudioFluidUsageBlock: name }));
+  const codes = blocks.map(() => element());
+  blocks.forEach((block, index) => block.selectors.set('[data-frontend-studio-fluid-usage-code]', codes[index]));
+  root.selectors.set('[data-frontend-studio-fluid-usage-block]', blocks);
+  const notifications: string[] = [];
+  let source = JSON.stringify({ inline: '<span>Inline usage</span>', tag: '<span>Tag usage</span>' });
+  let requests = 0;
+  const modules = backendModules({ ...environment(), fetch: async (url: string, options: any) => {
+    assert.equal(new URL(url).searchParams.get('frontendStudioPreviewFormat'), 'fluid-usage');
+    assert.equal(options.credentials, 'same-origin');
+    assert.equal(options.headers['X-Requested-With'], 'XMLHttpRequest');
+    requests++;
+    return { ok: true, text: async () => source };
+  } }, { '@typo3/backend/notification.js': { error: (_title: string, message: string) => notifications.push(message) } });
+  const { VariantState } = await modules.import('variant-state.js');
+  const { default: Usage } = await modules.import('variant-usage.js');
+  const view = new VariantState(element({ previewUri: '/preview' }));
+  t.after(() => view.destroy());
+  const panel = view.mount(root, () => new Usage(root, view));
+  await panel.refresh();
+  assert.equal(codes[0].innerHTML, '<span>Inline usage</span>');
+  assert.equal(codes[1].innerHTML, '<span>Tag usage</span>');
+  assert.equal(blocks[1].hidden, false);
+  await panel.refresh();
+  assert.equal(requests, 1, 'unchanged previews reuse the rendered snippets');
+  source = 'invalid JSON';
+  panel.invalidate();
+  await panel.refresh();
+  assert.equal(notifications.length, 1);
+  source = JSON.stringify({ inline: '<span>Updated usage</span>' });
+  await panel.refresh();
+  assert.equal(requests, 3);
+  assert.equal(codes[0].innerHTML, '<span>Updated usage</span>');
+  assert.equal(codes[1].innerHTML, '');
+  assert.equal(blocks[1].hidden, true);
+});
+
+for (const action of ['save', 'copy']) {
+  for (const failure of ['payload', 'missing variant', 'HTTP', 'network']) {
+    test(`${action} ${failure} failure preserves edits and Reset baseline, clears suppression and allows retry`, async (t) => {
+      const { root, field, reset, save, copy } = controlsRoot();
+      const env = environment([root]);
+      const originalUrl = env.window.location.href;
+      const notifications: any[][] = [];
+      const events: string[] = [];
+      let requests = 0;
+      let fail = true;
+      env.document.addEventListener('frontend-studio:component-file-action-cancelled', (event) => {
+        events.push((event as CustomEvent).detail.action);
+      });
+      class AjaxRequest {
+        async post() {
+          requests++;
+          if (!fail) return { resolve: async () => ({ success: true, variant: { identifier: 'site:card:New' } }) };
+          if (failure === 'HTTP') throw { resolve: async () => ({ message: 'Fixture is read-only' }) };
+          if (failure === 'network') throw new Error('Connection lost');
+          return { resolve: async () => failure === 'payload'
+            ? { success: false, message: 'Fixture is read-only' } : { success: true } };
+        }
+      }
+      const modules = backendModules(env, {
+        '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+        '@typo3/backend/notification.js': {
+          success: (...args: any[]) => notifications.push(['success', ...args]),
+          error: (...args: any[]) => notifications.push(['error', ...args]),
+        },
+      });
+      const { default: Controls } = await modules.import('variant-controls.js');
+      const { getVariantState } = await modules.import('variant-state.js');
+      Controls.initialize();
+      const view = getVariantState(root);
+      t.after(() => view.destroy());
+      field.value = 'Unsaved edit';
+      field.dispatchEvent(new Event('input'));
+      const write = () => action === 'save' ? view.controls.saveValues() : view.controls.copyVariant('New');
+      await write();
+      assert.equal(view.hasUnsavedChanges, true);
+      assert.equal(field.value, 'Unsaved edit');
+      assert.equal(view.ignoreNextComponentFilesChanged, false);
+      assert.equal(save.disabled, false);
+      assert.equal(copy.disabled, false);
+      assert.equal(env.window.location.href, originalUrl);
+      assert.deepEqual(events, [action]);
+      assert.equal(notifications[0][0], 'error');
+      assert.equal(notifications[0][2], failure === 'network' ? 'Connection lost'
+        : failure === 'missing variant' ? (action === 'save' ? 'The variant values could not be saved.' : 'The variant could not be copied.')
+          : 'Fixture is read-only');
+      reset.dispatchEvent(new Event('click'));
+      assert.equal(field.value, 'Saved');
+      field.value = 'Retried edit';
+      field.dispatchEvent(new Event('input'));
+      fail = false;
+      await write();
+      assert.equal(requests, 2);
+      assert.equal(notifications[1][0], 'success');
+      if (action === 'save') {
+        assert.equal(view.hasUnsavedChanges, false);
+      } else {
+        assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:New');
+      }
+    });
+  }
+}
+
+for (const invalid of ['value', 'slot']) {
+  test(`invalid ${invalid} blocks Save and Save as new before starting a file action`, async (t) => {
+    const { root, field, save } = controlsRoot();
+    const slot = element({ slotName: 'default' });
+    root.selectors.set('[data-frontend-studio-variant-slot]', [slot]);
+    const invalidField = invalid === 'value' ? field : slot;
+    invalidField.checkValidity = () => false;
+    invalidField.reportValidity = () => false;
+    let focused = 0;
+    invalidField.focus = () => { focused++; };
+    const env = environment([root]);
+    let actions = 0;
+    env.document.addEventListener('frontend-studio:component-file-action-started', () => { actions++; });
+    const modules = backendModules(env);
+    const { default: Controls } = await modules.import('variant-controls.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    Controls.initialize();
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    field.value = 'Edited';
+    field.dispatchEvent(new Event('input'));
+    assert.equal(save.attributes.get('aria-disabled'), 'true');
+    assert.equal(save.classList.contains('frontend-studio-variant-save-invalid'), true);
+    await view.controls.saveValues();
+    await view.controls.copyVariant('New');
+    assert.equal(actions, 0);
+    assert.equal(focused, 1);
+    assert.equal(view.hasUnsavedChanges, true);
+    assert.equal(view.ignoreNextComponentFilesChanged, false);
+  });
+}
+
+test('Save as new handles prompt cancellation, snapshots slots, deduplicates clicks and preserves context when navigating', async (t) => {
+  const { root, field, copy } = controlsRoot();
+  const slot = element({ slotName: 'default' });
+  slot.value = '<strong>Slot edit</strong>';
+  root.selectors.set('[data-frontend-studio-variant-slot]', [slot]);
+  const env = environment([root]);
+  env.window.location.href += '&site=preview&language=de&keep=yes';
+  let name: string | null = null;
+  let promptCount = 0;
+  Object.assign(env.window, { prompt: (_message: string, suggestion: string) => {
+    assert.equal(suggestion, 'Default copy');
+    promptCount++;
+    return name;
+  } });
+  const requests: any[] = [];
+  let resolve!: (response: any) => void;
+  const changed: string[] = [];
+  env.document.addEventListener('frontend-studio:component-files-changed', (event) => {
+    changed.push((event as CustomEvent).detail.variantIdentifier);
+  });
+  const modules = backendModules(env, { '@typo3/core/ajax/ajax-request.js': class {
+    constructor(url: string) { assert.equal(url, '/copy'); }
+    post(payload: any) {
+      requests.push(payload);
+      return new Promise((done) => { resolve = done; });
+    }
+  } });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  t.after(() => view.destroy());
+  copy.dispatchEvent(new Event('click'));
+  assert.equal(promptCount, 1);
+  assert.equal(requests.length, 0);
+  assert.equal(view.ignoreNextComponentFilesChanged, false);
+  name = 'New variant';
+  field.value = 'Copied title';
+  copy.dispatchEvent(new Event('click'));
+  assert.equal(copy.disabled, true);
+  await view.controls.copyVariant('Duplicate');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].name, 'New variant');
+  assert.equal(requests[0].values.title, 'Copied title');
+  assert.equal(requests[0].slots.default, '<strong>Slot edit</strong>');
+  field.value = 'Later edit';
+  slot.value = 'Later slot';
+  assert.equal(requests[0].values.title, 'Copied title');
+  assert.equal(requests[0].slots.default, '<strong>Slot edit</strong>');
+  resolve({ resolve: async () => ({ success: true, variant: { identifier: 'site:card:New variant' } }) });
+  await new Promise(setImmediate);
+  assert.deepEqual(changed, ['site:card:New variant']);
+  const url = new URL(env.window.location.href);
+  assert.equal(url.searchParams.get('componentVariant'), 'site:card:New variant');
+  assert.equal(url.searchParams.get('site'), 'preview');
+  assert.equal(url.searchParams.get('language'), 'de');
+  assert.equal(url.searchParams.get('keep'), 'yes');
+});
+
+test('cleanup aborts a pending copy and prevents late notifications, tree events and navigation', async () => {
+  const { root } = controlsRoot();
+  const env = environment([root]);
+  const url = env.window.location.href;
+  let signal!: AbortSignal;
+  let resolve!: (response: any) => void;
+  let notifications = 0;
+  let treeEvents = 0;
+  env.document.addEventListener('frontend-studio:component-files-changed', () => { treeEvents++; });
+  const modules = backendModules(env, {
+    '@typo3/core/ajax/ajax-request.js': class {
+      post(_payload: any, options: { signal: AbortSignal }) {
+        signal = options.signal;
+        return new Promise((done) => { resolve = done; });
+      }
+    },
+    '@typo3/backend/notification.js': { success: () => { notifications++; }, error: () => { notifications++; } },
+  });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  const pending = view.controls.copyVariant('New');
+  view.destroy();
+  assert.equal(signal.aborted, true);
+  resolve({ resolve: async () => ({ success: true, variant: { identifier: 'site:card:New' } }) });
+  await pending;
+  assert.equal(notifications, 0);
+  assert.equal(treeEvents, 0);
+  assert.equal(env.window.location.href, url);
+});
+
+test('watcher ignores malformed and unrelated events, refreshes dirty views and reloads only clean affected views', async (t) => {
+  const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
+  const env = environment();
+  let reloads = 0;
+  let files = 0;
+  let treeEvents = 0;
+  env.window.location.reload = () => { reloads++; };
+  env.document.addEventListener('frontend-studio:component-files-changed', () => { treeEvents++; });
+  const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } });
+  const { VariantState } = await modules.import('variant-state.js');
+  const { default: Watcher } = await modules.import('variant-file-watcher.js');
+  const view = new VariantState(root);
+  const watcher = view.mount(root, () => new Watcher(root, view));
+  t.after(() => view.destroy());
+  view.addEventListener('files', () => { files++; });
+  const change = (data: string) => watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), { data }));
+  for (const data of ['invalid JSON', '{}', '{"componentIdentifiers":"site:card"}', '{"componentIdentifiers":["site:other"]}']) change(data);
+  assert.equal(files, 0);
+  assert.equal(reloads, 0);
+  assert.equal(treeEvents, 4, 'the tree can still refresh for changes unrelated to the selected component');
+  view.hasUnsavedChanges = true;
+  change('{"componentIdentifiers":["site:card"]}');
+  assert.equal(files, 1);
+  assert.equal(reloads, 0, 'external changes must preserve unsaved edits');
+  view.hasUnsavedChanges = false;
+  change('{"componentIdentifiers":["site:card"]}');
+  assert.equal(files, 2);
+  assert.equal(reloads, 1);
+});
+
+test('Save and Reset retain submitted slots and nullable/default baselines while later edits stay dirty', async (t) => {
+  const { root, field, reset } = controlsRoot();
+  root.dataset.previewUri = '/preview';
+  const nullable = element({ fixtureName: 'subtitle', fixtureType: 'string', fixtureValueNull: 'true' });
+  const slot = element({ slotName: 'default' });
+  slot.value = '<p>Saved slot</p>';
+  root.selectors.set('[data-frontend-studio-variant-value]', [field, nullable]);
+  root.selectors.set('[data-frontend-studio-variant-slot]', [slot]);
+  const requests: any[] = [];
+  let resolve!: (response: any) => void;
+  const modules = backendModules(environment([root]), { '@typo3/core/ajax/ajax-request.js': class {
+    post(payload: any) {
+      requests.push(payload);
+      return new Promise((done) => { resolve = done; });
+    }
+  } });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  t.after(() => view.destroy());
+  slot.value = '<p>Submitted slot</p>';
+  nullable.value = 'Submitted subtitle';
+  slot.dispatchEvent(new Event('input'));
+  const pending = view.controls.saveValues();
+  assert.equal(requests[0].slots.default, '<p>Submitted slot</p>');
+  assert.equal(requests[0].values.subtitle, 'Submitted subtitle');
+  slot.value = '<p>Later slot</p>';
+  nullable.value = 'Later subtitle';
+  slot.dispatchEvent(new Event('input'));
+  resolve({ resolve: async () => ({ success: true, variant: {} }) });
+  await pending;
+  assert.equal(view.hasUnsavedChanges, true);
+  assert.equal(nullable.dataset.fixtureValueDefined, 'true');
+  reset.dispatchEvent(new Event('click'));
+  assert.equal(slot.value, '<p>Submitted slot</p>');
+  assert.equal(nullable.value, 'Submitted subtitle');
+  assert.equal(view.hasUnsavedChanges, false);
+  const preview = view.buildPreviewUrl();
+  assert.equal(JSON.parse(preview.searchParams.get('componentVariantSlots')).default, '<p>Submitted slot</p>');
+  assert.equal(JSON.parse(preview.searchParams.get('componentVariantValues')).subtitle, 'Submitted subtitle');
+  nullable.value = '';
+  nullable.dispatchEvent(new Event('input'));
+  assert.equal(view.controls.collectValues().subtitle, '', 'clearing a saved string must not restore its old null marker');
+});
+
+test('removing a view destroys its features and prevents pending lazy imports from mounting', async () => {
+  const { root, field } = controlsRoot();
+  root.dataset.previewUri = '/preview';
+  root.selectors.set('[data-frontend-studio-variant-frame]', element());
+  let changed!: () => void;
+  let disconnected = 0;
+  const modules = backendModules({ ...environment([root]), MutationObserver: class {
+    constructor(callback: () => void) { changed = callback; }
+    observe() {}
+    disconnect() { disconnected++; }
+  } });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { default: View } = await modules.import('variant-view.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  const pending = View.initialize();
+  assert.equal(view.features.has('preview'), false);
+  root.isConnected = false;
+  changed();
+  await pending;
+  assert.equal(view.destroyed, true);
+  assert.equal(view.features.size, 0);
+  assert.equal(disconnected, 1);
+  const revision = view.revision;
+  field.dispatchEvent(new Event('input'));
+  view.changed('context');
+  assert.equal(view.revision, revision);
+});
+
+test('rapid tab switching avoids hidden panel requests and remains usable when tab persistence fails', async (t) => {
+  const root = element({ activeTab: 'values', previewUri: '/preview' });
+  const names = ['values', 'html', 'usage'];
+  const buttons = names.map((name) => element({ frontendStudioVariantTab: name }));
+  const panels = names.map((name) => element({ frontendStudioVariantTabPanel: name }));
+  panels[1].selectors.set('[data-frontend-studio-variant-html]', element());
+  panels[1].selectors.set('[data-frontend-studio-variant-html-status]', element());
+  panels[2].selectors.set('[data-frontend-studio-fluid-usage-block]', []);
+  root.selectors.set('[data-frontend-studio-variant-tab]', buttons);
+  root.selectors.set('[data-frontend-studio-variant-tab-panel]', panels);
+  const persisted: string[] = [];
+  let requests = 0;
+  const timers = new Map<number, () => void>();
+  let timerId = 0;
+  const env = environment([root]);
+  Object.assign(env.window, {
+    setTimeout: (callback: () => void) => { timers.set(++timerId, callback); return timerId; },
+    clearTimeout: (id: number) => timers.delete(id),
+  });
+  const modules = backendModules({ ...env, fetch: async () => {
+    requests++;
+    return { ok: true, text: async () => 'Rendered HTML' };
+  } }, { '@typo3/backend/storage/persistent.js': { set: async (_key: string, value: string) => {
+    persisted.push(value);
+    throw new Error('Storage unavailable');
+  } } });
+  const { default: Sidebar } = await modules.import('variant-sidebar.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Sidebar.initialize();
+  const view = getVariantState(root);
+  t.after(() => view.destroy());
+  const sidebar = view.features.get(root);
+  const opening = sidebar.activateTab('html');
+  await sidebar.activateTab('values');
+  await opening;
+  assert.equal(sidebar.panels.size, 0);
+  assert.equal(timers.size, 0);
+  assert.equal(requests, 0);
+  assert.equal(buttons[0].attributes.get('aria-selected'), 'true');
+  assert.equal(panels[0].hidden, false);
+  assert.equal(panels[1].hidden, true);
+  await sidebar.activateTab('html');
+  assert.equal(timers.size, 1);
+  const panel = sidebar.panels.get('html');
+  view.changed('values');
+  view.changed('values');
+  assert.equal(timers.size, 1, 'successive edits debounce into one active-panel request');
+  await sidebar.activateTab('usage');
+  assert.equal(panel.previewUrl, '');
+  assert.equal(timers.size, 1, 'switching tabs cancels the old panel timer');
+  await sidebar.activateTab('unknown');
+  assert.equal(sidebar.activeTab, 'values');
+  assert.equal(timers.size, 0);
+  assert.ok(persisted.includes('html'));
+  assert.equal(persisted.at(-1), 'values');
+});
+
+test('switching away from a loading panel aborts its request and discards a late response', async (t) => {
+  const root = element({ activeTab: 'values', previewUri: '/preview' });
+  const names = ['values', 'html'];
+  const buttons = names.map((name) => element({ frontendStudioVariantTab: name }));
+  const panels = names.map((name) => element({ frontendStudioVariantTabPanel: name }));
+  const container = element();
+  panels[1].selectors.set('[data-frontend-studio-variant-html]', container);
+  panels[1].selectors.set('[data-frontend-studio-variant-html-status]', element());
+  root.selectors.set('[data-frontend-studio-variant-tab]', buttons);
+  root.selectors.set('[data-frontend-studio-variant-tab-panel]', panels);
+  const env = environment([root]);
+  const requests: { signal: AbortSignal; resolve: (response: any) => void }[] = [];
+  const modules = backendModules({ ...env, fetch: (_url: string, options: { signal: AbortSignal }) =>
+    new Promise((resolve) => requests.push({ resolve, signal: options.signal })) });
+  const { default: Sidebar } = await modules.import('variant-sidebar.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Sidebar.initialize();
+  const view = getVariantState(root);
+  t.after(() => view.destroy());
+  const sidebar = view.features.get(root);
+  await sidebar.activateTab('html');
+  const panel = sidebar.panels.get('html');
+  env.window.clearTimeout(panel.timeout);
+  const first = panel.refresh();
+  assert.equal(requests.length, 1);
+  await sidebar.activateTab('values');
+  assert.equal(requests[0].signal.aborted, true);
+  requests[0].resolve({ ok: true, text: async () => 'Late hidden HTML' });
+  await first;
+  assert.equal(container.innerHTML, '');
+  await sidebar.activateTab('html');
+  env.window.clearTimeout(panel.timeout);
+  const second = panel.refresh();
+  assert.equal(requests.length, 2, 'returning to the panel requests a fresh preview');
+  requests[1].resolve({ ok: true, text: async () => 'Fresh active HTML' });
+  await second;
+  assert.equal(container.innerHTML, 'Fresh active HTML');
+
 });
