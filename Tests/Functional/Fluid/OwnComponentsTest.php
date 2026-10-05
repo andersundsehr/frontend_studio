@@ -302,6 +302,54 @@ final class OwnComponentsTest extends FunctionalTestCase
         yield 'value field' => ['frontend.studio:variant.valueField:bool', []];
     }
 
+    public function testIsolatedControlsProvideAuthenticatedWriteEndpoints(): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
+        $response = $this->requestPreview('frontend.studio:variant.controls:Default', backendCookie: $cookie);
+        $html = (string)$response->getBody();
+        self::assertSame(200, $response->getStatusCode(), $html);
+        self::assertStringNotContainsString('TYPO3.settings.ajaxUrls', $html);
+
+        foreach (['save', 'copy', 'create-transformer'] as $action) {
+            if (preg_match('/data-' . $action . '-uri="([^"]+)"/', $html, $matches) !== 1) {
+                self::fail('The isolated controls do not provide the ' . $action . ' endpoint.');
+            }
+
+            $uri = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            self::assertStringStartsWith('/typo3/ajax/frontend-studio/', $uri);
+            parse_str((string)parse_url($uri, PHP_URL_QUERY), $query);
+            self::assertNotEmpty($query['token'] ?? null);
+            $request = new ServerRequest('https://preview.test' . $uri, 'POST', null, [], [
+                'HTTP_HOST' => 'preview.test', 'HTTPS' => 'on', 'REMOTE_ADDR' => '127.0.0.1',
+                'HTTP_USER_AGENT' => 'TYPO3 Functional Test Request', 'SCRIPT_NAME' => '/index.php',
+                'SCRIPT_FILENAME' => Environment::getPublicPath() . '/index.php',
+                'REQUEST_URI' => $uri, 'REQUEST_METHOD' => 'POST',
+            ])->withQueryParams($query)->withParsedBody([])
+                ->withCookieParams([BackendUserAuthentication::getCookieName() => $cookie]);
+            $GLOBALS['TYPO3_REQUEST'] = $request;
+            $writeResponse = $this->get(BackendApplication::class)->handle($request);
+
+            // An empty payload reaches the controller, rather than login or CSRF rejection.
+            self::assertSame(400, $writeResponse->getStatusCode(), (string)$writeResponse->getBody());
+            self::assertFalse(json_decode((string)$writeResponse->getBody(), true, 512, JSON_THROW_ON_ERROR)['success']);
+        }
+    }
+
+    public function testIsolatedControlsWriteEndpointsRespectTheInstallationSubdirectory(): void
+    {
+        $html = $this->renderPreview('frontend.studio:variant.controls:Default', '/subdirectory/');
+        foreach (['save', 'copy', 'create-transformer'] as $action) {
+            if (preg_match('/data-' . $action . '-uri="([^"]+)"/', $html, $matches) !== 1) {
+                self::fail('The isolated controls do not provide the ' . $action . ' endpoint.');
+            }
+
+            self::assertStringStartsWith('/subdirectory/typo3/ajax/frontend-studio/', $matches[1]);
+        }
+    }
+
     public function testModuleUrlsRespectTheInstallationSubdirectory(): void
     {
         $html = $this->renderPreview('frontend.studio:variant.header:Default', '/subdirectory/');

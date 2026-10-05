@@ -14,17 +14,6 @@ export class VariantState extends EventTarget {
     this.destroyed = false;
     this.features = new Map();
     this.abortController = new AbortController();
-    // Remember file actions even before the optional watcher module has loaded.
-    top.document.addEventListener('frontend-studio:component-file-action-started', (event) => {
-      if (event.detail?.variantIdentifier === this.variantIdentifier) {
-        this.ignoreNextComponentFilesChanged = true;
-      }
-    }, { signal: this.abortController.signal });
-    top.document.addEventListener('frontend-studio:component-file-action-cancelled', (event) => {
-      if (event.detail?.variantIdentifier === this.variantIdentifier) {
-        this.ignoreNextComponentFilesChanged = false;
-      }
-    }, { signal: this.abortController.signal });
     window.addEventListener('pagehide', (event) => {
       if (event.persisted) {
         this.changed('suspend');
@@ -86,6 +75,8 @@ export class VariantState extends EventTarget {
   }
 
   fileAction(type, action = 'save') {
+    // Remember this view’s action before the optional watcher module has loaded.
+    this.ignoreNextComponentFilesChanged = type === 'started';
     top.document.dispatchEvent(new CustomEvent(`frontend-studio:component-file-action-${type}`, {
       detail: { action, variantIdentifier: this.variantIdentifier },
     }));

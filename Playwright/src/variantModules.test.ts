@@ -30,7 +30,7 @@ function environment(roots: any[] = []) {
 }
 
 function controlsRoot() {
-  const root = element({ variantIdentifier: 'site:card:Default' });
+  const root = element({ variantIdentifier: 'site:card:Default', saveUri: '/save', copyUri: '/copy' });
   const field = element({ fixtureName: 'title', fixtureType: 'string', fixtureValueDefined: 'true' });
   field.value = 'Saved';
   const save = element();
@@ -45,7 +45,7 @@ function controlsRoot() {
 }
 
 async function transformerControls() {
-  const root = element({ variantIdentifier: 'site:missingTransformer:Default' });
+  const root = element({ variantIdentifier: 'site:missingTransformer:Default', createTransformerUri: '/transformer' });
   const button = element();
   root.selectors.set('[data-frontend-studio-create-transformer]', button);
   const env = environment([root]);
@@ -69,7 +69,7 @@ async function transformerControls() {
       return new Promise((resolve, fail) => { respond = resolve; reject = fail; });
     }
   }
-  const modules = backendModules({ ...env, TYPO3: { settings: { ajaxUrls: { frontend_studio_component_create_transformer: '/transformer' } } } }, {
+  const modules = backendModules(env, {
     '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     '@typo3/backend/notification.js': {
       info: (...args: unknown[]) => notifications.push(['info', ...args]),
@@ -187,7 +187,7 @@ test('cached navigation preserves controls, unsaved edits and the last saved Res
       return { resolve: async () => ({ success: true, variant: {} }) };
     }
   }
-  const modules = backendModules({ ...env, TYPO3: { settings: { ajaxUrls: {} } } }, {
+  const modules = backendModules(env, {
     '@typo3/core/ajax/ajax-request.js': AjaxRequest,
   });
   const { default: Controls } = await modules.import('variant-controls.js');
@@ -276,7 +276,7 @@ test('only the active view handles Save and edits during a pending save stay dir
       return new Promise((resolve) => requests.push({ payload, resolve }));
     }
   }
-  const modules = backendModules({ ...env, TYPO3: { settings: { ajaxUrls: { frontend_studio_component_tree_update_variant_values: '/save' } } } }, {
+  const modules = backendModules(env, {
     '@typo3/core/ajax/ajax-request.js': AjaxRequest,
   });
   const { default: Controls } = await modules.import('variant-controls.js');
@@ -316,7 +316,7 @@ test('cleanup aborts a pending save and ignores its late response', async () => 
       return new Promise((done) => { resolve = done; });
     }
   }
-  const modules = backendModules({ ...env, TYPO3: { settings: { ajaxUrls: {} } } }, {
+  const modules = backendModules(env, {
     '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     '@typo3/backend/notification.js': { success: (...args: unknown[]) => notifications.push(args), error: () => {} },
   });
@@ -437,12 +437,13 @@ for (const action of ['save', 'copy']) {
     env.window.location.reload = () => { reloads++; };
     let resolve!: (response: any) => void;
     class AjaxRequest {
+      constructor(url: string) { assert.equal(url, action === 'save' ? '/save' : '/copy'); }
       post() { return new Promise((done) => { resolve = done; }); }
     }
     class EventSource extends EventTarget {
       close() {}
     }
-    const modules = backendModules({ ...env, EventSource, TYPO3: { settings: { ajaxUrls: {} } } }, {
+    const modules = backendModules({ ...env, EventSource }, {
       '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     });
     const { default: Controls } = await modules.import('variant-controls.js');
@@ -494,7 +495,7 @@ for (const action of ['save', 'copy']) {
     class EventSource extends EventTarget {
       close() {}
     }
-    const modules = backendModules({ ...env, EventSource, TYPO3: { settings: { ajaxUrls: {} } } }, {
+    const modules = backendModules({ ...env, EventSource }, {
       '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     });
     const { default: Controls } = await modules.import('variant-controls.js');
@@ -625,61 +626,63 @@ test('late controls initialization refreshes an active HTML panel', async (t) =>
   assert.equal(container.innerHTML, 'Preview with controls');
 });
 
-test('independent views with watchers scope save suppression and cancellation to their variant', async (t) => {
-  const first = controlsRoot();
-  const second = controlsRoot();
-  second.root.dataset.variantIdentifier = 'site:card:Second';
-  first.root.dataset.componentChangeStreamUri = '/changes';
-  second.root.dataset.componentChangeStreamUri = '/changes';
-  const env = environment([first.root, second.root]);
-  let reloads = 0;
-  env.window.location.reload = () => { reloads++; };
-  class AjaxRequest {
-    async post() { return { resolve: async () => ({ success: true, variant: {} }) }; }
-  }
-  class EventSource extends EventTarget {
-    close() {}
-  }
-  const modules = backendModules({ ...env, EventSource, TYPO3: { settings: { ajaxUrls: {} } } }, {
-    '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+for (const identifier of ['site:card:Default', 'site:card:Second']) {
+  test(`independent views with watchers isolate suppression for ${identifier}`, async (t) => {
+    const first = controlsRoot();
+    const second = controlsRoot();
+    second.root.dataset.variantIdentifier = identifier;
+    first.root.dataset.componentChangeStreamUri = '/changes';
+    second.root.dataset.componentChangeStreamUri = '/changes';
+    const env = environment([first.root, second.root]);
+    let reloads = 0;
+    env.window.location.reload = () => { reloads++; };
+    class AjaxRequest {
+      async post() { return { resolve: async () => ({ success: true, variant: {} }) }; }
+    }
+    class EventSource extends EventTarget {
+      close() {}
+    }
+    const modules = backendModules({ ...env, EventSource }, {
+      '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+    });
+    const { default: Controls } = await modules.import('variant-controls.js');
+    const { default: View } = await modules.import('variant-view.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    Controls.initialize();
+    await View.initialize();
+    const firstView = getVariantState(first.root);
+    const secondView = getVariantState(second.root);
+    t.after(() => { firstView.destroy(); secondView.destroy(); });
+    let firstChanges = 0;
+    let secondChanges = 0;
+    firstView.addEventListener('files', () => { firstChanges++; });
+    secondView.addEventListener('files', () => { secondChanges++; });
+    const changed = (view: any) => view.features.get('watcher').source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+      data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+    }));
+    first.field.value = 'Saved in first view';
+    first.field.dispatchEvent(new Event('input'));
+    await firstView.controls.saveValues();
+    changed(secondView);
+    assert.equal(secondChanges, 1, 'a save in another view must not suppress this view’s change');
+    assert.equal(reloads, 1);
+    changed(firstView);
+    assert.equal(firstChanges, 0, 'the saving view must still suppress its own change');
+    assert.equal(reloads, 1);
+    secondView.fileAction('started');
+    firstView.fileAction('cancelled');
+    changed(secondView);
+    assert.equal(secondChanges, 1, 'another view’s cancellation must not clear this view’s suppression');
+    assert.equal(reloads, 1);
+    secondView.fileAction('started');
+    env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled'));
+    changed(secondView);
+    assert.equal(secondChanges, 1, 'unidentified actions must not change suppression');
+    changed(secondView);
+    assert.equal(secondChanges, 2);
+    assert.equal(reloads, 2, 'later external changes must still reload a clean view');
   });
-  const { default: Controls } = await modules.import('variant-controls.js');
-  const { default: View } = await modules.import('variant-view.js');
-  const { getVariantState } = await modules.import('variant-state.js');
-  Controls.initialize();
-  await View.initialize();
-  const firstView = getVariantState(first.root);
-  const secondView = getVariantState(second.root);
-  t.after(() => { firstView.destroy(); secondView.destroy(); });
-  let firstChanges = 0;
-  let secondChanges = 0;
-  firstView.addEventListener('files', () => { firstChanges++; });
-  secondView.addEventListener('files', () => { secondChanges++; });
-  const changed = (view: any) => view.features.get('watcher').source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
-    data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
-  }));
-  first.field.value = 'Saved in first view';
-  first.field.dispatchEvent(new Event('input'));
-  await firstView.controls.saveValues();
-  changed(secondView);
-  assert.equal(secondChanges, 1, 'a save in another view must not suppress this view’s change');
-  assert.equal(reloads, 1);
-  changed(firstView);
-  assert.equal(firstChanges, 0, 'the saving view must still suppress its own change');
-  assert.equal(reloads, 1);
-  secondView.fileAction('started');
-  firstView.fileAction('cancelled');
-  changed(secondView);
-  assert.equal(secondChanges, 1, 'another view’s cancellation must not clear this view’s suppression');
-  assert.equal(reloads, 1);
-  secondView.fileAction('started');
-  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled'));
-  changed(secondView);
-  assert.equal(secondChanges, 1, 'unidentified actions must not change suppression');
-  changed(secondView);
-  assert.equal(secondChanges, 2);
-  assert.equal(reloads, 2, 'later external changes must still reload a clean view');
-});
+}
 
 test('host initialization deduplicates the change stream and cleanup closes it', async () => {
   const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
