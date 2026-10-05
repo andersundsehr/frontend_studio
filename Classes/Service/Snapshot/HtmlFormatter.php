@@ -15,11 +15,11 @@ final readonly class HtmlFormatter
             if (preg_match('~^</?[a-zA-Z]|^<!~', $token)) {
                 $output .= $output === '' ? '' : "\n";
                 if (
-                    strlen($token) > 80 && preg_match('~^<([a-zA-Z][\\w:-]*)(\\s[\\s\\S]*?)(/?)>$~', $token, $tag)
-                    && !in_array(strtolower($tag[1]), ['script', 'style', 'pre', 'textarea'], true)
+                    strlen($token) > 80 && preg_match('~^<([a-zA-Z][\\w:-]*)(\\s(?:[^>\"\']|\"[^\"]*\"|\'[^\']*\')*?)(/?)>~', $token, $tag)
+                    && mb_strlen($tag[0]) > 80
                 ) {
                     preg_match_all('~[^\\s=]+(?:\\s*=\\s*(?:"[^"]*"|\'[^\']*\'|[^\\s]+))?~', trim($tag[2]), $attributes);
-                    $token = '<' . $tag[1] . "\n  " . implode("\n  ", $attributes[0]) . "\n" . $tag[3] . '>';
+                    $token = '<' . $tag[1] . "\n  " . implode("\n  ", $attributes[0]) . "\n" . $tag[3] . '>' . substr($token, strlen($tag[0]));
                 }
             }
 

@@ -42,7 +42,8 @@ final class SnapshotCommand extends Command
         foreach ($identifiers as $identifier) {
             $result = $this->runner->run($identifier, (string)$input->getArgument('site'), (string)$input->getArgument('language'));
             $results[] = $result;
-            $output->writeln(OutputFormatter::escape(strtoupper($result['status']) . ' ' . $identifier . ': ' . $result['message'] . ' ' . $result['path']));
+            $label = $result['status'] === 'missing' ? 'WARNING (MISSING)' : strtoupper($result['status']);
+            $output->writeln(OutputFormatter::escape($label . ' ' . $identifier . ': ' . $result['message'] . ' ' . $result['path']));
             if ($result['status'] === 'failed') {
                 $output->writeln(OutputFormatter::escape("EXPECTED:\n" . $result['expected'] . "ACTUAL:\n" . $result['actual']));
             }

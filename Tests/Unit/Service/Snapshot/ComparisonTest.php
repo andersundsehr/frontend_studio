@@ -53,6 +53,13 @@ final class ComparisonTest extends TestCase
         self::assertSame('<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi\n</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
     }
 
+    public function testLongRawTextOpeningTagFormatsWithoutChangingItsContents(): void
+    {
+        $value = str_repeat('x', 70);
+        $body = 'if (a > b) { alert("<span>"); }';
+        self::assertSame('<script' . "\n  " . 'data-long="' . $value . '"' . "\n  defer\n>" . $body . "</script>\n", new HtmlFormatter()->format('<script data-long="' . $value . '" defer>' . $body . '</script>'));
+    }
+
     public function testExitCodesDistinguishMissingAndErrors(): void
     {
         self::assertSame(0, Runner::exitCode([['status' => 'passed']]));
