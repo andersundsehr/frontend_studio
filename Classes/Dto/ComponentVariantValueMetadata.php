@@ -26,4 +26,9 @@ final readonly class ComponentVariantValueMetadata
         public ?ControlDefinition $control = null,
     ) {
     }
+
+    public function getShortType(): string
+    {
+        return preg_replace('/(?:[A-Za-z_][A-Za-z0-9_]*\\\\)+([A-Za-z_][A-Za-z0-9_]*)/', '$1', $this->type) ?? $this->type;
+    }
 }

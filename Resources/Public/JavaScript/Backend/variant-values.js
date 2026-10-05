@@ -81,7 +81,18 @@ export default class VariantValues extends VariantFeature {
     if (adapter) {
       field.setCustomValidity(adapter.validate() || '');
     }
-    return report ? field.reportValidity() : field.checkValidity();
+    const valid = field.validity?.valid ?? field.checkValidity();
+    if (report && !valid) {
+      let ancestor = field.parentElement;
+      while (ancestor && ancestor !== this.root) {
+        if (ancestor.tagName === 'DETAILS') {
+          ancestor.open = true;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      field.reportValidity();
+    }
+    return valid;
   }
 
   collectValues() {

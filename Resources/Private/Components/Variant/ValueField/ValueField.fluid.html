@@ -7,31 +7,13 @@
 <f:argument name="variantValue" type="Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
 
-<details class="frontend-studio-variant-argument-group panel panel-default" open>
-  <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-    <strong>{variantValue.name}</strong>
-    <f:if condition="{variantValue.required} == false">
-      <span class="text-body-secondary">?</span>
-    </f:if>
-    <code class="frontend-studio-variant-value-type">{variantValue.type}</code>
-    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-      <core:icon identifier="actions-chevron-end"/>
-    </span>
-    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-      <core:icon identifier="actions-chevron-down"/>
-    </span>
-  </summary>
-  <div class="frontend-studio-variant-argument-group-content panel-body">
-    <f:if condition="{variantValue.description}">
-      <f:if condition="{variantValue.parentName}">
-        <f:then>
-          <div class="form-text mb-0">{variantValue.description}</div>
-        </f:then>
-        <f:else>
-          <label class="form-label" for="frontend-studio-variant-value-{variantValue.fixtureName}">{variantValue.description}</label>
-        </f:else>
-      </f:if>
-    </f:if>
+<div class="frontend-studio-control-row" data-control-row>
+  <div class="frontend-studio-control-label">
+  <button type="button" class="frontend-studio-control-name" data-control-description-toggle aria-expanded="false" title="{variantValue.description}"><strong>{variantValue.name}</strong></button>
+  <f:if condition="{variantValue.required} == false"><span class="text-body-secondary">?</span></f:if>
+  <button type="button" class="frontend-studio-control-type" data-control-type-toggle data-short-type="{variantValue.shortType}" data-full-type="{variantValue.type}" aria-expanded="false"><code>{variantValue.shortType}</code></button>
+</div>
+  <div class="frontend-studio-control-input">
     <f:if condition="{variantValue.control}">
       <f:then>
         <f:asset.module identifier="{variantValue.control.module}"/>
@@ -45,6 +27,7 @@
         <select
           id="frontend-studio-variant-value-{variantValue.fixtureName}"
           name="{variantValue.fixtureName}"
+          aria-label="{variantValue.name}"
           data-frontend-studio-variant-value
           data-fixture-name="{variantValue.fixtureName}"
           data-fixture-type="{variantValue.type}"
@@ -66,6 +49,7 @@
               type="datetime-local"
               id="frontend-studio-variant-value-{variantValue.fixtureName}"
               name="{variantValue.fixtureName}"
+              aria-label="{variantValue.name}"
               data-frontend-studio-variant-value
               data-fixture-name="{variantValue.fixtureName}"
               data-fixture-type="datetime"
@@ -84,6 +68,7 @@
                     type="checkbox"
                     id="frontend-studio-variant-value-{variantValue.fixtureName}"
                     name="{variantValue.fixtureName}"
+                    aria-label="{variantValue.name}"
                     data-frontend-studio-variant-value
                     data-fixture-name="{variantValue.fixtureName}"
                     data-fixture-type="{variantValue.type}"
@@ -100,6 +85,7 @@
                     type="checkbox"
                     id="frontend-studio-variant-value-{variantValue.fixtureName}"
                     name="{variantValue.fixtureName}"
+                    aria-label="{variantValue.name}"
                     data-frontend-studio-variant-value
                     data-fixture-name="{variantValue.fixtureName}"
                     data-fixture-type="{variantValue.type}"
@@ -116,6 +102,7 @@
                   step="1"
                   id="frontend-studio-variant-value-{variantValue.fixtureName}"
                   name="{variantValue.fixtureName}"
+                  aria-label="{variantValue.name}"
                   data-frontend-studio-variant-value
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
@@ -132,6 +119,7 @@
                   step="1"
                   id="frontend-studio-variant-value-{variantValue.fixtureName}"
                   name="{variantValue.fixtureName}"
+                  aria-label="{variantValue.name}"
                   data-frontend-studio-variant-value
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
@@ -148,6 +136,7 @@
                   step="any"
                   id="frontend-studio-variant-value-{variantValue.fixtureName}"
                   name="{variantValue.fixtureName}"
+                  aria-label="{variantValue.name}"
                   data-frontend-studio-variant-value
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
@@ -164,6 +153,7 @@
                   step="any"
                   id="frontend-studio-variant-value-{variantValue.fixtureName}"
                   name="{variantValue.fixtureName}"
+                  aria-label="{variantValue.name}"
                   data-frontend-studio-variant-value
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
@@ -180,6 +170,7 @@
                     <textarea
                       id="frontend-studio-variant-value-{variantValue.fixtureName}"
                       name="{variantValue.fixtureName}"
+                      aria-label="{variantValue.name}"
                       data-frontend-studio-variant-value
                       data-fixture-name="{variantValue.fixtureName}"
                       data-fixture-type="{variantValue.type}"
@@ -195,6 +186,7 @@
                       type="text"
                       id="frontend-studio-variant-value-{variantValue.fixtureName}"
                       name="{variantValue.fixtureName}"
+                      aria-label="{variantValue.name}"
                       data-frontend-studio-variant-value
                       data-fixture-name="{variantValue.fixtureName}"
                       data-fixture-type="{variantValue.type}"
@@ -212,6 +204,7 @@
                   type="text"
                   id="frontend-studio-variant-value-{variantValue.fixtureName}"
                   name="{variantValue.fixtureName}"
+                  aria-label="{variantValue.name}"
                   data-frontend-studio-variant-value
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
@@ -226,6 +219,7 @@
                 <textarea
                   id="frontend-studio-variant-value-{variantValue.fixtureName}"
                   name="{variantValue.fixtureName}"
+                  aria-label="{variantValue.name}"
                   data-frontend-studio-variant-value
                   data-fixture-name="{variantValue.fixtureName}"
                   data-fixture-type="{variantValue.type}"
@@ -244,5 +238,6 @@
       </f:else>
     </f:if>
   </div>
-</details>
+  <div class="form-text frontend-studio-control-description" data-control-description hidden>{variantValue.description}</div>
+</div>
 </html>

@@ -15,6 +15,33 @@ class VariantControls extends VariantValues {
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
     this.createTransformerButton = root.querySelector('[data-frontend-studio-create-transformer]');
     this.saveState = root.querySelector('[data-frontend-studio-variant-save-state]');
+    this.root.querySelectorAll('[data-control-description-toggle]').forEach((button) => {
+      const description = button.closest('[data-control-row]').querySelector('[data-control-description]');
+      button.disabled = !description?.textContent.trim();
+      this.listen(button, 'click', () => {
+        description.hidden = !description.hidden;
+        button.setAttribute('aria-expanded', String(!description.hidden));
+      });
+    });
+    this.root.querySelectorAll('[data-control-type-toggle]').forEach((button) => {
+      this.listen(button, 'click', () => {
+        const expanded = button.getAttribute('aria-expanded') !== 'true';
+        button.setAttribute('aria-expanded', String(expanded));
+        button.querySelector('code').textContent = expanded ? button.dataset.fullType : button.dataset.shortType;
+      });
+    });
+    this.listen(root, 'keydown', (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      const row = event.target.closest('[data-control-row]');
+      row?.querySelectorAll('[data-control-description]').forEach((description) => { description.hidden = true; });
+      row?.querySelectorAll('[data-control-description-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+      row?.querySelectorAll('[data-control-type-toggle]').forEach((button) => {
+        button.setAttribute('aria-expanded', 'false');
+        button.querySelector('code').textContent = button.dataset.shortType;
+      });
+    });
     this.saving = false;
     this.copying = false;
     view.controls = this;
@@ -59,6 +86,15 @@ class VariantControls extends VariantValues {
   }
 
   updateDirtyState() {
+    this.root.querySelectorAll('[data-transformer-group]').forEach((group) => {
+      const summary = group.querySelector('[data-transformer-summary]');
+      const values = [...group.querySelectorAll('[data-frontend-studio-variant-value]')].map((field) => {
+        const value = this.readFieldValue(field);
+        return typeof value === 'string' ? value : JSON.stringify(value);
+      });
+      summary.textContent = values.join(', ') || '(empty)';
+      summary.title = summary.textContent;
+    });
     if (this.copyVariantButton !== null) {
       this.copyVariantButton.disabled = !this.controlsReady || this.copying;
     }

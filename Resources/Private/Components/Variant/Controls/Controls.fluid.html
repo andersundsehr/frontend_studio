@@ -95,32 +95,20 @@
             <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
               <f:if condition="{parentName}">
                 <f:then>
-                  <details class="frontend-studio-variant-argument-group panel panel-default" open>
-                    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                      <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                        <f:if condition="{argument.name} == {parentName}">
-                          <strong>{argument.name}</strong>
-                          <f:if condition="{argument.required} == false">
-                            <span class="text-body-secondary">?</span>
-                          </f:if>
-                          <code class="frontend-studio-variant-value-type">{argument.type}</code>
-                        </f:if>
-                      </f:for>
-                      <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                        <core:icon identifier="actions-chevron-end"/>
-                      </span>
-                      <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                        <core:icon identifier="actions-chevron-down"/>
-                      </span>
-                    </summary>
-                    <div class="frontend-studio-variant-argument-group-content panel-body">
-                      <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                        <f:if condition="{argument.name} == {parentName}">
-                          <f:if condition="{argument.description}">
-                            <div class="form-text mb-0">{argument.description}</div>
-                          </f:if>
-                        </f:if>
-                      </f:for>
+                  <div class="frontend-studio-control-row frontend-studio-transformer-row" data-control-row>
+                    <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                      <f:if condition="{argument.name} == {parentName}">
+                        <div class="frontend-studio-control-label">
+  <button type="button" class="frontend-studio-control-name" data-control-description-toggle aria-expanded="false" title="{argument.description}"><strong>{argument.name}</strong></button>
+  <f:if condition="{argument.required} == false"><span class="text-body-secondary">?</span></f:if>
+  <button type="button" class="frontend-studio-control-type" data-control-type-toggle data-short-type="{argument.shortType}" data-full-type="{argument.type}" aria-expanded="false"><code>{argument.shortType}</code></button>
+</div>
+                        <div class="form-text frontend-studio-control-description" data-control-description hidden>{argument.description}</div>
+                      </f:if>
+                    </f:for>
+                    <details class="frontend-studio-transformer-inputs" data-transformer-group>
+                      <summary class="frontend-studio-transformer-summary" title="Show transformer inputs"><span data-transformer-summary></span></summary>
+                      <div class="frontend-studio-variant-argument-group-content">
                       <div class="panel-group mb-0">
                         <f:for each="{groupValues}" as="variantValue">
                           <frontend.studio:variant.valueField variantValue="{variantValue}"/>
@@ -132,7 +120,8 @@
                         </f:if>
                       </f:for>
                     </div>
-                  </details>
+                    </details>
+                  </div>
                 </f:then>
                 <f:else>
                   <f:for each="{groupValues}" as="variantValue">
