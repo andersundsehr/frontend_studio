@@ -1452,3 +1452,70 @@ test('tree listeners ignore controls and unidentified events and are removed wit
   }));
   assert.equal(view.ignoreNextComponentFilesChanged, true, 'destroyed states must have no global listeners');
 });
+
+for (const action of ['save', 'copy', 'tree-copy']) {
+  test(`${action} suppression survives unrelated SSE until its matching write event`, async (t) => {
+    const { root, field } = controlsRoot();
+    root.dataset.componentChangeStreamUri = '/changes';
+    const env = environment([root]);
+    let reloads = 0;
+    let files = 0;
+    let treeEvents = 0;
+    let resolve!: (response: any) => void;
+    env.window.location.reload = () => { reloads++; };
+    env.document.addEventListener('frontend-studio:component-files-changed', () => { treeEvents++; });
+    const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } }, {
+      '@typo3/core/ajax/ajax-request.js': class {
+        post() { return new Promise((done) => { resolve = done; }); }
+      },
+    });
+    const { default: Controls } = await modules.import('variant-controls.js');
+    const { default: View } = await modules.import('variant-view.js');
+    const { getVariantState } = await modules.import('variant-state.js');
+    Controls.initialize();
+    await View.initialize();
+    const view = getVariantState(root);
+    t.after(() => view.destroy());
+    view.addEventListener('files', () => { files++; });
+    let pending: Promise<void> | undefined;
+    if (action === 'save') {
+      field.value = 'Submitted';
+      field.dispatchEvent(new Event('input'));
+      pending = view.controls.saveValues();
+    } else if (action === 'copy') {
+      pending = view.controls.copyVariant('New');
+    } else {
+      env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', {
+        detail: { action: 'copy', identifier: 'site:card:Other' },
+      }));
+    }
+    const changed = (data: string) => view.features.get('watcher').source.dispatchEvent(Object.assign(
+      new Event('component-files-changed'), { data },
+    ));
+    for (const data of ['{"componentIdentifiers":["site:other"]}', 'invalid JSON', '{}']) {
+      changed(data);
+      assert.equal(view.ignoreNextComponentFilesChanged, true, 'unrelated events must preserve suppression for the pending write');
+    }
+    assert.equal(treeEvents, 3, 'unrelated events must still notify the component tree');
+    assert.equal(files, 0);
+    assert.equal(reloads, 0);
+    if (action === 'save') {
+      resolve({ resolve: async () => ({ success: true, variant: {} }) });
+      await pending;
+    }
+    assert.equal(view.hasUnsavedChanges, false);
+    changed('{"componentIdentifiers":["site:card"]}');
+    assert.equal(view.ignoreNextComponentFilesChanged, false, 'only the matching event consumes suppression');
+    assert.equal(treeEvents, 3);
+    assert.equal(files, 0);
+    assert.equal(reloads, 0, 'the own write must not reload a clean view or compete with copy navigation');
+    if (action === 'copy') {
+      resolve({ resolve: async () => ({ success: true, variant: { identifier: 'site:card:New' } }) });
+      await pending;
+      assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:New');
+    }
+    changed('{"componentIdentifiers":["site:card"]}');
+    assert.equal(files, 1);
+    assert.equal(reloads, 1, 'later matching external changes must reload normally');
+  });
+}

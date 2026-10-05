@@ -32,7 +32,8 @@ export default class VariantFileWatcher extends VariantFeature {
   }
 
   handleComponentFilesChanged(event) {
-    if (this.view.ignoreNextComponentFilesChanged) {
+    const isCurrentComponentAffected = this.isCurrentComponentAffected(event);
+    if (isCurrentComponentAffected && this.view.ignoreNextComponentFilesChanged) {
       this.view.ignoreNextComponentFilesChanged = false;
       return;
     }
@@ -43,7 +44,7 @@ export default class VariantFileWatcher extends VariantFeature {
       },
     }));
 
-    if (!this.isCurrentComponentAffected(event)) {
+    if (!isCurrentComponentAffected) {
       return;
     }
 
