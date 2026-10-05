@@ -11,7 +11,7 @@ export default class FrontendStudioVariantView {
           view.mount('preview', () => new Preview(root, view));
         }));
       }
-      if (root.dataset.componentChangeStreamUri && typeof EventSource !== 'undefined') {
+      if (root.dataset.componentChangeStreamUri) {
         features.push(import('@andersundsehr/frontend-studio/backend/variant-file-watcher.js').then(({ default: Watcher }) => {
           view.mount('watcher', () => new Watcher(root, view));
         }));

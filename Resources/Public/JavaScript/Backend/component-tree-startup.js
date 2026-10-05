@@ -8,6 +8,14 @@ const fallbackInitializationAttempt = 5;
 class FrontendStudioComponentTreeStartup {
   constructor() {
     this.attempt = 0;
+    this.retryTimeout = null;
+    window.addEventListener('pagehide', () => window.clearTimeout(this.retryTimeout));
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        this.attempt = 0;
+        this.initialize();
+      }
+    });
   }
 
   initialize() {
@@ -68,6 +76,7 @@ class FrontendStudioComponentTreeStartup {
         module: frontendStudioModuleName,
         title: document.title,
         url: window.location.href,
+        componentChangeStreamUri: document.querySelector('[data-frontend-studio-variant-view]')?.dataset.componentChangeStreamUri || '',
       },
     }));
   }
@@ -83,7 +92,7 @@ class FrontendStudioComponentTreeStartup {
       return;
     }
 
-    window.setTimeout(() => this.synchronizeTopLevelNavigation(), initializationRetryDelay);
+    this.retryTimeout = window.setTimeout(() => this.synchronizeTopLevelNavigation(), initializationRetryDelay);
   }
 
   static initialize() {

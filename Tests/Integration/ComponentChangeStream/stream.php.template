@@ -1,0 +1,35 @@
+<?php
+declare(strict_types=1);
+
+namespace {
+    require '/vendor/psr/http-message/src/StreamInterface.php';
+    require '/vendor/typo3/cms-core/Classes/Http/SelfEmittableStreamInterface.php';
+}
+
+namespace Andersundsehr\FrontendStudio\Service {
+    final class ComponentTemplateRootWatcher
+    {
+        public function createSnapshot(): array
+        {
+            $start = microtime(true);
+            usleep((int)($_GET['delay'] ?? 0) * 1000);
+            error_log('snapshot ' . round((microtime(true) - $start) * 1000) . 'ms');
+            return [];
+        }
+    }
+}
+
+namespace {
+    require '/source/ComponentChangeEventStream.php';
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    $started = microtime(true);
+    register_shutdown_function(static function () use ($started): void {
+        error_log('stream ended after ' . round((microtime(true) - $started) * 1000) . 'ms; aborted=' . connection_aborted());
+    });
+    header('Content-Type: text/event-stream');
+    (new \Andersundsehr\FrontendStudio\Http\ComponentChangeEventStream(
+        new \Andersundsehr\FrontendStudio\Service\ComponentTemplateRootWatcher(),
+    ))->emit();
+}
