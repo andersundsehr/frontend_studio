@@ -76,6 +76,12 @@ final class TransformersFactoryTest extends UnitTestCase
             'exact scalar match' => ['string', 'string'],
             'mixed accepts any return type' => ['mixed', 'string'],
             'array satisfies array-shape-like target' => ['string[]', 'array'],
+            'nullable array satisfies nullable typed array' => ['?ArrayObject[]', '?array'],
+            'nullable array satisfies typed array null union' => ['ArrayObject[]|null', '?array'],
+            'array null union satisfies nullable typed array' => ['?ArrayObject[]', 'array|null'],
+            'array satisfies nullable typed array' => ['?ArrayObject[]', 'array'],
+            'null satisfies nullable typed array' => ['?ArrayObject[]', 'null'],
+            'nullable class satisfies nullable interface' => ['?' . Throwable::class, '?' . RuntimeException::class],
             'subclass satisfies parent/interface target' => [Throwable::class, RuntimeException::class],
             'exact union type match' => ['string|int', 'string|int'],
             'order different union type match' => ['string|int', 'int|string'],
@@ -103,6 +109,9 @@ final class TransformersFactoryTest extends UnitTestCase
     {
         return [
             'different scalar type' => ['string', 'int'],
+            'nullable array cannot satisfy non-null typed array' => ['ArrayObject[]', '?array'],
+            'array null union cannot satisfy non-null typed array' => ['ArrayObject[]', 'array|null'],
+            'nullable array cannot satisfy a nullable class' => ['?ArrayObject', '?array'],
             'broader union does not satisfy narrower target' => ['string', 'string|int'],
         ];
     }

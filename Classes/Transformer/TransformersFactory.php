@@ -156,7 +156,7 @@ final readonly class TransformersFactory
 
     private function isDefaultSupportedType(string $type): bool
     {
-        return array_all($this->splitUnionType(ltrim($type, '?')), fn(string $typePart): bool => in_array($typePart, self::DEFAULT_SUPPORTED_TYPES, true) || $typePart === 'null');
+        return array_all($this->splitUnionType($type), fn(string $typePart): bool => in_array($typePart, self::DEFAULT_SUPPORTED_TYPES, true) || $typePart === 'null');
     }
 
     /**
@@ -164,6 +164,10 @@ final readonly class TransformersFactory
      */
     private function splitUnionType(string $type): array
     {
+        if (str_starts_with($type, '?')) {
+            $type = substr($type, 1) . '|null';
+        }
+
         return explode('|', $type);
     }
 
