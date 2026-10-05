@@ -31,7 +31,7 @@
     "typescript": "^7.0.2"
   },
   "scripts": {
-    "test": "node --test --experimental-strip-types **/*.test.{cts,mts,ts}",
+    "test": "node --test --experimental-strip-types --experimental-vm-modules **/*.test.{cts,mts,ts}",
     "test:watch": "npm run test -- --watch",
     "typecheck": "tsc --noEmit"
   }
