@@ -32,6 +32,7 @@ final readonly class ComponentMetadata
         public array $staticVariables,
         public array $errors,
         public ?string $missingTransformerError = null,
+        public bool $readOnly = false,
     ) {
     }
 }

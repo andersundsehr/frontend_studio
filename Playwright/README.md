@@ -318,3 +318,11 @@ Call the helper from Node-side test code, never from `page.evaluate()`.
 [ddev-playwright]: https://github.com/ochorocho/ddev-playwright
 [playwright-typescript]: https://playwright.dev/docs/test-typescript
 [playwright-snapshots]: https://playwright.dev/docs/test-snapshots
+
+## Production and live overrides
+
+Stored fixture previews work anonymously in every application context.
+Requests with `componentVariantValues` or `componentVariantSlots` require a valid TYPO3 backend session,
+including fragment requests; a cookie name alone is insufficient.
+Use an authenticated browser context when testing live overrides.
+Production and its subcontexts allow authenticated live previews but reject fixture and slot file writes.

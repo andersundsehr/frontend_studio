@@ -20,8 +20,16 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionClass;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
+use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Context\UserAspect;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Page\AssetRenderer;
+use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 
 #[CoversClass(ComponentPreviewMiddleware::class)]
 final class ComponentPreviewMiddlewareTest extends TestCase
@@ -214,6 +222,45 @@ final class ComponentPreviewMiddlewareTest extends TestCase
         yield 'array slot content' => ['{"default":[]}', null];
     }
 
+    #[DataProvider('anonymousOverrideRequests')]
+    public function testAnonymousOverridesAreRejectedBeforeRendering(string $parameter, mixed $value, string $format): void
+    {
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::never())->method('renderVariant');
+        $request = $this->createPreviewRequest([
+            'componentVariant' => 'site:Card:Default',
+            'frontendStudioPreviewFormat' => $format,
+            $parameter => $value,
+        ])->withCookieParams([BackendUserAuthentication::getCookieName() => 'forged-cookie']);
+        $response = $this->createMiddleware($renderer, authenticated: false)
+            ->process($request, $this->createMock(RequestHandlerInterface::class));
+        self::assertSame(403, $response->getStatusCode());
+        self::assertStringContainsString('authenticated backend session', (string)$response->getBody());
+    }
+
+    /** @return iterable<string, array{string, mixed, string}> */
+    public static function anonymousOverrideRequests(): iterable
+    {
+        foreach (['componentVariantValues', 'componentVariantSlots'] as $parameter) {
+            foreach (['{}', '', '{', null, []] as $index => $value) {
+                foreach (['', 'fragment', 'highlighted-fragment', 'fluid-usage'] as $format) {
+                    yield $parameter . '/' . $index . '/' . $format => [$parameter, $value, $format];
+                }
+            }
+        }
+    }
+
+    public function testAnonymousStoredPreviewAllowsSiteAndLanguageSelection(): void
+    {
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->expects(self::once())->method('renderVariant')->willReturn('<p>Stored</p>');
+        $response = $this->createMiddleware($renderer, authenticated: false)->process(
+            $this->createPreviewRequest(['componentVariant' => 'site:Card:Default', 'frontendStudioPreviewFormat' => 'fragment', 'site' => 'preview', 'language' => 'en']),
+            $this->createMock(RequestHandlerInterface::class),
+        );
+        self::assertSame(200, $response->getStatusCode());
+    }
+
     /** @param array<string, mixed> $queryParams */
     private function createPreviewRequest(array $queryParams): ServerRequest
     {
@@ -226,6 +273,7 @@ final class ComponentPreviewMiddlewareTest extends TestCase
         ComponentPreviewRendererInterface $renderer,
         ?ComponentPathResolverInterface $componentPathResolver = null,
         ?PreviewTypoScriptContextBuilderInterface $contextBuilder = null,
+        bool $authenticated = true,
     ): ComponentPreviewMiddleware {
         if ($contextBuilder === null) {
             $contextBuilderStub = $this->createStub(PreviewTypoScriptContextBuilderInterface::class);
@@ -233,15 +281,29 @@ final class ComponentPreviewMiddlewareTest extends TestCase
             $contextBuilder = $contextBuilderStub;
         }
 
+        $context = new Context();
+        $user = $this->createStub(BackendUserAuthentication::class);
+        $user->user = $authenticated ? ['uid' => 1] : [];
+
+        $context->setAspect('backend.user', new UserAspect($user));
+
         return new ComponentPreviewMiddleware(
             $renderer,
             $this->createUninitialized(ComponentMetadataProvider::class),
             $componentPathResolver ?? $this->createStub(ComponentPathResolverInterface::class),
             $this->createUninitialized(FluidUsageSnippetRenderer::class),
             $this->createUninitialized(HtmlSourceHighlighter::class),
-            $this->createUninitialized(PreviewAssetRenderer::class),
+            new PreviewAssetRenderer(
+                new AssetCollector(),
+                $this->createStub(AssetRenderer::class),
+                $this->createStub(PageRenderer::class),
+                $this->createStub(UriBuilder::class),
+                $this->createStub(LanguageServiceFactory::class),
+                '',
+            ),
             new ListenerProvider($this->createStub(ContainerInterface::class)),
             $contextBuilder,
+            $context,
         );
     }
 

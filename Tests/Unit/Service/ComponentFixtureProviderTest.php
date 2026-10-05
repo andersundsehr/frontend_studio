@@ -10,8 +10,12 @@ use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use InvalidArgumentException;
-use PHPUnit\Framework\Attributes\CoversClass;
+use Andersundsehr\FrontendStudio\Service\ComponentWriteDeniedException;
+use ReflectionProperty;
 use PHPUnit\Framework\Attributes\DataProvider;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Core\ApplicationContext;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Yaml\Yaml;
@@ -392,6 +396,38 @@ YAML);
         self::assertNull($this->createProvider()->getPreviewWrapper($this->createResolverDelegate(), 'Card'));
         file_put_contents(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml', "variants:\n  Default: []\n");
         self::assertNull($this->createProvider()->getPreviewWrapper($this->createResolverDelegate(), 'Card'));
+    }
+
+    #[DataProvider('writeContexts')]
+    public function testDirectServiceWritesFollowApplicationContext(string $context, bool $allowed): void
+    {
+        $provider = $this->createProvider();
+        $resolver = $this->createResolverDelegate();
+        $property = new ReflectionProperty(Environment::class, 'context');
+        $original = Environment::getContext();
+        $property->setValue(null, new ApplicationContext($context));
+        try {
+            if (!$allowed) {
+                $this->expectException(ComponentWriteDeniedException::class);
+            }
+
+            $provider->createVariant($resolver, 'Card', 'Default');
+            self::assertFileExists(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml');
+        } finally {
+            $property->setValue(null, $original);
+            if (!$allowed) {
+                self::assertFileDoesNotExist(substr($this->templatePath, 0, -strlen('.html')) . '.fixture.yaml');
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string, bool}> */
+    public static function writeContexts(): iterable
+    {
+        yield 'Development' => ['Development', true];
+        yield 'Testing' => ['Testing', true];
+        yield 'Production' => ['Production', false];
+        yield 'Production/Staging' => ['Production/Staging', false];
     }
 
     private function createProvider(): ComponentFixtureProvider

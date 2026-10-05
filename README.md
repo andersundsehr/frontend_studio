@@ -412,3 +412,16 @@ The package author is Matthias Vogel (`m.vogel@andersundsehr.com`).
 
 > We are always looking for great people to join our team!
 > https://www.andersundsehr.com/karriere/
+
+## Production and preview authentication
+
+`Production` and its subcontexts (for example `Production/Staging`) are read-only.
+Creating, copying, renaming, deleting and saving variants cannot change fixture YAML or slot files.
+Write controls display their restriction beside the affected action.
+Stored previews and downloads remain available.
+Authenticated backend users can still edit controls for a temporary live preview and reset them.
+
+In every context, `componentVariantValues` and `componentVariantSlots` require a valid TYPO3 backend session.
+Anonymous requests containing either parameter return HTTP 403,
+even for empty or invalid values and for fragments or Fluid Usage.
+Site and language selection and stored variant previews do not require overrides.

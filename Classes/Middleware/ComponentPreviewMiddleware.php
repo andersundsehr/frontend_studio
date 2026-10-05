@@ -21,6 +21,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Throwable;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
@@ -53,6 +54,7 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
         private PreviewAssetRenderer $previewAssetRenderer,
         private ListenerProvider $listenerProvider,
         private PreviewTypoScriptContextBuilderInterface $previewTypoScriptContextBuilder,
+        private Context $context = new Context(),
     ) {
     }
 
@@ -71,6 +73,13 @@ final readonly class ComponentPreviewMiddleware implements MiddlewareInterface
 
         $queryParams = $request->getQueryParams();
         $isFragmentRequest = $this->isFragmentRequest($queryParams) || $this->isHighlightedFragmentRequest($queryParams);
+        if (
+            (array_key_exists(self::VARIANT_VALUES_PARAMETER, $queryParams) || array_key_exists(self::VARIANT_SLOTS_PARAMETER, $queryParams))
+            && !$this->context->getPropertyFromAspect('backend.user', 'isLoggedIn', false)
+        ) {
+            return $this->createErrorResponse('Backend login required', 'Preview overrides require an authenticated backend session.', 403, $isFragmentRequest);
+        }
+
         $hasLegacyVariant = array_key_exists('componentVariant', $queryParams);
         $hasVariantName = array_key_exists(self::VARIANT_NAME_PARAMETER, $queryParams);
         $hasComponentPath = array_key_exists(self::COMPONENT_PATH_PARAMETER, $queryParams);
