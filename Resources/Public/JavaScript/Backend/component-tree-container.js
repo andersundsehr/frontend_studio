@@ -561,7 +561,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       return;
     }
 
-    if (node.nodeType !== 'variant') {
+    if (node.nodeType !== 'variant' && node.nodeType !== 'component') {
       const firstChildVariant = this.findFirstChildNodeOfType(node, 'variant');
 
       if (firstChildVariant !== null) {
@@ -585,7 +585,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       ? new URL(currentContentUrl, window.location.origin).searchParams
       : null;
     const contentParameters = {
-      componentVariant: node.identifier,
+      [node.nodeType === 'component' ? 'component' : 'componentVariant']: node.identifier,
     };
     ['site', 'language'].forEach((parameter) => {
       const value = currentQueryParams?.get(parameter);
@@ -594,6 +594,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       }
     });
     const contentUrl = createUrl(moduleConfiguration.link, contentParameters);
+    contentUrl.searchParams.delete(node.nodeType === 'component' ? 'componentVariant' : 'component');
 
     if (!top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) return;
     Viewport.ContentContainer.setUrl(contentUrl);
@@ -612,7 +613,8 @@ class FrontendStudioComponentTreeContainer extends LitElement {
   getNodeFromCurrentContentUrl() {
     const contentUrl = Viewport.ContentContainer.getUrl();
     const componentVariant = contentUrl !== null
-      ? new URL(contentUrl, window.location.origin).searchParams.get('componentVariant')
+      ? (new URL(contentUrl, window.location.origin).searchParams.get('component')
+        || new URL(contentUrl, window.location.origin).searchParams.get('componentVariant'))
       : null;
 
     if (componentVariant === null || componentVariant === '') {

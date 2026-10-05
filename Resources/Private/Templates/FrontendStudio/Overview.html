@@ -1,0 +1,65 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+  xmlns:frontend.studio="http://typo3.org/ns/Andersundsehr/FrontendStudio/Components" data-namespace-typo3-fluid="true">
+<f:asset.module identifier="@typo3/backend/viewport/content-navigation-toggle.js"/>
+<f:asset.module identifier="@andersundsehr/frontend-studio/backend/component-overview.js"/>
+<f:asset.script identifier="frontend-studio-component-tree-startup" src="EXT:frontend_studio/Resources/Public/JavaScript/Backend/component-tree-startup.js" type="module"/>
+<f:asset.css identifier="frontend-studio-overview" href="EXT:frontend_studio/Resources/Public/Css/Backend/component-overview.css"/>
+<div class="frontend-studio-overview" data-component-overview data-frontend-studio-variant-view
+  data-variant-identifier="{selectedVariantIdentifier}" data-preview-uri="{componentPreviewUri}"
+  data-selected-site-identifier="{selectedSiteIdentifier}" data-selected-language-hreflang="{selectedLanguageHreflang}">
+  <f:if condition="{overviewComponent}">
+    <f:then>
+      <div class="d-flex align-items-center gap-2">
+        <typo3-backend-content-navigation-toggle class="btn btn-sm btn-icon btn-default" action="expand" hidden></typo3-backend-content-navigation-toggle>
+        <h1>{overviewComponent.componentName}</h1>
+      </div>
+      <p class="text-body-secondary"><code>{overviewComponent.componentIdentifier}</code></p>
+      <f:if condition="{documentationError}"><p role="alert">{documentationError}</p></f:if>
+      <f:if condition="{documentationMarkdown}">
+        <f:then><div data-overview-description><pre data-overview-markdown>{documentationMarkdown}</pre></div></f:then>
+        <f:else><p class="text-body-secondary">No documentation yet. Use the Doc tab of a variant to add component documentation.</p></f:else>
+      </f:if>
+      <f:if condition="{overviewComponent.errors}">
+        <ul class="alert alert-warning"><f:for each="{overviewComponent.errors}" as="error"><li>{error}</li></f:for></ul>
+      </f:if>
+      <f:if condition="{overviewVariants}">
+        <f:then>
+          <f:for each="{overviewVariants}" as="variant">
+            <section class="frontend-studio-overview-example" aria-labelledby="overview-variant-{variant.index}">
+              <h2 id="overview-variant-{variant.index}"><a href="{variant.variantUri}" data-overview-variant-link>{variant.name}</a></h2>
+              <f:if condition="{variant.first}">
+                <frontend.studio:variant.header selectedVariantIdentifier="{selectedVariantIdentifier}" selectedComponentMetadata="{selectedComponentMetadata}"
+                  componentPreviewUri="{componentPreviewUri}" previewSites="{previewSites}" previewLanguages="{previewLanguages}"
+                  selectedSiteIdentifier="{selectedSiteIdentifier}" selectedLanguageHreflang="{selectedLanguageHreflang}"/>
+              </f:if>
+              <f:if condition="{variant.previewUri}">
+                <f:then>
+                  <div class="frontend-studio-overview-frame{f:if(condition: variant.first, then: ' is-first')}" data-overview-frame-container>
+                    <iframe id="overview-frame-{variant.index}" src="{variant.previewUri}" title="{variant.name} component preview"
+                      data-overview-frame data-variant-identifier="{variant.identifier}"
+                      loading="{f:if(condition: variant.first, then: 'eager', else: 'lazy')}"
+                      {f:if(condition: variant.first, then: 'data-frontend-studio-variant-frame')}></iframe>
+                  </div>
+                  <p data-overview-frame-status class="text-body-secondary" role="status"></p>
+                  <f:if condition="{variant.first}">
+                    <button type="button" class="btn btn-default btn-sm" data-overview-expand aria-expanded="false" aria-controls="overview-frame-{variant.index}" hidden>Expand preview</button>
+                  </f:if>
+                </f:then>
+                <f:else><p>The rendered component preview is not available. Configure a preview site and language.</p></f:else>
+              </f:if>
+              <f:if condition="{variant.first}">
+                <div class="frontend-studio-overview-controls">
+                  <frontend.studio:variant.controls selectedComponentMetadata="{selectedComponentMetadata}" variantActiveTab="values"/>
+                </div>
+              </f:if>
+              <p class="mt-3"><a href="{variant.variantUri}" data-overview-variant-link>Open {variant.name} variant</a></p>
+            </section>
+          </f:for>
+        </f:then>
+        <f:else><p>No fixture variants yet. Use Create variant in the component tree to add an example.</p></f:else>
+      </f:if>
+    </f:then>
+    <f:else><h1>Component not found</h1><p>Select a registered component from the tree.</p></f:else>
+  </f:if>
+</div>
+</html>

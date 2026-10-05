@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Controller;
 
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
+use Andersundsehr\FrontendStudio\Service\ComponentDocumentation;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
@@ -48,11 +49,21 @@ final readonly class FrontendStudioModuleController
         private Typo3Version $typo3Version,
         private AssetCollector $assetCollector,
         private FluidTemplateAnalyzer $fluidTemplateAnalyzer,
+        private ?ComponentDocumentation $documentation = null,
     ) {
     }
 
     public function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
+        $identifier = $request->getQueryParams()['component'] ?? null;
+        if (is_string($identifier) && $identifier !== '') {
+            $moduleTemplate = $this->moduleTemplateFactory->create($request);
+            $moduleTemplate->setTitle($identifier . ' — Docs');
+            $moduleTemplate->getDocHeaderComponent()->disable();
+            $moduleTemplate->assignMultiple($this->getOverviewAssignments($identifier, $request));
+            return $moduleTemplate->renderResponse('FrontendStudio/Overview');
+        }
+
         return $this->renderVariantViewResponse($request);
     }
 
@@ -65,6 +76,45 @@ final readonly class FrontendStudioModuleController
 
         $metadata = $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($identifier);
         return new JsonResponse($this->fluidTemplateAnalyzer->analyze($metadata?->template));
+    }
+
+    /** @return array<string, mixed> */
+    private function getOverviewAssignments(string $identifier, ServerRequestInterface $request): array
+    {
+        $component = $this->componentMetadataProvider->getComponentMetadataForIdentifier($identifier);
+        $variants = $component?->fixture->variants ?? [];
+        $firstIdentifier = $variants !== [] ? $identifier . ':' . $variants[0]->name : '';
+        $assignments = $this->getVariantAssignments($firstIdentifier, $request, false);
+        $previews = [];
+        foreach ($variants as $index => $variant) {
+            $variantIdentifier = $identifier . ':' . $variant->name;
+            $context = $this->getPreviewContext($variantIdentifier, $request);
+            $previews[] = [
+                'identifier' => $variantIdentifier,
+                'name' => $variant->name,
+                'first' => $index === 0,
+                'index' => $index,
+                'previewUri' => $context['componentPreviewUri'],
+                'variantUri' => (string)$this->uriBuilder->buildUriFromRoute('admin_frontendstudio', [
+                    'componentVariant' => $variantIdentifier,
+                    'site' => $context['selectedSiteIdentifier'],
+                    'language' => $context['selectedLanguageHreflang'],
+                ]),
+            ];
+        }
+
+        $markdown = '';
+        $documentationError = '';
+        if ($component !== null && $this->documentation !== null) {
+            try {
+                $markdown = $this->documentation->read($identifier)['markdown'];
+            } catch (Throwable $throwable) {
+                $documentationError = 'Documentation could not be loaded: ' . $throwable->getMessage();
+            }
+        }
+
+        return [...$assignments, 'overviewComponent' => $component, 'overviewVariants' => $previews,
+            'documentationMarkdown' => $markdown, 'documentationError' => $documentationError];
     }
 
     private function renderVariantViewResponse(ServerRequestInterface $request): ResponseInterface
@@ -89,11 +139,11 @@ final readonly class FrontendStudioModuleController
     /**
      * @return array<string, mixed>
      */
-    private function getVariantAssignments(string $selectedVariantIdentifier, ServerRequestInterface $request): array
+    private function getVariantAssignments(string $selectedVariantIdentifier, ServerRequestInterface $request, bool $renderSources = true): array
     {
         $selectedComponentMetadata = $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($selectedVariantIdentifier);
         $previewContext = $this->getPreviewContext($selectedVariantIdentifier, $request);
-        [$renderedHtmlSource, $renderedHtmlStatus] = $selectedComponentMetadata !== null
+        [$renderedHtmlSource, $renderedHtmlStatus] = $renderSources && $selectedComponentMetadata !== null
             ? $this->renderInitialHtmlSource($selectedVariantIdentifier, $request)
             : ['', ''];
 
@@ -112,6 +162,8 @@ final readonly class FrontendStudioModuleController
             'renderedHtmlStatus' => $renderedHtmlStatus,
             'fluidTemplateAnalysis' => $this->fluidTemplateAnalyzer->analyze($selectedComponentMetadata?->template),
             'fluidUsageSource' => $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata),
+            'fluidTemplateSource' => $renderSources ? $this->renderFluidTemplateSource($selectedComponentMetadata) : '',
+            'fluidUsageSource' => $renderSources ? $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata) : [],
             'componentChangeStreamUri' => Environment::getContext()->isDevelopment()
                 ? (string)$this->uriBuilder->buildUriFromRoute('ajax_frontend_studio_component_change_stream')
                 : '',
