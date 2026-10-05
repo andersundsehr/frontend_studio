@@ -14,6 +14,8 @@ final readonly class ComponentChangeEventStream implements SelfEmittableStreamIn
 
     private const int MAX_RUNTIME_SECONDS = 300;
 
+    private const int FLUSH_PADDING_BYTES = 8192;
+
     public function __construct(
         private ComponentTemplateRootWatcher $componentTemplateRootWatcher,
     ) {
@@ -25,16 +27,17 @@ final readonly class ComponentChangeEventStream implements SelfEmittableStreamIn
         @ini_set('zlib.output_compression', '0');
         ignore_user_abort(false);
 
-        $snapshot = $this->componentTemplateRootWatcher->createSnapshot();
         $this->sendEvent('ready');
-
         $startedAt = time();
+        $snapshot = $this->componentTemplateRootWatcher->createSnapshot();
         while (connection_aborted() === 0 && time() - $startedAt < self::MAX_RUNTIME_SECONDS) {
             usleep(self::POLL_INTERVAL_MICROSECONDS);
 
+            // A write detects disconnects before starting another filesystem scan.
+            $this->sendComment('keep-alive');
+
             $currentSnapshot = $this->componentTemplateRootWatcher->createSnapshot();
             if ($currentSnapshot === $snapshot) {
-                $this->sendComment('keep-alive');
                 continue;
             }
 
@@ -67,6 +70,10 @@ final readonly class ComponentChangeEventStream implements SelfEmittableStreamIn
 
     private function flush(): void
     {
+        // Apache's default FastCGI buffering otherwise retains small SSE frames,
+        // delaying both delivery and detection of a disconnected client.
+        echo ': ' . str_repeat(' ', self::FLUSH_PADDING_BYTES) . "\n\n";
+
         if (ob_get_level() > 0) {
             @ob_flush();
         }

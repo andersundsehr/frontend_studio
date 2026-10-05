@@ -10,6 +10,7 @@ import { SeverityEnum } from '@typo3/backend/enum/severity.js';
 import { TreeToolbar } from '@typo3/backend/tree/tree-toolbar.js';
 import ClientStorage from '@typo3/backend/storage/client.js';
 import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.js';
+import ComponentFileWatcher from '@andersundsehr/frontend-studio/backend/component-file-watcher.js';
 
 const componentTreeModuleStateType = 'frontend_studio_component_tree';
 const frontendStudioModuleName = 'admin_frontendstudio';
@@ -479,11 +480,13 @@ class FrontendStudioComponentTreeContainer extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.fileWatcher = new ComponentFileWatcher();
     top.document.addEventListener('typo3-module-loaded', this.restoreTreeStateAfterModuleLoaded);
     top.document.addEventListener('frontend-studio:component-files-changed', this.refreshTreeAfterComponentFilesChanged);
   }
 
   disconnectedCallback() {
+    this.fileWatcher.destroy();
     top.document.removeEventListener('typo3-module-loaded', this.restoreTreeStateAfterModuleLoaded);
     top.document.removeEventListener('frontend-studio:component-files-changed', this.refreshTreeAfterComponentFilesChanged);
     super.disconnectedCallback();
@@ -505,8 +508,8 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     await this.restoreTreeStateFromCurrentContext();
   };
 
-  refreshTreeAfterComponentFilesChanged = async () => {
-    if (this.treeInitialized !== true || this.tree === null) {
+  refreshTreeAfterComponentFilesChanged = async (event) => {
+    if (event.detail?.ownAction === true || this.treeInitialized !== true || this.tree === null) {
       return;
     }
 

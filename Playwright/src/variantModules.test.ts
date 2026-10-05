@@ -447,6 +447,10 @@ for (const action of ['save', 'copy']) {
     const modules = backendModules({ ...env, EventSource }, {
       '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     });
+    const { default: Watcher } = await modules.import('component-file-watcher.js');
+    const owner = new Watcher();
+    t.after(() => owner.destroy());
+    owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
     const { default: Controls } = await modules.import('variant-controls.js');
     const { default: View } = await modules.import('variant-view.js');
     const { getVariantState } = await modules.import('variant-state.js');
@@ -462,8 +466,7 @@ for (const action of ['save', 'copy']) {
     const pending = action === 'save' ? view.controls.saveValues() : view.controls.copyVariant('New');
     assert.equal(view.features.has('watcher'), false, 'the action must start before the watcher mounts');
     await initializing;
-    const watcher = view.features.get('watcher');
-    const changed = () => watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+    const changed = () => owner.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
       data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
     }));
     if (action === 'copy') {
@@ -499,6 +502,10 @@ for (const action of ['save', 'copy']) {
     const modules = backendModules({ ...env, EventSource }, {
       '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     });
+    const { default: Watcher } = await modules.import('component-file-watcher.js');
+    const owner = new Watcher();
+    t.after(() => owner.destroy());
+    owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
     const { default: Controls } = await modules.import('variant-controls.js');
     const { default: View } = await modules.import('variant-view.js');
     const { getVariantState } = await modules.import('variant-state.js');
@@ -514,8 +521,7 @@ for (const action of ['save', 'copy']) {
     await View.initialize();
     view.controls.resetValues();
     assert.equal(view.hasUnsavedChanges, false);
-    const watcher = view.features.get('watcher');
-    watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+    owner.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
       data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
     }));
     assert.equal(reloads, 1, 'a failed early write must not suppress an external change');
@@ -646,6 +652,14 @@ for (const identifier of ['site:card:Default', 'site:card:Second']) {
     const modules = backendModules({ ...env, EventSource }, {
       '@typo3/core/ajax/ajax-request.js': AjaxRequest,
     });
+    const { default: Owner } = await modules.import('component-file-watcher.js');
+    const owner = new Owner();
+    t.after(() => owner.destroy());
+    owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
+    const ownChanges: boolean[] = [];
+    env.document.addEventListener('frontend-studio:component-files-changed', (event) => {
+      ownChanges.push((event as CustomEvent).detail.ownAction);
+    });
     const { default: Controls } = await modules.import('variant-controls.js');
     const { default: View } = await modules.import('variant-view.js');
     const { getVariantState } = await modules.import('variant-state.js');
@@ -658,72 +672,67 @@ for (const identifier of ['site:card:Default', 'site:card:Second']) {
     let secondChanges = 0;
     firstView.addEventListener('files', () => { firstChanges++; });
     secondView.addEventListener('files', () => { secondChanges++; });
-    const changed = (view: any) => view.features.get('watcher').source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+    const changed = () => owner.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
       data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
     }));
     first.field.value = 'Saved in first view';
     first.field.dispatchEvent(new Event('input'));
     await firstView.controls.saveValues();
-    changed(secondView);
+    changed();
     assert.equal(secondChanges, 1, 'a save in another view must not suppress this view’s change');
     assert.equal(reloads, 1);
-    changed(firstView);
     assert.equal(firstChanges, 0, 'the saving view must still suppress its own change');
-    assert.equal(reloads, 1);
     secondView.fileAction('started');
     firstView.fileAction('cancelled');
-    changed(secondView);
+    changed();
     assert.equal(secondChanges, 1, 'another view’s cancellation must not clear this view’s suppression');
-    assert.equal(reloads, 1);
+    assert.equal(reloads, 2);
     secondView.fileAction('started');
     env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-cancelled'));
-    changed(secondView);
+    changed();
     assert.equal(secondChanges, 1, 'unidentified actions must not change suppression');
-    changed(secondView);
+    changed();
     assert.equal(secondChanges, 2);
-    assert.equal(reloads, 2, 'later external changes must still reload a clean view');
+    assert.equal(reloads, 5, 'later external changes must still reload both clean views');
+    assert.deepEqual(ownChanges, [true, true, true, false], 'another controls scope must not cancel a pending own action');
   });
 }
 
-test('host initialization deduplicates the change stream and cleanup closes it', async () => {
+test('variant subscriptions deduplicate, filter changes and preserve dirty values without opening a stream', async () => {
   const root = element({ variantIdentifier: 'site:card:Default', componentChangeStreamUri: '/changes' });
   const env = environment([root]);
-  let streams = 0;
-  let closes = 0;
   let reloads = 0;
   env.window.location.reload = () => { reloads++; };
-  class EventSource extends EventTarget {
-    constructor(_url: string) { super(); streams++; }
-    close() { closes++; }
-  }
+  class EventSource { constructor() { throw new Error('Variant documents must not open streams'); } }
   const modules = backendModules({ ...env, EventSource });
   const { default: View } = await modules.import('variant-view.js');
   const { getVariantState } = await modules.import('variant-state.js');
   await Promise.all([View.initialize(), View.initialize()]);
-  assert.equal(streams, 1);
   assert.ok([...modules.loaded].every((name) => !name.endsWith('/variant-preview.js')));
   const view = getVariantState(root);
-  const watcher = view.features.get('watcher');
-  const source = watcher.source;
-  const changed = () => source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
-    data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+  assert.equal(view.features.size, 1);
+  let changes = 0;
+  view.addEventListener('files', () => { changes++; });
+  const changed = (componentIdentifiers: string[]) => env.top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
+    detail: { componentIdentifiers },
   }));
-  view.fileAction('started');
-  changed();
-  assert.equal(reloads, 0);
+  changed(['site:other']);
+  env.top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', { detail: { variantIdentifier: 'site:card:Copy' } }));
+  assert.equal(changes, 0);
   view.hasUnsavedChanges = true;
-  changed();
+  changed(['site:card']);
+  assert.equal(changes, 1);
   assert.equal(reloads, 0);
   view.hasUnsavedChanges = false;
-  changed();
+  changed(['site:card']);
   assert.equal(reloads, 1);
   env.window.dispatchEvent(new Event('pagehide'));
-  assert.equal(closes, 1);
-  changed();
+  changed(['site:card']);
+  assert.equal(changes, 2);
   assert.equal(reloads, 1);
 });
 
-test('cached navigation suspends requests and watching, then resumes only the active panel', async (t) => {
+test('cached variant navigation suspends subscriptions and requests, then resumes only the active panel', async (t) => {
   const host = element({ variantIdentifier: 'site:card:Default', previewUri: '/preview', componentChangeStreamUri: '/changes' });
   const root = element({ activeTab: 'values' });
   root.closest = () => host;
@@ -736,14 +745,8 @@ test('cached navigation suspends requests and watching, then resumes only the ac
   root.selectors.set('[data-frontend-studio-variant-tab-panel]', panels);
   const env = environment();
   env.document.querySelectorAll = (selector?: string) => selector?.endsWith('sidebar]') ? [root] : [host];
-  const streams: EventSource[] = [];
-  class EventSource extends EventTarget {
-    closed = false;
-    constructor(_url: string) { super(); streams.push(this); }
-    close() { this.closed = true; }
-  }
   const responses: { resolve: (response: any) => void; signal: AbortSignal }[] = [];
-  const modules = backendModules({ ...env, EventSource, fetch: (_url: string, options: { signal: AbortSignal }) =>
+  const modules = backendModules({ ...env, fetch: (_url: string, options: { signal: AbortSignal }) =>
     new Promise((resolve) => responses.push({ resolve, signal: options.signal })) });
   const { default: Sidebar } = await modules.import('variant-sidebar.js');
   const { default: View } = await modules.import('variant-view.js');
@@ -754,7 +757,6 @@ test('cached navigation suspends requests and watching, then resumes only the ac
   t.after(() => view.destroy());
   const sidebar = view.features.get(root);
   env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
-  assert.equal(streams.length, 1);
   await sidebar.activateTab('html');
   const panel = sidebar.panels.get('html');
   const pending = panel.refresh();
@@ -762,14 +764,12 @@ test('cached navigation suspends requests and watching, then resumes only the ac
   env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true }));
   assert.equal(view.destroyed, false);
   assert.equal(responses[0].signal.aborted, true);
-  assert.equal(streams[0].closed, true);
   responses[0].resolve({ ok: true, text: async () => 'Stale response while cached' });
   await pending;
   assert.equal(container.innerHTML, '');
 
   env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
   await new Promise((resolve) => setTimeout(resolve, 10));
-  assert.equal(streams.length, 2);
   assert.equal(sidebar.activeTab, 'html');
   assert.equal(sidebar.panels.get('html'), panel);
   assert.equal(responses.length, 2);
@@ -779,27 +779,26 @@ test('cached navigation suspends requests and watching, then resumes only the ac
   let fileChanges = 0;
   view.hasUnsavedChanges = true;
   view.addEventListener('files', () => { fileChanges++; });
-  const changed = (source: EventSource) => source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
-    data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
+  const changed = () => env.top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
+    detail: { componentIdentifiers: ['site:card'] },
   }));
-  changed(streams[0]);
+  view.changed('suspend');
+  changed();
   assert.equal(fileChanges, 0);
-  changed(streams[1]);
+  view.changed('resume');
+  changed();
   assert.equal(fileChanges, 1);
   buttons[0].dispatchEvent(new Event('click'));
   assert.equal(panels[0].hidden, false);
   assert.equal(panels[1].hidden, true);
 
   env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: true }));
-  assert.equal(streams[1].closed, true);
   env.window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
   await new Promise((resolve) => setTimeout(resolve, 10));
-  assert.equal(streams.length, 3);
   assert.equal(responses.length, 2, 'hidden panels must stay idle after restoration');
   env.window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted: false }));
   assert.equal(view.destroyed, true);
-  assert.equal(streams[2].closed, true);
-  changed(streams[2]);
+  changed();
   assert.equal(fileChanges, 1);
 });
 
@@ -1169,17 +1168,21 @@ test('watcher ignores malformed and unrelated events, refreshes dirty views and 
   env.window.location.reload = () => { reloads++; };
   env.document.addEventListener('frontend-studio:component-files-changed', () => { treeEvents++; });
   const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } });
+  const { default: Owner } = await modules.import('component-file-watcher.js');
+  const owner = new Owner();
+  t.after(() => owner.destroy());
+  owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
   const { VariantState } = await modules.import('variant-state.js');
   const { default: Watcher } = await modules.import('variant-file-watcher.js');
   const view = new VariantState(root);
-  const watcher = view.mount(root, () => new Watcher(root, view));
+  view.mount(root, () => new Watcher(root, view));
   t.after(() => view.destroy());
   view.addEventListener('files', () => { files++; });
-  const change = (data: string) => watcher.source.dispatchEvent(Object.assign(new Event('component-files-changed'), { data }));
+  const change = (data: string) => owner.source.dispatchEvent(Object.assign(new Event('component-files-changed'), { data }));
   for (const data of ['invalid JSON', '{}', '{"componentIdentifiers":"site:card"}', '{"componentIdentifiers":["site:other"]}']) change(data);
   assert.equal(files, 0);
   assert.equal(reloads, 0);
-  assert.equal(treeEvents, 4, 'the tree can still refresh for changes unrelated to the selected component');
+  assert.equal(treeEvents, 1, 'only valid changes reach the tree, including unrelated components');
   view.hasUnsavedChanges = true;
   change('{"componentIdentifiers":["site:card"]}');
   assert.equal(files, 1);
@@ -1372,6 +1375,10 @@ for (const action of ['create', 'copy', 'delete']) {
       let changes = 0;
       env.window.location.reload = () => { reloads++; };
       const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } });
+      const { default: Owner } = await modules.import('component-file-watcher.js');
+      const owner = new Owner();
+      t.after(() => owner.destroy());
+      owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
       const { default: View } = await modules.import('variant-view.js');
       const { getVariantState } = await modules.import('variant-state.js');
       const view = getVariantState(root);
@@ -1385,7 +1392,7 @@ for (const action of ['create', 'copy', 'delete']) {
         detail: { action, identifier },
       }));
       await pending;
-      const source = view.features.get('watcher').source;
+      const source = owner.source;
       const changed = () => source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
         data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
       }));
@@ -1404,6 +1411,10 @@ for (const action of ['create', 'copy', 'delete']) {
     let reloads = 0;
     env.window.location.reload = () => { reloads++; };
     const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } });
+    const { default: Owner } = await modules.import('component-file-watcher.js');
+    const owner = new Owner();
+    t.after(() => owner.destroy());
+    owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
     const { default: View } = await modules.import('variant-view.js');
     const { getVariantState } = await modules.import('variant-state.js');
     await View.initialize();
@@ -1413,7 +1424,7 @@ for (const action of ['create', 'copy', 'delete']) {
     const dispatch = (type: string, identifier: string) => env.document.dispatchEvent(new CustomEvent(
       `frontend-studio:component-file-action-${type}`, { detail: { action, identifier } },
     ));
-    const changed = () => view.features.get('watcher').source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
+    const changed = () => owner.source.dispatchEvent(Object.assign(new Event('component-files-changed'), {
       data: JSON.stringify({ componentIdentifiers: ['site:card'] }),
     }));
     dispatch('started', identifier);
@@ -1463,12 +1474,18 @@ for (const action of ['save', 'copy', 'tree-copy']) {
     let treeEvents = 0;
     let resolve!: (response: any) => void;
     env.window.location.reload = () => { reloads++; };
-    env.document.addEventListener('frontend-studio:component-files-changed', () => { treeEvents++; });
+    env.document.addEventListener('frontend-studio:component-files-changed', (event) => {
+      if (!(event as CustomEvent).detail.ownAction) { treeEvents++; }
+    });
     const modules = backendModules({ ...env, EventSource: class extends EventTarget { close() {} } }, {
       '@typo3/core/ajax/ajax-request.js': class {
         post() { return new Promise((done) => { resolve = done; }); }
       },
     });
+    const { default: Owner } = await modules.import('component-file-watcher.js');
+    const owner = new Owner();
+    t.after(() => owner.destroy());
+    owner.updateModule({ module: 'admin_frontendstudio', componentChangeStreamUri: '/changes' });
     const { default: Controls } = await modules.import('variant-controls.js');
     const { default: View } = await modules.import('variant-view.js');
     const { getVariantState } = await modules.import('variant-state.js');
@@ -1489,14 +1506,14 @@ for (const action of ['save', 'copy', 'tree-copy']) {
         detail: { action: 'copy', identifier: 'site:card:Other' },
       }));
     }
-    const changed = (data: string) => view.features.get('watcher').source.dispatchEvent(Object.assign(
+    const changed = (data: string) => owner.source.dispatchEvent(Object.assign(
       new Event('component-files-changed'), { data },
     ));
     for (const data of ['{"componentIdentifiers":["site:other"]}', 'invalid JSON', '{}']) {
       changed(data);
       assert.equal(view.ignoreNextComponentFilesChanged, true, 'unrelated events must preserve suppression for the pending write');
     }
-    assert.equal(treeEvents, 3, 'unrelated events must still notify the component tree');
+    assert.equal(treeEvents, 1, 'valid unrelated events must still notify the component tree');
     assert.equal(files, 0);
     assert.equal(reloads, 0);
     if (action === 'save') {
@@ -1506,7 +1523,7 @@ for (const action of ['save', 'copy', 'tree-copy']) {
     assert.equal(view.hasUnsavedChanges, false);
     changed('{"componentIdentifiers":["site:card"]}');
     assert.equal(view.ignoreNextComponentFilesChanged, false, 'only the matching event consumes suppression');
-    assert.equal(treeEvents, 3);
+    assert.equal(treeEvents, 1);
     assert.equal(files, 0);
     assert.equal(reloads, 0, 'the own write must not reload a clean view or compete with copy navigation');
     if (action === 'copy') {

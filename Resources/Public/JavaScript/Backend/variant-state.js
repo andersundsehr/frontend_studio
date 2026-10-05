@@ -10,6 +10,7 @@ export class VariantState extends EventTarget {
     this.controls = null;
     this.hasUnsavedChanges = false;
     this.ignoreNextComponentFilesChanged = false;
+    this.fileActionScope = Symbol();
     this.revision = 0;
     this.destroyed = false;
     this.features = new Map();
@@ -92,7 +93,7 @@ export class VariantState extends EventTarget {
     // Remember this view’s action before the optional watcher module has loaded.
     this.ignoreNextComponentFilesChanged = type === 'started';
     top.document.dispatchEvent(new CustomEvent(`frontend-studio:component-file-action-${type}`, {
-      detail: { action, variantIdentifier: this.variantIdentifier },
+      detail: { action, variantIdentifier: this.variantIdentifier, scope: this.fileActionScope },
     }));
   }
 
