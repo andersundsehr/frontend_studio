@@ -55,7 +55,7 @@ export default defineConfig({
   testDir: './packages',
   // Include TypeScript specs ending in .spec.ts.
   testMatch: '**/*.spec.ts',
-  // Ignore generated templates and Storybook tests.
+  // Ignore generated templates and example_extension tests.
   testIgnore: ['**/CodeTemplates/**', '**/example_extension/**'],
 
   // Allow tests to run in parallel.

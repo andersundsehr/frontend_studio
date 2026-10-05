@@ -125,7 +125,7 @@ final class TransformersFactoryTest extends UnitTestCase
     private function createComponentDefinition(string $targetType): ComponentDefinition
     {
         return new ComponentDefinition(
-            'storybook:test',
+            'example:test',
             [
                 'title' => new ArgumentDefinition(
                     'title',

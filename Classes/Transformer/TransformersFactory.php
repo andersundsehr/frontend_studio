@@ -119,7 +119,7 @@ final readonly class TransformersFactory
 
             if (!$this->isTypeAssignable($resultType, $targetType)) {
                 throw new RuntimeException(
-                    '🥺🙏 please report this!!! https://github.com/andersundsehr/storybook/issues The transformer for argument "' . $argumentName . '" returns a value of type "' . $resultType . '" but the component expects a value of type "' . $targetType . '". ' .
+                    '🥺🙏 please report this!!! https://github.com/andersundsehr/frontend_studio/issues The transformer for argument "' . $argumentName . '" returns a value of type "' . $resultType . '" but the component expects a value of type "' . $targetType . '". ' .
                         'Please adjust the transformer or the component definition.',
                     4128088840
                 );
