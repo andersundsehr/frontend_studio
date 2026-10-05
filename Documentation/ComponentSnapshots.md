@@ -66,6 +66,21 @@ Giving CI `-u` does not hide snapshot changes: created or updated files still fa
 the job until reviewed and committed. Production and its subcontexts only compare;
 they do not create missing snapshots and reject updates.
 
+## Running HTML tests from the component tree
+
+Select the preview site and language, then use a row's ▶ button to test its saved
+fixtures or **Test all** to test the complete catalog, including filtered or
+collapsed rows. Unsaved form edits are not used. Requests run one variant at a time;
+the toolbar separates progress from the passed/total count. A scope receives a
+checkmark only after every descendant has passed. Missing/new baselines, errors
+and mismatches show a clickable red X with escaped expected/actual HTML details.
+The same baseline creation and Production restrictions apply as in the CLI.
+
+Changing site/language or component files clears results and cancels the current
+browser run. Responses from an earlier run are ignored. Manually reviewing or
+recreating baseline files requires another test run; baseline writes themselves
+do not trigger the development file watcher.
+
 ## Test one component or variant
 
 Use `--scope` with an identifier from the Frontend Studio tree:

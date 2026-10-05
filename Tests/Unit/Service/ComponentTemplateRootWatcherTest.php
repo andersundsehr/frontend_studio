@@ -49,6 +49,21 @@ final class ComponentTemplateRootWatcherTest extends TestCase
         @rmdir($this->templateRoot);
     }
 
+    public function testBaselineWritesDoNotInvalidateTheRunningGuiTests(): void
+    {
+        $watcher = $this->createWatcher();
+        $before = $watcher->createSnapshot();
+        $directory = $this->templateRoot . '/Card/Card.html-snapshots';
+        mkdir($directory);
+        try {
+            file_put_contents($directory . '/baseline.html', '<p>Baseline</p>');
+            self::assertSame($before, $watcher->createSnapshot());
+        } finally {
+            unlink($directory . '/baseline.html');
+            rmdir($directory);
+        }
+    }
+
     public function testSlotFileLifecycleRefreshesOwningComponent(): void
     {
         $watcher = $this->createWatcher();

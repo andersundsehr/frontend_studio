@@ -3,11 +3,16 @@
 declare(strict_types=1);
 
 use Andersundsehr\FrontendStudio\Controller\FrontendStudioModuleController;
+use Andersundsehr\FrontendStudio\Controller\SnapshotController;
 use Andersundsehr\FrontendStudio\Controller\ComponentTreeController;
 use Andersundsehr\FrontendStudio\Controller\ComponentTransformerController;
 use Andersundsehr\FrontendStudio\Controller\ComponentChangeStreamController;
 
 return [
+    'frontend_studio_snapshot' => [
+        'path' => '/frontend-studio/snapshots',
+        'target' => SnapshotController::class . '::runAction',
+    ],
     'frontend_studio_template_analysis' => [
         'path' => '/frontend-studio/template-analysis',
         'target' => FrontendStudioModuleController::class . '::templateAction',
