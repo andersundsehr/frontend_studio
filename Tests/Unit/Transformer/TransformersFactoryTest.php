@@ -38,7 +38,11 @@ final class TransformersFactoryTest extends UnitTestCase
         ]);
         $collection->method('getTemplatePaths')->willReturn($paths);
         $collection->method('resolveTemplateName')->willReturn('Card');
-        $collection->method('getComponentDefinition')->willReturn($this->createComponentDefinition(Stringable::class));
+        $collection->method('getComponentDefinition')->willReturn(new ComponentDefinition('Card', [
+            'title' => new ArgumentDefinition('title', Stringable::class, '', false, null, false),
+            'payload' => new ArgumentDefinition('payload', 'stdClass', '', false, null, false),
+            'count' => new ArgumentDefinition('count', 'int', '', false, 1, false),
+        ], false, []));
 
         try {
             $this->createSubject()->get($collection, 'Card');
@@ -47,6 +51,7 @@ final class TransformersFactoryTest extends UnitTestCase
             self::assertSame('title', $missingTransformerException->argumentName);
             self::assertSame(Stringable::class, $missingTransformerException->argumentType);
             self::assertSame('Tests/Functional/Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.transformer.php', $missingTransformerException->transformerFile);
+            self::assertSame(['title' => Stringable::class, 'payload' => 'stdClass'], $missingTransformerException->missingArguments);
             self::assertSame(6790927084, $missingTransformerException->getCode());
         }
     }

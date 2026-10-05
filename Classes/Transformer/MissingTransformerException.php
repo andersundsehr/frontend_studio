@@ -8,10 +8,12 @@ use RuntimeException;
 
 final class MissingTransformerException extends RuntimeException
 {
+    /** @param array<string, string> $missingArguments */
     public function __construct(
         public readonly string $argumentName,
         public readonly string $argumentType,
         public readonly string $transformerFile,
+        public readonly array $missingArguments = [],
     ) {
         parent::__construct(
             'No transformer is available for argument "' . $argumentName . '" of type "' . $argumentType . '". '

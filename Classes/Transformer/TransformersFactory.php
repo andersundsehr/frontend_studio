@@ -52,13 +52,7 @@ final readonly class TransformersFactory
         ComponentTemplateResolverInterface&ComponentDefinitionProviderInterface $collection,
         string $componentName,
     ): Transformers {
-        $templateName = $collection->resolveTemplateName($componentName);
-        $fileName = $collection->getTemplatePaths()->resolveTemplateFileForControllerAndActionAndFormat('Default', $templateName);
-        $pdaFileName = preg_replace('/(\.fluid)?\.html$/', '.transformer.php', (string)$fileName) ?:
-            throw new RuntimeException(
-                'Could not resolve the transformer file for the component "' . $componentName . '"',
-                5992417357,
-            );
+        $pdaFileName = $this->getTransformerFile($collection, $componentName);
 
         $argumentTransformers = $this->loadArgumentTransformer($pdaFileName, $componentName);
 
@@ -73,6 +67,7 @@ final readonly class TransformersFactory
         }
 
         $transformers = [];
+        $missingArguments = [];
 
         foreach ($argumentDefinitions as $argumentName => $argumentDefinition) {
             if (isset($argumentTransformers->arguments[$argumentName])) {
@@ -93,10 +88,16 @@ final readonly class TransformersFactory
             }
 
             if (!$this->typeTransformers->has($type)) {
-                throw new MissingTransformerException($argumentName, $type, Path::makeRelative($pdaFileName, Environment::getProjectPath()));
+                $missingArguments[$argumentName] = $type;
+                continue;
             }
 
             $transformers[$argumentName] = $this->typeTransformers->get($type);
+        }
+
+        if ($missingArguments !== []) {
+            $argumentName = array_key_first($missingArguments);
+            throw new MissingTransformerException($argumentName, $missingArguments[$argumentName], Path::makeRelative($pdaFileName, Environment::getProjectPath()), $missingArguments);
         }
 
         $result = new Transformers(arguments: $transformers, fromFile: $pdaFileName);
@@ -104,6 +105,20 @@ final readonly class TransformersFactory
         $this->validateReturnType($collection->getComponentDefinition($componentName), $result);
 
         return $result;
+    }
+
+    public function getTransformerFile(
+        ComponentTemplateResolverInterface&ComponentDefinitionProviderInterface $collection,
+        string $componentName,
+    ): string {
+        $templateName = $collection->resolveTemplateName($componentName);
+        $fileName = $collection->getTemplatePaths()->resolveTemplateFileForControllerAndActionAndFormat('Default', $templateName);
+
+        return preg_replace('/(\.fluid)?\.html$/', '.transformer.php', (string)$fileName) ?:
+            throw new RuntimeException(
+                'Could not resolve the transformer file for the component "' . $componentName . '"',
+                5992417357,
+            );
     }
 
     public function validateReturnType(ComponentDefinition $componentDefinition, Transformers $transformers): void

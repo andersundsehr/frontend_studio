@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 use Andersundsehr\FrontendStudio\Controller\ComponentTreeController;
 use Andersundsehr\FrontendStudio\Controller\ComponentPreviewController;
+use Andersundsehr\FrontendStudio\Controller\ComponentTransformerController;
 use Andersundsehr\FrontendStudio\Controller\ComponentChangeStreamController;
 
 return [
     'frontend_studio_component_preview' => [
         'path' => '/frontend-studio/component/preview',
         'target' => ComponentPreviewController::class . '::renderAction',
+    ],
+    'frontend_studio_component_create_transformer' => [
+        'path' => '/frontend-studio/component/create-transformer',
+        'target' => ComponentTransformerController::class . '::createAction',
+
     ],
     'frontend_studio_component_change_stream' => [
         'path' => '/frontend-studio/component-changes/stream',

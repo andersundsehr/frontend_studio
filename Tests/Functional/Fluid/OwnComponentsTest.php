@@ -120,6 +120,8 @@ final class OwnComponentsTest extends FunctionalTestCase
         $html = $this->renderVariantView($assignments);
         self::assertStringContainsString('data-frontend-studio-missing-transformer', $html);
         self::assertStringContainsString('ArgumentTransformers', $html);
+        self::assertStringContainsString('data-frontend-studio-create-transformer', $html);
+        self::assertStringContainsString('Review the generated file', $html);
         self::assertStringContainsString('#[TypeTransformer]', $html);
         self::assertStringContainsString('MissingTransformer.transformer.php', $html);
         self::assertStringContainsString('stdClass', $html);
