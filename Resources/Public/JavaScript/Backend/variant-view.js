@@ -40,6 +40,7 @@ class FrontendStudioVariantView {
     this.sidebarResizeHandle = root.querySelector('[data-frontend-studio-variant-sidebar-resize]');
     this.copyComponentPathButton = root.querySelector('[data-frontend-studio-copy-component-path]');
     this.copyFluidUsageButtons = Array.from(root.querySelectorAll('[data-frontend-studio-copy-fluid-usage]'));
+    this.createTransformerButton = root.querySelector('[data-frontend-studio-create-transformer]');
     this.saveButton = root.querySelector('[data-frontend-studio-variant-save]');
     this.copyVariantButton = root.querySelector('[data-frontend-studio-variant-copy]');
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
@@ -70,7 +71,32 @@ class FrontendStudioVariantView {
     this.ignoreNextComponentFilesChanged = false;
   }
 
+  async createTransformer() {
+    if (this.createTransformerButton === null || this.createTransformerButton.disabled) {
+      return;
+    }
+
+    this.createTransformerButton.disabled = true;
+    this.dispatchComponentFileActionStarted('create-transformer');
+    try {
+      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_create_transformer)
+        .post({identifier: this.variantIdentifier});
+      const result = await response.resolve();
+      if (!result.success) {
+        throw new Error(result.message || 'Could not create the transformer file.');
+      }
+      Notification.info('Transformer template created', `${result.path}. ${result.hasTodos ? 'Implement the TODO transformations before using this component.' : 'Review the generated transformation and its JSON input.'}`);
+      window.location.reload();
+    } catch (error) {
+      this.dispatchComponentFileActionCancelled();
+      const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
+      Notification.error('Transformer creation failed', payload?.message || error?.message || 'Could not create the transformer file.');
+      this.createTransformerButton.disabled = false;
+    }
+  }
+
   initialize() {
+    this.createTransformerButton?.addEventListener('click', () => this.createTransformer());
     this.initializePreviewContextSelectors();
     this.initializeSidebarResize();
 

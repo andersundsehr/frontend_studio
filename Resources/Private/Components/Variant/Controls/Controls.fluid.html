@@ -20,7 +20,24 @@
     <f:then>
       <div class="alert alert-danger" role="alert" data-frontend-studio-missing-transformer>
         <strong>Controls are unavailable because a required transformer is missing.</strong>
-        <p class="mb-0 text-break">{selectedComponentMetadata.missingTransformerError}</p>
+        <p class="text-break">{selectedComponentMetadata.missingTransformerError}</p>
+        <ul>
+          <f:for each="{selectedComponentMetadata.missingTransformers.arguments}" as="type" key="name">
+            <li><code>{name}</code>: <code>{type}</code></li>
+          </f:for>
+        </ul>
+        <f:if condition="{selectedComponentMetadata.missingTransformers.canGenerate}">
+          <f:then>
+            <button type="button" class="btn btn-default btn-sm" data-frontend-studio-create-transformer>
+              Create transformer starting template
+            </button>
+            <p class="mb-0">Review the generated file and implement any TODO transformations before using the component.</p>
+          </f:then>
+          <f:else>
+            <p class="mb-0">Add entries manually to the existing transformer file or register a TypeTransformer.
+              Generation requires a new file in a writable directory outside Production.</p>
+          </f:else>
+        </f:if>
       </div>
     </f:then>
     <f:else>

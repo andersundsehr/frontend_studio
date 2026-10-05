@@ -18,6 +18,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use Andersundsehr\FrontendStudio\Transformer\MissingTransformerException;
+use Andersundsehr\FrontendStudio\Dto\MissingTransformersMetadata;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use DateTimeImmutable;
 use RuntimeException;
@@ -84,6 +85,7 @@ final readonly class ComponentMetadataProvider
         $errors = [];
         $transformers = null;
         $missingTransformerError = null;
+        $missingTransformers = null;
 
         if ($resolverDelegate instanceof ComponentDefinitionProviderInterface) {
             try {
@@ -111,6 +113,13 @@ final readonly class ComponentMetadataProvider
                 $transformers = $this->transformersFactory->get($resolverDelegate, $componentName);
             } catch (MissingTransformerException $exception) {
                 $missingTransformerError = $exception->getMessage();
+                $file = $this->transformersFactory->getTransformerFile($resolverDelegate, $componentName);
+                $missingTransformers = new MissingTransformersMetadata(
+                    $file,
+                    $exception->transformerFile,
+                    $exception->missingArguments,
+                    !file_exists($file) && !is_link($file) && !$this->writePolicy->isReadOnly() && is_writable(dirname($file)),
+                );
                 $errors[] = 'Component transformers could not be loaded: ' . $missingTransformerError;
             } catch (Throwable $throwable) {
                 $errors[] = 'Component transformers could not be loaded: ' . $throwable->getMessage();
@@ -153,6 +162,7 @@ final readonly class ComponentMetadataProvider
             $errors,
             $missingTransformerError,
             $this->writePolicy->isReadOnly(),
+            $missingTransformers,
         );
     }
 
