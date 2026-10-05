@@ -33,7 +33,6 @@ use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Http\CookieScope;
-use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Page\Event\ResolveVirtualJavaScriptImportEvent;
@@ -580,8 +579,6 @@ final class OwnComponentsTest extends FunctionalTestCase
             'REQUEST_URI' => $path,
             'REQUEST_METHOD' => 'GET',
         ])->withCookieParams($cookies);
-        parse_str((string)parse_url($path, PHP_URL_QUERY), $query);
-        $request = $request->withQueryParams($query);
         $GLOBALS['TYPO3_REQUEST'] = $request;
 
         return $this->get(BackendApplication::class)->handle($request);
@@ -620,7 +617,7 @@ final class OwnComponentsTest extends FunctionalTestCase
             'HTTP_USER_AGENT' => 'TYPO3 Functional Test Request', 'SCRIPT_NAME' => '/index.php',
             'SCRIPT_FILENAME' => Environment::getPublicPath() . '/index.php', 'REQUEST_URI' => $path, 'REQUEST_METHOD' => 'GET',
         ])->withQueryParams($query)->withHeader('X-Requested-With', 'XMLHttpRequest')
-            ->withCookieParams([BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt()]);
+            ->withCookieParams([BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'))]);
         $this->get(Context::class)->setAspect('backend.user', new UserAspect());
         $GLOBALS['TYPO3_REQUEST'] = $request;
         $response = $this->get(FrontendApplication::class)->handle($request);
@@ -629,18 +626,18 @@ final class OwnComponentsTest extends FunctionalTestCase
     }
 
     #[DataProvider('ajaxPreviewFormats')]
-    public function testInspectorUsesProtectedBackendSessionWithScopedCookie(string $format): void
+    public function testPreviewWithoutInjectedContextUsesTheAuthenticatedSharedContext(string $format): void
     {
         $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
         $backendUser = $this->setUpBackendUser(1);
-        $uri = $this->get(UriBuilder::class)->buildUriFromRoute('ajax_frontend_studio_component_preview', [
-            'componentVariant' => 'site:card:Default', 'componentVariantValues' => '{"title":"Backend inspector"}',
-            'frontendStudioPreviewFormat' => $format, 'site' => 'preview', 'language' => 'de', 'previewTest' => 'yes',
-        ]);
-        $this->get(Context::class)->setAspect('backend.user', new UserAspect());
-        $response = $this->requestLabelModule((string)$uri, [BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'))]);
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
+        $response = $this->requestPreview('site:card:Default', format: $format, overrides: [
+            'componentVariantValues' => '{"title":"Shared context preview"}',
+            'componentVariantSlots' => '{"default":"<strong>Shared slot</strong>"}',
+        ], backendCookie: $cookie);
         self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
-        self::assertStringContainsString('Backend inspector', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        self::assertStringContainsString('Shared context preview', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        self::assertStringContainsString('Shared slot', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 
     /** @return iterable<string, array{string}> */
@@ -655,7 +652,7 @@ final class OwnComponentsTest extends FunctionalTestCase
     {
         $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
         $backendUser = $this->setUpBackendUser(1);
-        $cookie = $backendUser->getSession()->getJwt();
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
         $overrides = ['componentVariantValues' => '{"title":"Session preview"}'];
         $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: $cookie);
         self::assertSame(200, $response->getStatusCode());
@@ -704,7 +701,6 @@ final class OwnComponentsTest extends FunctionalTestCase
             $this->get(PreviewAssetRenderer::class),
             $this->get(ListenerProvider::class),
             $this->get(PreviewTypoScriptContextBuilderInterface::class),
-            $this->get(Context::class),
         );
         if ($backendCookie !== null) {
             $this->get(Context::class)->setAspect('backend.user', new UserAspect());

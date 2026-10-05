@@ -619,17 +619,6 @@ class FrontendStudioVariantView {
     return previewUrl;
   }
 
-  buildInspectorPreviewUrl(format) {
-    const url = new URL(TYPO3.settings.ajaxUrls.frontend_studio_component_preview, window.location.href);
-    this.buildPreviewUrl().searchParams.forEach((value, name) => {
-      if (name !== 'token') {
-        url.searchParams.set(name, value);
-      }
-    });
-    url.searchParams.set('frontendStudioPreviewFormat', format);
-    return url;
-  }
-
   previewErrorMessage(source, fallback) {
     try {
       const payload = JSON.parse(source);
@@ -646,13 +635,15 @@ class FrontendStudioVariantView {
   }
 
   buildRenderedHtmlUrl() {
-    const renderedHtmlUrl = this.buildInspectorPreviewUrl('highlighted-fragment');
+    const renderedHtmlUrl = this.buildPreviewUrl();
+    renderedHtmlUrl.searchParams.set('frontendStudioPreviewFormat', 'highlighted-fragment');
 
     return renderedHtmlUrl;
   }
 
   buildFluidUsageUrl() {
-    const fluidUsageUrl = this.buildInspectorPreviewUrl('fluid-usage');
+    const fluidUsageUrl = this.buildPreviewUrl();
+    fluidUsageUrl.searchParams.set('frontendStudioPreviewFormat', 'fluid-usage');
 
     return fluidUsageUrl;
   }

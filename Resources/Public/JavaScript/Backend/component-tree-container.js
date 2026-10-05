@@ -247,7 +247,7 @@ class FrontendStudioComponentTree extends Tree {
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
             title=${node.readOnly ? "Production: component files are read-only" : "Create variant"}
-            ?disabled=${node.readOnly}
+            ?hidden=${node.readOnly}
             @click=${(event) => {
               event.preventDefault();
               event.stopImmediatePropagation();
@@ -279,7 +279,7 @@ class FrontendStudioComponentTree extends Tree {
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
             title=${node.readOnly ? "Production: component files are read-only" : "Copy variant"}
-            ?disabled=${node.readOnly}
+            ?hidden=${node.readOnly}
             @click=${(event) => {
               event.preventDefault();
               event.stopImmediatePropagation();
@@ -292,7 +292,7 @@ class FrontendStudioComponentTree extends Tree {
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
             title=${node.readOnly ? "Production: component files are read-only" : "Delete variant"}
-            ?disabled=${node.readOnly}
+            ?hidden=${node.readOnly}
             @click=${(event) => {
               event.preventDefault();
               event.stopImmediatePropagation();
