@@ -13,6 +13,7 @@ class VariantControls extends VariantValues {
     this.saveButton = root.querySelector('[data-frontend-studio-variant-save]');
     this.copyVariantButton = root.querySelector('[data-frontend-studio-variant-copy]');
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
+    this.createTransformerButton = root.querySelector('[data-frontend-studio-create-transformer]');
     this.saveState = root.querySelector('[data-frontend-studio-variant-save-state]');
     this.saving = false;
     this.copying = false;
@@ -28,6 +29,7 @@ class VariantControls extends VariantValues {
     this.listen(this.saveButton, 'click', () => this.saveValues());
     this.listen(this.copyVariantButton, 'click', () => this.promptCopyVariant());
     this.listen(this.resetButton, 'click', () => this.resetValues());
+    this.listen(this.createTransformerButton, 'click', () => this.createTransformer());
     ['focusin', 'pointerdown'].forEach((type) => this.listen(view.root, type, () => { activeControls = this; }));
     this.listen(document, 'keydown', (event) => {
       if (activeControls === this && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
@@ -100,6 +102,34 @@ class VariantControls extends VariantValues {
     }
 
     this.copyVariant(name);
+  }
+
+  async createTransformer() {
+    if (this.view.variantIdentifier === '' || this.createTransformerButton === null || this.createTransformerButton.disabled) {
+      return;
+    }
+    this.createTransformerButton.disabled = true;
+    this.view.fileAction('started', 'create-transformer');
+    try {
+      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_create_transformer)
+        .post({ identifier: this.view.variantIdentifier }, { signal: this.abortController.signal });
+      const payload = await response.resolve();
+      if (this.destroyed) {
+        return;
+      }
+      if (payload.success !== true) {
+        throw new Error(payload.message || 'Could not create the transformer file.');
+      }
+      Notification.info('Transformer template created', `${payload.path}. ${payload.hasTodos ? 'Implement the TODO transformations before using this component.' : 'Review the generated transformation and its JSON input.'}`);
+      window.location.reload();
+    } catch (error) {
+      this.view.fileAction('cancelled', 'create-transformer');
+      const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
+      if (!this.destroyed) {
+        Notification.error('Transformer creation failed', payload?.message || error?.message || 'Could not create the transformer file.');
+        this.createTransformerButton.disabled = false;
+      }
+    }
   }
 
   async saveValues() {

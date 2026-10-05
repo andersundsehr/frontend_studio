@@ -289,6 +289,22 @@ variants:
       path: "news"
 ```
 
+### Generate a missing transformer file
+
+When Controls reports missing argument transformers, it lists every missing name and type.
+Use **Create transformer starting template** to create the sibling `<Component>.transformer.php` file.
+The action requires backend authentication and a protected POST request.
+Generation is unavailable in Production and its subcontexts,
+when the file already exists or when its directory is not writable.
+Existing files are never overwritten or automatically extended.
+
+The generated file contains an `ArgumentTransformers` entry for every missing argument.
+For `stdClass`, its string input defaults to `{}` and must contain a JSON object.
+Arbitrary classes, interfaces and unions receive typed TODO closures that throw an explanatory exception.
+Fill in their domain logic before using the component, then reload it.
+Invalid PHP types require a manually maintained transformer.
+Registering a service method with `#[TypeTransformer]` is the alternative for shared type transformations.
+
 ## Working With Variants
 
 Frontend Studio stores variants in the component's `.fixture.yaml` file.

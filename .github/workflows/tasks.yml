@@ -61,7 +61,7 @@ jobs:
           php-version: '8.5'
       - uses: actions/checkout@v6
       - run: composer update --with typo3/cms-core:^14
-      - run: CI=true ./Build/Scripts/runTests.sh -p 8.5 -s functional -d ${{ matrix.database }}
+      - run: CI=true ./Build/Scripts/runTests.sh -b docker -p 8.5 -s functional -d ${{ matrix.database }}
 
   unit-tests-js:
     name: "unit js"

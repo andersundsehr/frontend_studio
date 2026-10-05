@@ -44,6 +44,111 @@ function controlsRoot() {
   return { root, field, save, reset, copy };
 }
 
+async function transformerControls() {
+  const root = element({ variantIdentifier: 'site:missingTransformer:Default' });
+  const button = element();
+  root.selectors.set('[data-frontend-studio-create-transformer]', button);
+  const env = environment([root]);
+  let reloads = 0;
+  env.window.location.reload = () => { reloads++; };
+  const requests: { url: string; identifier: string; signal: AbortSignal }[] = [];
+  const notifications: unknown[][] = [];
+  const actions: string[] = [];
+  for (const type of ['started', 'cancelled']) {
+    env.document.addEventListener(`frontend-studio:component-file-action-${type}`, (event) => {
+      actions.push(`${type}:${(event as CustomEvent).detail.action}`);
+    });
+  }
+  let respond!: (response: any) => void;
+  let reject!: (error: unknown) => void;
+  class AjaxRequest {
+    url: string;
+    constructor(url: string) { this.url = url; }
+    post(payload: { identifier: string }, options: { signal: AbortSignal }) {
+      requests.push({ url: this.url, identifier: payload.identifier, signal: options.signal });
+      return new Promise((resolve, fail) => { respond = resolve; reject = fail; });
+    }
+  }
+  const modules = backendModules({ ...env, TYPO3: { settings: { ajaxUrls: { frontend_studio_component_create_transformer: '/transformer' } } } }, {
+    '@typo3/core/ajax/ajax-request.js': AjaxRequest,
+    '@typo3/backend/notification.js': {
+      info: (...args: unknown[]) => notifications.push(['info', ...args]),
+      error: (...args: unknown[]) => notifications.push(['error', ...args]),
+    },
+  });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  Controls.initialize();
+  const view = getVariantState(root);
+  return {
+    root, button, view, modules, requests, notifications, actions,
+    reloads: () => reloads,
+    succeed: (payload: unknown) => respond({ resolve: async () => payload }),
+    fail: (error: unknown) => reject(error),
+  };
+}
+
+for (const hasTodos of [false, true]) {
+  test(`isolated transformer controls report ${hasTodos ? 'TODOs' : 'success'} without loading preview modules`, async (t) => {
+    const ui = await transformerControls();
+    t.after(() => ui.view.destroy());
+    ui.button.dispatchEvent(new Event('click'));
+    ui.button.dispatchEvent(new Event('click'));
+    assert.equal(ui.button.disabled, true);
+    assert.equal(ui.requests.length, 1);
+    assert.equal(ui.requests[0].url, '/transformer');
+    assert.equal(ui.requests[0].identifier, 'site:missingTransformer:Default');
+    ui.succeed({ success: true, path: 'MissingTransformer.transformer.php', hasTodos });
+    await new Promise(setImmediate);
+    assert.deepEqual(ui.notifications, [[
+      'info', 'Transformer template created',
+      `MissingTransformer.transformer.php. ${hasTodos ? 'Implement the TODO transformations before using this component.' : 'Review the generated transformation and its JSON input.'}`,
+    ]]);
+    assert.deepEqual(ui.actions, ['started:create-transformer']);
+    assert.equal(ui.reloads(), 1);
+    assert.ok([...ui.modules.loaded].every((name) => !/variant-(html|usage|preview|sidebar|file-watcher)\.js$/.test(name)));
+  });
+}
+
+for (const failure of ['payload', 'HTTP', 'network']) {
+  test(`transformer ${failure} failure reports an error and allows retry`, async (t) => {
+    const ui = await transformerControls();
+    t.after(() => ui.view.destroy());
+    const pending = ui.view.controls.createTransformer();
+    if (failure === 'payload') {
+      ui.succeed({ success: false, message: 'File already exists.' });
+    } else if (failure === 'HTTP') {
+      ui.fail({ resolve: async () => ({ message: 'File already exists.' }) });
+    } else {
+      ui.fail(new Error('Connection lost.'));
+    }
+    await pending;
+    assert.deepEqual(ui.notifications, [[
+      'error', 'Transformer creation failed', failure === 'network' ? 'Connection lost.' : 'File already exists.',
+    ]]);
+    assert.deepEqual(ui.actions, ['started:create-transformer', 'cancelled:create-transformer']);
+    assert.equal(ui.view.ignoreNextComponentFilesChanged, false);
+    assert.equal(ui.reloads(), 0);
+    assert.equal(ui.button.disabled, false);
+    const retry = ui.view.controls.createTransformer();
+    assert.equal(ui.requests.length, 2);
+    ui.succeed({ success: true, path: 'MissingTransformer.transformer.php', hasTodos: false });
+    await retry;
+    assert.equal(ui.reloads(), 1);
+  });
+}
+
+test('cleanup aborts transformer creation and ignores a late success response', async () => {
+  const ui = await transformerControls();
+  const pending = ui.view.controls.createTransformer();
+  ui.view.destroy();
+  assert.equal(ui.requests[0].signal.aborted, true);
+  ui.succeed({ success: true, path: 'MissingTransformer.transformer.php', hasTodos: false });
+  await pending;
+  assert.equal(ui.notifications.length, 0);
+  assert.equal(ui.reloads(), 0);
+});
+
 test('isolated controls initialize once without a preview and remove listeners on cleanup', async () => {
   const { root, field, save, reset } = controlsRoot();
   const env = environment([root]);

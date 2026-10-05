@@ -33,6 +33,7 @@ final readonly class ComponentMetadata
         public array $errors,
         public ?string $missingTransformerError = null,
         public bool $readOnly = false,
+        public ?MissingTransformersMetadata $missingTransformers = null,
     ) {
     }
 }
