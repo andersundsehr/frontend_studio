@@ -111,7 +111,7 @@ class VariantControls extends VariantValues {
     this.createTransformerButton.disabled = true;
     this.view.fileAction('started', 'create-transformer');
     try {
-      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_create_transformer)
+      const response = await new AjaxRequest(this.root.dataset.createTransformerUri)
         .post({ identifier: this.view.variantIdentifier }, { signal: this.abortController.signal });
       const payload = await response.resolve();
       if (this.destroyed) {
@@ -148,7 +148,7 @@ class VariantControls extends VariantValues {
     this.updateDirtyState();
     this.view.fileAction('started');
     try {
-      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_update_variant_values)
+      const response = await new AjaxRequest(this.root.dataset.saveUri)
         .post({ identifier: this.view.variantIdentifier, values, slots }, { signal: this.abortController.signal });
       const payload = await response.resolve();
       if (this.destroyed) {
@@ -190,7 +190,7 @@ class VariantControls extends VariantValues {
     this.copyVariantButton.disabled = true;
     this.view.fileAction('started', 'copy');
     try {
-      const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_copy_variant)
+      const response = await new AjaxRequest(this.root.dataset.copyUri)
         .post({ identifier: this.view.variantIdentifier, name, values: this.collectValues(), slots: this.collectSlotValues() },
           { signal: this.abortController.signal });
       const payload = await response.resolve();

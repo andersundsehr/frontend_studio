@@ -16,7 +16,7 @@ export default class VariantFileWatcher extends VariantFeature {
       return;
     }
     const ownActionIdentifiers = event.detail.ownActionIdentifiers || [];
-    if (ownActionIdentifiers.includes(this.view.variantIdentifier) || ownActionIdentifiers.includes(this.componentIdentifier)
+    if (ownActionIdentifiers.some((identifier) => identifier === this.componentIdentifier || identifier.startsWith(`${this.componentIdentifier}:`))
       || this.view.ignoreNextComponentFilesChanged) {
       this.view.ignoreNextComponentFilesChanged = false;
       return;

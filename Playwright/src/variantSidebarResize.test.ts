@@ -139,3 +139,40 @@ test('lost pointer capture finishes once and events from another pointer are ign
   assert.equal(sidebar.classes.has('is-resizing-sidebar'), false);
   assert.deepEqual(sidebar.persisted, [[heightKey, 350]]);
 });
+
+for (const stacked of [false, true]) {
+  test(`resize clamps its dimension and updates ARIA bounds (stacked=${stacked})`, async (t) => {
+    const sidebar = await createSidebar({ stacked });
+    t.after(() => sidebar.view.destroy());
+    const key = stacked ? '--frontend-studio-variant-sidebar-height' : '--frontend-studio-variant-sidebar-width';
+    const minimum = stacked ? 160 : 280;
+    const maximum = stacked ? 572 : 840;
+    sidebar.handle.dispatchEvent(pointerEvent('pointerdown', 1, 5000, 5000));
+    assert.equal(sidebar.properties.get(key), `${minimum}px`);
+    assert.equal(sidebar.attributes.get('aria-valuenow'), String(minimum));
+    sidebar.handle.dispatchEvent(pointerEvent('pointermove', 1, -5000, -5000));
+    assert.equal(sidebar.properties.get(key), `${maximum}px`);
+    assert.equal(sidebar.attributes.get('aria-valuemin'), String(minimum));
+    assert.equal(sidebar.attributes.get('aria-valuemax'), String(maximum));
+    assert.equal(sidebar.attributes.get('aria-valuenow'), String(maximum));
+    sidebar.handle.dispatchEvent(pointerEvent('pointercancel', 1));
+    assert.deepEqual(sidebar.persisted, [[stacked ? heightKey : widthKey, maximum]]);
+    assert.equal(sidebar.view.isResizingSidebar, false);
+    assert.equal(sidebar.handle.hasPointerCapture(1), false);
+  });
+}
+
+test('destroying an active resize releases capture, persists once and removes pointer listeners', async () => {
+  const sidebar = await createSidebar();
+  sidebar.handle.dispatchEvent(pointerEvent('pointerdown', 1, 800, 450));
+  sidebar.view.destroy();
+  assert.equal(sidebar.view.isResizingSidebar, false);
+  assert.equal(sidebar.handle.hasPointerCapture(1), false);
+  assert.equal(sidebar.classes.has('is-resizing-sidebar'), false);
+  assert.deepEqual(sidebar.persisted, [[heightKey, 350]]);
+  sidebar.handle.dispatchEvent(pointerEvent('pointerdown', 2, 800, 300));
+  sidebar.handle.dispatchEvent(pointerEvent('pointermove', 2, 800, 200));
+  sidebar.handle.dispatchEvent(pointerEvent('pointerup', 2));
+  assert.equal(sidebar.properties.get('--frontend-studio-variant-sidebar-height'), '350px');
+  assert.equal(sidebar.persisted.length, 1);
+});

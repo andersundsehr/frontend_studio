@@ -7,22 +7,29 @@ export default class ComponentFileWatcher {
     this.uri = '';
     this.active = false;
     this.suspended = false;
-    this.pendingActions = new Set();
+    this.pendingVariantActions = new Set();
+    this.pendingTreeActions = new Set();
     this.abortController = new AbortController();
     const options = { signal: this.abortController.signal };
     const moduleChanged = (event) => this.updateModule(event.detail);
     top.document.addEventListener('typo3-module-load', moduleChanged, options);
     top.document.addEventListener('typo3-module-loaded', moduleChanged, options);
-    top.document.addEventListener('frontend-studio:component-file-action-started', (event) => {
-      const identifier = event.detail?.variantIdentifier || event.detail?.identifier;
-      if (typeof identifier === 'string' && identifier !== '') {
-        this.pendingActions.add(identifier);
-      }
-    }, options);
-    top.document.addEventListener('frontend-studio:component-file-action-cancelled', (event) => {
-      const identifier = event.detail?.variantIdentifier || event.detail?.identifier;
-      this.pendingActions.delete(identifier);
-    }, options);
+    ['started', 'cancelled'].forEach((type) => {
+      top.document.addEventListener(`frontend-studio:component-file-action-${type}`, (event) => {
+        const identifier = event.detail?.variantIdentifier || event.detail?.identifier;
+        if (typeof identifier !== 'string' || identifier === '') {
+          return;
+        }
+        const isVariantAction = event.detail.variantIdentifier !== undefined;
+        const actions = isVariantAction ? this.pendingVariantActions : this.pendingTreeActions;
+        const key = isVariantAction ? event.detail.scope || identifier : identifier;
+        if (type === 'started') {
+          actions.add(key);
+        } else {
+          actions.delete(key);
+        }
+      }, options);
+    });
     top.addEventListener('pagehide', (event) => {
       this.suspended = true;
       this.disconnect();
@@ -46,7 +53,8 @@ export default class ComponentFileWatcher {
     this.active = detail.module === frontendStudioModuleName;
     if (!this.active) {
       this.uri = '';
-      this.pendingActions.clear();
+      this.pendingVariantActions.clear();
+      this.pendingTreeActions.clear();
       this.disconnect();
       return;
     }
@@ -82,10 +90,12 @@ export default class ComponentFileWatcher {
     if (!Array.isArray(payload?.componentIdentifiers)) {
       return;
     }
-    const ownActionIdentifiers = Array.from(this.pendingActions);
-    this.pendingActions.clear();
+    const ownAction = this.pendingVariantActions.size > 0 || this.pendingTreeActions.size > 0;
+    const ownActionIdentifiers = Array.from(this.pendingTreeActions);
+    this.pendingVariantActions.clear();
+    this.pendingTreeActions.clear();
     top.document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed', {
-      detail: { componentIdentifiers: payload.componentIdentifiers, ownAction: ownActionIdentifiers.length > 0, ownActionIdentifiers },
+      detail: { componentIdentifiers: payload.componentIdentifiers, ownAction, ownActionIdentifiers },
     }));
   }
 

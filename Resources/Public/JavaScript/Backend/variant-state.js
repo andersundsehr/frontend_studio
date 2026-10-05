@@ -10,21 +10,25 @@ export class VariantState extends EventTarget {
     this.controls = null;
     this.hasUnsavedChanges = false;
     this.ignoreNextComponentFilesChanged = false;
+    this.fileActionScope = Symbol();
     this.revision = 0;
     this.destroyed = false;
     this.features = new Map();
     this.abortController = new AbortController();
-    // Remember file actions even before the optional watcher module has loaded.
-    top.document.addEventListener('frontend-studio:component-file-action-started', (event) => {
-      if (event.detail?.variantIdentifier === this.variantIdentifier) {
-        this.ignoreNextComponentFilesChanged = true;
-      }
-    }, { signal: this.abortController.signal });
-    top.document.addEventListener('frontend-studio:component-file-action-cancelled', (event) => {
-      if (event.detail?.variantIdentifier === this.variantIdentifier) {
-        this.ignoreNextComponentFilesChanged = false;
-      }
-    }, { signal: this.abortController.signal });
+    const identifierParts = this.variantIdentifier.split(':');
+    const componentIdentifier = identifierParts.length >= 3 ? identifierParts.slice(0, -1).join(':') : '';
+    // Tree actions carry identifier; controls actions carry variantIdentifier and stay local.
+    ['started', 'cancelled'].forEach((type) => {
+      top.document.addEventListener(`frontend-studio:component-file-action-${type}`, (event) => {
+        const identifier = event.detail?.identifier;
+        if (event.detail?.variantIdentifier !== undefined || typeof identifier !== 'string' || componentIdentifier === '') {
+          return;
+        }
+        if (identifier === componentIdentifier || identifier.startsWith(`${componentIdentifier}:`)) {
+          this.ignoreNextComponentFilesChanged = type === 'started';
+        }
+      }, { signal: this.abortController.signal });
+    });
     window.addEventListener('pagehide', (event) => {
       if (event.persisted) {
         this.changed('suspend');
@@ -86,8 +90,10 @@ export class VariantState extends EventTarget {
   }
 
   fileAction(type, action = 'save') {
+    // Remember this view’s action before the optional watcher module has loaded.
+    this.ignoreNextComponentFilesChanged = type === 'started';
     top.document.dispatchEvent(new CustomEvent(`frontend-studio:component-file-action-${type}`, {
-      detail: { action, variantIdentifier: this.variantIdentifier },
+      detail: { action, variantIdentifier: this.variantIdentifier, scope: this.fileActionScope },
     }));
   }
 
