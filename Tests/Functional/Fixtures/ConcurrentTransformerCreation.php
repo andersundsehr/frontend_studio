@@ -26,6 +26,6 @@ fgets(STDIN);
 try {
     $generator->create('site:missingTransformer:Default');
     fwrite(STDOUT, 'created');
-} catch (InvalidArgumentException|RuntimeException) {
+} catch (InvalidArgumentException | RuntimeException) {
     fwrite(STDOUT, 'rejected');
 }

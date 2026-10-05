@@ -93,10 +93,12 @@ PHP;
             throw new InvalidArgumentException('The component union cannot be expressed as a PHP return type. Add its transformer manually.', 1791193005);
         }
 
-        if (($nullable && array_intersect($result, ['mixed', 'null']) !== [])
+        if (
+            ($nullable && array_intersect($result, ['mixed', 'null']) !== [])
             || (in_array('bool', $result, true) && array_intersect($result, ['true', 'false']) !== [])
             || (in_array('true', $result, true) && in_array('false', $result, true))
-            || (in_array('iterable', $result, true) && array_intersect($result, ['array', '\\Traversable']) !== [])) {
+            || (in_array('iterable', $result, true) && array_intersect($result, ['array', '\\Traversable']) !== [])
+        ) {
             throw new InvalidArgumentException('The component union cannot be expressed as a PHP return type. Add its transformer manually.', 1791193007);
         }
 
