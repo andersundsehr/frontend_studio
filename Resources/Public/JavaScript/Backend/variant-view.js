@@ -72,6 +72,7 @@ class FrontendStudioVariantView {
 
   initialize() {
     this.initializePreviewContextSelectors();
+    this.initializeSidebarResize();
 
     if (this.previewUri === '' || this.iframe === null) {
       return;
@@ -84,7 +85,6 @@ class FrontendStudioVariantView {
     this.renderedHtmlPreviewUrl = '';
     this.updateDirtyState();
     this.initializeTabs();
-    this.initializeSidebarResize();
     this.initializeComponentFileActionSuppression();
     this.initializeComponentChangeStream();
 
