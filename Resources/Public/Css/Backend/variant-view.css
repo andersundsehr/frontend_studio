@@ -66,6 +66,7 @@
     flex: 0 0 8px;
     width: 8px;
     cursor: col-resize;
+    touch-action: none;
     background: var(--frontend-studio-variant-bg);
 }
 
@@ -281,25 +282,42 @@
 
 @media (max-width: 991.98px) {
     .frontend-studio-variant-workspace {
-        height: auto;
-        min-height: 100vh;
         flex-direction: column;
     }
 
     .frontend-studio-variant-sidebar {
-        flex: 0 0 auto;
+        flex: 0 0 var(--frontend-studio-variant-sidebar-height, 45vh);
         width: auto;
         max-width: none;
-        max-height: 45vh;
+        min-height: 0;
         border-left: 0;
         border-bottom: 1px solid var(--frontend-studio-variant-border-color);
     }
 
     .frontend-studio-variant-sidebar-resize-handle {
-        display: none;
+        width: auto;
+        height: 8px;
+        cursor: row-resize;
     }
 
-    .frontend-studio-variant-preview iframe {
-        min-height: 55vh;
+    .frontend-studio-variant-sidebar-resize-handle::before {
+        top: 3px;
+        right: 0;
+        bottom: auto;
+        left: 0;
+        width: auto;
+        height: 1px;
+    }
+
+    .frontend-studio-variant-sidebar-resize-handle:hover::before,
+    .frontend-studio-variant-view.is-resizing-sidebar .frontend-studio-variant-sidebar-resize-handle::before {
+        top: 2px;
+        left: 0;
+        width: auto;
+        height: 3px;
+    }
+
+    .frontend-studio-variant-view.is-resizing-sidebar {
+        cursor: row-resize;
     }
 }

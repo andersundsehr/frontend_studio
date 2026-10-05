@@ -21,7 +21,9 @@
   data-selected-site-identifier="{selectedSiteIdentifier}"
   data-selected-language-hreflang="{selectedLanguageHreflang}"
   data-active-tab="{variantActiveTab}"
-  style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px"
+  data-sidebar-height="{variantSidebarHeight}"
+  style="--frontend-studio-variant-sidebar-width: {variantSidebarWidth}px;
+    {f:if(condition: '{variantSidebarHeight} !== {null}', then: '--frontend-studio-variant-sidebar-height: {variantSidebarHeight}px;')}"
 >
   <div class="frontend-studio-variant-workspace">
     <div class="frontend-studio-variant-preview-column">

@@ -27,6 +27,8 @@ final readonly class FrontendStudioModuleController
 {
     private const string VARIANT_SIDEBAR_WIDTH_USER_SETTING = 'frontendStudio.variantView.sidebarWidth';
 
+    private const string VARIANT_SIDEBAR_HEIGHT_USER_SETTING = 'frontendStudio.variantView.sidebarHeight';
+
     private const string VARIANT_ACTIVE_TAB_USER_SETTING = 'frontendStudio.variantView.activeTab';
 
     private const int DEFAULT_VARIANT_SIDEBAR_WIDTH = 360;
@@ -91,6 +93,7 @@ final readonly class FrontendStudioModuleController
             'selectedSiteIdentifier' => $previewContext['selectedSiteIdentifier'],
             'selectedLanguageHreflang' => $previewContext['selectedLanguageHreflang'],
             'variantSidebarWidth' => $this->getVariantSidebarWidth($GLOBALS['BE_USER']->uc ?? []),
+            'variantSidebarHeight' => $this->getVariantSidebarHeight($GLOBALS['BE_USER']->uc ?? []),
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
             'renderedHtmlSource' => $renderedHtmlSource,
             'renderedHtmlStatus' => $renderedHtmlStatus,
@@ -147,6 +150,23 @@ final readonly class FrontendStudioModuleController
         }
 
         return max((int)$configuredWidth, self::MINIMUM_VARIANT_SIDEBAR_WIDTH);
+    }
+
+    /**
+     * @param array<string, mixed> $backendUserSettings
+     */
+    private function getVariantSidebarHeight(array $backendUserSettings): ?int
+    {
+        $configuredHeight = $this->getBackendUserSettingByDottedPath(
+            $backendUserSettings,
+            self::VARIANT_SIDEBAR_HEIGHT_USER_SETTING,
+        );
+
+        if (!is_int($configuredHeight) && (!is_string($configuredHeight) || preg_match('/^\d+$/', $configuredHeight) !== 1)) {
+            return null;
+        }
+
+        return max((int)$configuredHeight, 0);
     }
 
     /**
