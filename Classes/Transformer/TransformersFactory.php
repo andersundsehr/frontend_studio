@@ -8,6 +8,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use RuntimeException;
+use Symfony\Component\Filesystem\Path;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinition;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinitionProviderInterface;
@@ -92,13 +93,7 @@ final readonly class TransformersFactory
             }
 
             if (!$this->typeTransformers->has($type)) {
-                throw new RuntimeException(
-                    'component requires a transformer for argument "' . $argumentName . '" of type "' . $type . '", but no transformer is defined in the file ' . $pdaFileName . ". \n"
-                        . "Please add a transformer for this argument, \n"
-                        . "or add one for that type, \n"
-                        . "or remove the argument from the component definition.",
-                    6790927084
-                );
+                throw new MissingTransformerException($argumentName, $type, Path::makeRelative($pdaFileName, Environment::getProjectPath()));
             }
 
             $transformers[$argumentName] = $this->typeTransformers->get($type);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
@@ -34,6 +35,8 @@ use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use TYPO3Fluid\Fluid\View\TemplateView;
+use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
+use stdClass;
 
 final class OwnComponentsTest extends FunctionalTestCase
 {
@@ -92,6 +95,65 @@ final class OwnComponentsTest extends FunctionalTestCase
     {
         self::assertSame([], $this->getOwnComponentIdentifiers());
         self::assertSame([], $this->getOwnVariantIdentifiers());
+    }
+
+    public function testMissingTransformerHidesControlsUntilATypeTransformerIsRegistered(): void
+    {
+        $identifier = 'site:missingTransformer:Default';
+        $provider = $this->get(ComponentMetadataProvider::class);
+        $metadata = $provider->getComponentMetadataForVariantIdentifier($identifier);
+        self::assertNotNull($metadata);
+        self::assertNotNull($metadata->missingTransformerError);
+
+        $assignments = [
+            'selectedVariantIdentifier' => $identifier,
+            'selectedComponentMetadata' => $metadata,
+            'componentPreviewUri' => '/__frontendStudio/preview?componentVariant=' . rawurlencode($identifier),
+        ];
+        $html = $this->renderVariantView($assignments);
+        self::assertStringContainsString('data-frontend-studio-missing-transformer', $html);
+        self::assertStringContainsString('ArgumentTransformers', $html);
+        self::assertStringContainsString('#[TypeTransformer]', $html);
+        self::assertStringContainsString('MissingTransformer.transformer.php', $html);
+        self::assertStringContainsString('stdClass', $html);
+        foreach (['value', 'slot', 'reset', 'save', 'copy'] as $action) {
+            self::assertDoesNotMatchRegularExpression('/data-frontend-studio-variant-' . $action . '(?:\\s|=|>)/', $html);
+        }
+
+        self::assertStringContainsString('data-frontend-studio-variant-tab-panel="html"', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-tab-panel="template"', $html);
+
+        $this->get(TypeTransformers::class)->addTransformer(new class {
+            public function transform(string $value = ''): stdClass
+            {
+                return (object)['value' => $value];
+            }
+        }, 'transform', stdClass::class, 0);
+        $metadata = $provider->getComponentMetadataForVariantIdentifier($identifier);
+        self::assertNotNull($metadata);
+        self::assertNull($metadata->missingTransformerError);
+        $html = $this->renderVariantView(array_replace($assignments, ['selectedComponentMetadata' => $metadata]));
+        self::assertStringNotContainsString('data-frontend-studio-missing-transformer', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-value', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-slot', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-save', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-copy', $html);
+    }
+
+    public function testMissingTransformerMessageIsHtmlEscaped(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        $metadata = new ComponentMetadata(...array_replace(get_object_vars($metadata), [
+            'missingTransformerError' => '<script>alert("unsafe")</script>',
+        ]));
+        $html = $this->renderVariantView([
+            'selectedVariantIdentifier' => 'site:card:Default',
+            'selectedComponentMetadata' => $metadata,
+        ]);
+
+        self::assertStringContainsString('&lt;script&gt;', $html);
+        self::assertStringNotContainsString('<script>alert', $html);
     }
 
     public function testExtensionSettingShowsOwnComponentsInTheTree(): void

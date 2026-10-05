@@ -16,129 +16,139 @@
   aria-labelledby="frontend-studio-variant-values-tab"
   data-frontend-studio-variant-tab-panel="values"
 >
-  <div class="frontend-studio-variant-values-actions">
-    <button
-      type="button"
-      class="btn btn-default btn-sm"
-      data-frontend-studio-variant-reset
-      disabled
-    >
-      <core:icon identifier="actions-undo"/>
-      Reset
-    </button>
-    <button
-      type="button"
-      class="btn btn-default btn-sm"
-      data-frontend-studio-variant-copy
-    >
-      <core:icon identifier="actions-edit-copy"/>
-      Save as new
-    </button>
-    <button
-      type="button"
-      class="btn btn-primary btn-sm"
-      data-frontend-studio-variant-save
-      disabled
-    >
-      <core:icon identifier="actions-save"/>
-      Save
-    </button>
-    <span
-      class="frontend-studio-variant-save-state"
-      data-frontend-studio-variant-save-state
-      hidden
-    >
-      Unsaved changes
-    </span>
-  </div>
-  <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values} || {selectedComponentMetadata.fixture.selectedVariant.slots}">
+  <f:if condition="{selectedComponentMetadata.missingTransformerError}">
     <f:then>
-      <div class="panel-group mb-0">
-        <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
-          <f:if condition="{parentName}">
-            <f:then>
-              <details class="frontend-studio-variant-argument-group panel panel-default" open>
-                <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                  <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                    <f:if condition="{argument.name} == {parentName}">
-                      <strong>{argument.name}</strong>
-                      <f:if condition="{argument.required} == false">
-                        <span class="text-body-secondary">?</span>
-                      </f:if>
-                      <code class="frontend-studio-variant-value-type">{argument.type}</code>
-                    </f:if>
-                  </f:for>
-                  <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                    <core:icon identifier="actions-chevron-end"/>
-                  </span>
-                  <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                    <core:icon identifier="actions-chevron-down"/>
-                  </span>
-                </summary>
-                <div class="frontend-studio-variant-argument-group-content panel-body">
-                  <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                    <f:if condition="{argument.name} == {parentName}">
-                      <f:if condition="{argument.description}">
-                        <div class="form-text mb-0">{argument.description}</div>
-                      </f:if>
-                    </f:if>
-                  </f:for>
-                  <div class="panel-group mb-0">
-                    <f:for each="{groupValues}" as="variantValue">
-                      <frontend.studio:variant.valueField variantValue="{variantValue}"/>
-                    </f:for>
-                  </div>
-                  <f:for each="{groupValues}" as="variantValue" iteration="iterator">
-                    <f:if condition="{iterator.isLast}">
-                      <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
-                    </f:if>
-                  </f:for>
-                </div>
-              </details>
-            </f:then>
-            <f:else>
-              <f:for each="{groupValues}" as="variantValue">
-                <frontend.studio:variant.valueField variantValue="{variantValue}"/>
-              </f:for>
-            </f:else>
-          </f:if>
-        </f:groupedFor>
+      <div class="alert alert-danger" role="alert" data-frontend-studio-missing-transformer>
+        <strong>Controls are unavailable because a required transformer is missing.</strong>
+        <p class="mb-0 text-break">{selectedComponentMetadata.missingTransformerError}</p>
       </div>
-      <p class="mb-0 text-body-secondary">
-        ? optional argument
-      </p>
-      <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.slots}">
-        <h2 class="h6 mt-3 mb-2">Slots</h2>
-        <div class="panel-group mb-0">
-          <f:for each="{selectedComponentMetadata.fixture.selectedVariant.slots}" as="slotContent" key="slotName">
-            <details class="frontend-studio-variant-argument-group panel panel-default" open>
-              <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                <strong>{slotName}</strong>
-                <code class="frontend-studio-variant-value-type">HTML</code>
-                <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                  <core:icon identifier="actions-chevron-end"/>
-                </span>
-                <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                  <core:icon identifier="actions-chevron-down"/>
-                </span>
-              </summary>
-              <div class="frontend-studio-variant-argument-group-content panel-body">
-                <textarea
-                  id="frontend-studio-variant-slot-{slotName}"
-                  name="{slotName}"
-                  data-frontend-studio-variant-slot
-                  data-slot-name="{slotName}"
-                  class="form-control"
-                  rows="5"
-                >{slotContent}</textarea>
-              </div>
-            </details>
-          </f:for>
-        </div>
-      </f:if>
     </f:then>
     <f:else>
-      <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>
+      <div class="frontend-studio-variant-values-actions">
+        <button
+          type="button"
+          class="btn btn-default btn-sm"
+          data-frontend-studio-variant-reset
+          disabled
+        >
+          <core:icon identifier="actions-undo"/>
+          Reset
+        </button>
+        <button
+          type="button"
+          class="btn btn-default btn-sm"
+          data-frontend-studio-variant-copy
+        >
+          <core:icon identifier="actions-edit-copy"/>
+          Save as new
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          data-frontend-studio-variant-save
+          disabled
+        >
+          <core:icon identifier="actions-save"/>
+          Save
+        </button>
+        <span
+          class="frontend-studio-variant-save-state"
+          data-frontend-studio-variant-save-state
+          hidden
+        >
+          Unsaved changes
+        </span>
+      </div>
+      <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values} || {selectedComponentMetadata.fixture.selectedVariant.slots}">
+        <f:then>
+          <div class="panel-group mb-0">
+            <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
+              <f:if condition="{parentName}">
+                <f:then>
+                  <details class="frontend-studio-variant-argument-group panel panel-default" open>
+                    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+                      <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                        <f:if condition="{argument.name} == {parentName}">
+                          <strong>{argument.name}</strong>
+                          <f:if condition="{argument.required} == false">
+                            <span class="text-body-secondary">?</span>
+                          </f:if>
+                          <code class="frontend-studio-variant-value-type">{argument.type}</code>
+                        </f:if>
+                      </f:for>
+                      <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+                        <core:icon identifier="actions-chevron-end"/>
+                      </span>
+                      <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+                        <core:icon identifier="actions-chevron-down"/>
+                      </span>
+                    </summary>
+                    <div class="frontend-studio-variant-argument-group-content panel-body">
+                      <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                        <f:if condition="{argument.name} == {parentName}">
+                          <f:if condition="{argument.description}">
+                            <div class="form-text mb-0">{argument.description}</div>
+                          </f:if>
+                        </f:if>
+                      </f:for>
+                      <div class="panel-group mb-0">
+                        <f:for each="{groupValues}" as="variantValue">
+                          <frontend.studio:variant.valueField variantValue="{variantValue}"/>
+                        </f:for>
+                      </div>
+                      <f:for each="{groupValues}" as="variantValue" iteration="iterator">
+                        <f:if condition="{iterator.isLast}">
+                          <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
+                        </f:if>
+                      </f:for>
+                    </div>
+                  </details>
+                </f:then>
+                <f:else>
+                  <f:for each="{groupValues}" as="variantValue">
+                    <frontend.studio:variant.valueField variantValue="{variantValue}"/>
+                  </f:for>
+                </f:else>
+              </f:if>
+            </f:groupedFor>
+          </div>
+          <p class="mb-0 text-body-secondary">
+            ? optional argument
+          </p>
+          <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.slots}">
+            <h2 class="h6 mt-3 mb-2">Slots</h2>
+            <div class="panel-group mb-0">
+              <f:for each="{selectedComponentMetadata.fixture.selectedVariant.slots}" as="slotContent" key="slotName">
+                <details class="frontend-studio-variant-argument-group panel panel-default" open>
+                  <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
+                    <strong>{slotName}</strong>
+                    <code class="frontend-studio-variant-value-type">HTML</code>
+                    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
+                      <core:icon identifier="actions-chevron-end"/>
+                    </span>
+                    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
+                      <core:icon identifier="actions-chevron-down"/>
+                    </span>
+                  </summary>
+                  <div class="frontend-studio-variant-argument-group-content panel-body">
+                    <textarea
+                      id="frontend-studio-variant-slot-{slotName}"
+                      name="{slotName}"
+                      data-frontend-studio-variant-slot
+                      data-slot-name="{slotName}"
+                      class="form-control"
+                      rows="5"
+                    >{slotContent}</textarea>
+                  </div>
+                </details>
+              </f:for>
+            </div>
+          </f:if>
+        </f:then>
+        <f:else>
+          <p class="mb-0 text-body-secondary">The selected variant does not define values.</p>
+        </f:else>
+      </f:if>
     </f:else>
   </f:if>
 </div>

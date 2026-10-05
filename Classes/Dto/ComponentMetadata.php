@@ -31,6 +31,7 @@ final readonly class ComponentMetadata
         public ?ComponentFixtureMetadata $fixture,
         public array $staticVariables,
         public array $errors,
+        public ?string $missingTransformerError = null,
     ) {
     }
 }
