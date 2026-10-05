@@ -1,3 +1,4 @@
+import VariantTemplate from '@andersundsehr/frontend-studio/backend/variant-template.js';
 import DocumentService from '@typo3/core/document-service.js';
 import PersistentStorage from '@typo3/backend/storage/persistent.js';
 import VariantFeature from '@andersundsehr/frontend-studio/backend/variant-lifecycle.js';
@@ -11,11 +12,23 @@ class VariantSidebar extends VariantFeature {
     this.tabButtons = Array.from(root.querySelectorAll('[data-frontend-studio-variant-tab]'));
     this.tabPanels = Array.from(root.querySelectorAll('[data-frontend-studio-variant-tab-panel]'));
     this.panels = new Map();
+    if (root.querySelector('[data-frontend-studio-template-source]') !== null) {
+      view.mount('template', () => new VariantTemplate(root, view));
+    }
     const activeButton = this.tabButtons.find((button) => button.classList.contains('is-active'));
     this.activeTab = activeButton?.dataset.frontendStudioVariantTab || root.dataset.activeTab || 'values';
     this.activateTab(this.activeTab, false);
     this.tabButtons.forEach((button) => {
       this.listen(button, 'click', () => this.activateTab(button.dataset.frontendStudioVariantTab || 'values'));
+      this.listen(button, 'keydown', (event) => {
+        const index = this.tabButtons.indexOf(button);
+        const next = { ArrowRight: (index + 1) % this.tabButtons.length, ArrowLeft: (index + this.tabButtons.length - 1) % this.tabButtons.length, Home: 0, End: this.tabButtons.length - 1 }[event.key];
+        if (next !== undefined) {
+          event.preventDefault();
+          this.tabButtons[next].focus();
+          this.activateTab(this.tabButtons[next].dataset.frontendStudioVariantTab);
+        }
+      });
     });
     ['controls', 'values', 'context', 'files', 'saved', 'resume'].forEach((type) => this.listen(view, type, () => {
       this.panels.forEach((panel) => panel.invalidate());
@@ -43,6 +56,7 @@ class VariantSidebar extends VariantFeature {
       button.classList.toggle('is-active', isActive);
       button.classList.toggle('active', isActive);
       button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      button.setAttribute('tabindex', isActive ? '0' : '-1');
     });
     this.tabPanels.forEach((panel) => {
       const isActive = panel.dataset.frontendStudioVariantTabPanel === tabName;

@@ -321,3 +321,50 @@
         cursor: row-resize;
     }
 }
+
+.frontend-studio-template-line {
+  display: block;
+  min-height: 1.5em;
+  padding-inline-start: 3.5em;
+  position: relative;
+}
+
+.frontend-studio-template-line.is-error {
+  background: light-dark(#fff0f0, #442323);
+  border-inline-start: 3px solid light-dark(#b42318, #ff9c94);
+}
+
+.frontend-studio-template-line-number {
+  position: absolute;
+  inset-inline-start: 0;
+  width: 2.8em;
+  text-align: end;
+  opacity: 0.65;
+  user-select: none;
+}
+
+.frontend-studio-template-diagnostic {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--typo3-font-family);
+  padding: 0.25em 0.5em;
+  user-select: none;
+}
+
+.frontend-studio-template-diagnostic.is-error,
+.frontend-studio-template-badge {
+  color: light-dark(#b42318, #ff9c94);
+}
+
+.frontend-studio-template-diagnostic.is-deprecation {
+  color: light-dark(#775400, #ffdf80);
+}
+
+.frontend-studio-template-source {
+  white-space: normal;
+}
+
+.frontend-studio-template-line code {
+  white-space: pre;
+}
