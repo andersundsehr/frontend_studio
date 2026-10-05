@@ -22,6 +22,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use TYPO3\CMS\Backend\Http\Application as BackendApplication;
+use TYPO3\CMS\Frontend\Http\Application as FrontendApplication;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\UserAspect;
@@ -31,6 +32,8 @@ use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Http\CookieScope;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Page\Event\ResolveVirtualJavaScriptImportEvent;
@@ -577,6 +580,8 @@ final class OwnComponentsTest extends FunctionalTestCase
             'REQUEST_URI' => $path,
             'REQUEST_METHOD' => 'GET',
         ])->withCookieParams($cookies);
+        parse_str((string)parse_url($path, PHP_URL_QUERY), $query);
+        $request = $request->withQueryParams($query);
         $GLOBALS['TYPO3_REQUEST'] = $request;
 
         return $this->get(BackendApplication::class)->handle($request);
@@ -601,6 +606,49 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringNotContainsString('data-frontend-studio-variant-save', $html);
         self::assertStringNotContainsString('data-frontend-studio-variant-copy', $html);
         self::assertStringContainsString('data-frontend-studio-variant-reset', $html);
+    }
+
+    #[DataProvider('ajaxPreviewFormats')]
+    public function testAjaxPreviewAuthenticatesTheSessionThroughTheCompleteMiddlewareStack(string $format): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $query = ['previewTest' => 'yes', 'componentVariant' => 'site:card:Default', 'componentVariantValues' => '{"title":"Authenticated AJAX"}', 'frontendStudioPreviewFormat' => $format];
+        $path = '/__frontendStudio/preview?' . http_build_query($query);
+        $request = new ServerRequest('https://preview.test' . $path, 'GET', null, [], [
+            'HTTP_HOST' => 'preview.test', 'HTTPS' => 'on', 'REMOTE_ADDR' => '127.0.0.1',
+            'HTTP_USER_AGENT' => 'TYPO3 Functional Test Request', 'SCRIPT_NAME' => '/index.php',
+            'SCRIPT_FILENAME' => Environment::getPublicPath() . '/index.php', 'REQUEST_URI' => $path, 'REQUEST_METHOD' => 'GET',
+        ])->withQueryParams($query)->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withCookieParams([BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt()]);
+        $this->get(Context::class)->setAspect('backend.user', new UserAspect());
+        $GLOBALS['TYPO3_REQUEST'] = $request;
+        $response = $this->get(FrontendApplication::class)->handle($request);
+        self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
+        self::assertStringContainsString('Authenticated AJAX', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    #[DataProvider('ajaxPreviewFormats')]
+    public function testInspectorUsesProtectedBackendSessionWithScopedCookie(string $format): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $uri = $this->get(UriBuilder::class)->buildUriFromRoute('ajax_frontend_studio_component_preview', [
+            'componentVariant' => 'site:card:Default', 'componentVariantValues' => '{"title":"Backend inspector"}',
+            'frontendStudioPreviewFormat' => $format, 'site' => 'preview', 'language' => 'de', 'previewTest' => 'yes',
+        ]);
+        $this->get(Context::class)->setAspect('backend.user', new UserAspect());
+        $response = $this->requestLabelModule((string)$uri, [BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'))]);
+        self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
+        self::assertStringContainsString('Backend inspector', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function ajaxPreviewFormats(): iterable
+    {
+        yield 'fragment' => ['fragment'];
+        yield 'highlighted' => ['highlighted-fragment'];
+        yield 'usage' => ['fluid-usage'];
     }
 
     public function testPreviewOverridesRequireARealBackendSession(): void
