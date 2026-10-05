@@ -40,6 +40,7 @@ final readonly class ComponentMetadataProvider
         private ComponentFixtureProvider $componentFixtureProvider,
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
         private TransformersFactory $transformersFactory,
+        private ComponentWritePolicy $writePolicy = new ComponentWritePolicy(),
     ) {
     }
 
@@ -151,6 +152,7 @@ final readonly class ComponentMetadataProvider
             $staticVariables,
             $errors,
             $missingTransformerError,
+            $this->writePolicy->isReadOnly(),
         );
     }
 

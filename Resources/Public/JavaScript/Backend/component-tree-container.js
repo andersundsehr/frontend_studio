@@ -85,7 +85,7 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async handleNodeEdit(node, name) {
-    if (node.nodeType !== 'variant') {
+    if (node.readOnly || node.nodeType !== 'variant') {
       return;
     }
 
@@ -142,6 +142,10 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async renameVariant(node, name) {
+    if (node.readOnly) {
+      return;
+    }
+
     try {
       const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_component_tree_rename_variant)
         .post({
@@ -201,6 +205,10 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async copyVariant(node, name) {
+    if (node.readOnly) {
+      return;
+    }
+
     this.dispatchComponentFileActionStarted('copy', node.identifier);
 
     try {
@@ -238,7 +246,8 @@ class FrontendStudioComponentTree extends Tree {
           <button
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
-            title="Create variant"
+            title=${node.readOnly ? "Production: component files are read-only" : "Create variant"}
+            ?hidden=${node.readOnly}
             @click=${(event) => {
               event.preventDefault();
               event.stopImmediatePropagation();
@@ -269,7 +278,8 @@ class FrontendStudioComponentTree extends Tree {
           <button
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
-            title="Copy variant"
+            title=${node.readOnly ? "Production: component files are read-only" : "Copy variant"}
+            ?hidden=${node.readOnly}
             @click=${(event) => {
               event.preventDefault();
               event.stopImmediatePropagation();
@@ -281,7 +291,8 @@ class FrontendStudioComponentTree extends Tree {
           <button
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
-            title="Delete variant"
+            title=${node.readOnly ? "Production: component files are read-only" : "Delete variant"}
+            ?hidden=${node.readOnly}
             @click=${(event) => {
               event.preventDefault();
               event.stopImmediatePropagation();
@@ -298,6 +309,10 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async createVariantNode(componentNode) {
+    if (componentNode.readOnly) {
+      return;
+    }
+
     const identifier = `NEW:${componentNode.identifier}:${Date.now()}`;
 
     await this.addNode({
@@ -359,6 +374,10 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async deleteVariant(node) {
+    if (node.readOnly) {
+      return;
+    }
+
     this.dispatchComponentFileActionStarted('delete', node.identifier);
 
     try {

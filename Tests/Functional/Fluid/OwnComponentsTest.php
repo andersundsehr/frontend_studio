@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 
+use Psr\Http\Message\ServerRequestInterface;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
@@ -21,12 +22,17 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use TYPO3\CMS\Backend\Http\Application as BackendApplication;
+use TYPO3\CMS\Frontend\Http\Application as FrontendApplication;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Context\UserAspect;
+use TYPO3\CMS\Frontend\Middleware\BackendUserAuthenticator;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Http\CookieScope;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Page\Event\ResolveVirtualJavaScriptImportEvent;
@@ -414,6 +420,8 @@ final class OwnComponentsTest extends FunctionalTestCase
     #[DataProvider('usageSlotsDataProvider')]
     public function testFluidUsageResponseReflectsOverridesAndInlineAvailability(array $slots, bool $inlineAvailable): void
     {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $this->setUpBackendUser(1);
         $response = $this->requestPreview('site:card:Default', format: 'fluid-usage', overrides: [
             'componentVariantValues' => json_encode(['title' => 'Overridden title'], JSON_THROW_ON_ERROR),
             'componentVariantSlots' => json_encode($slots, JSON_THROW_ON_ERROR),
@@ -585,10 +593,83 @@ final class OwnComponentsTest extends FunctionalTestCase
         return $html;
     }
 
+    public function testProductionControlsKeepTemporaryPreviewEditingAvailable(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        $metadata = new ComponentMetadata(...array_replace(get_object_vars($metadata), ['readOnly' => true]));
+        $html = $this->renderVariantView(['selectedVariantIdentifier' => 'site:card:Default', 'selectedComponentMetadata' => $metadata]);
+        self::assertStringContainsString('Production: fixture files are read-only.', $html);
+        self::assertStringNotContainsString('data-frontend-studio-variant-save', $html);
+        self::assertStringNotContainsString('data-frontend-studio-variant-copy', $html);
+        self::assertStringContainsString('data-frontend-studio-variant-reset', $html);
+    }
+
+    #[DataProvider('ajaxPreviewFormats')]
+    public function testAjaxPreviewAuthenticatesTheSessionThroughTheCompleteMiddlewareStack(string $format): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $query = ['previewTest' => 'yes', 'componentVariant' => 'site:card:Default', 'componentVariantValues' => '{"title":"Authenticated AJAX"}', 'frontendStudioPreviewFormat' => $format];
+        $path = '/__frontendStudio/preview?' . http_build_query($query);
+        $request = new ServerRequest('https://preview.test' . $path, 'GET', null, [], [
+            'HTTP_HOST' => 'preview.test', 'HTTPS' => 'on', 'REMOTE_ADDR' => '127.0.0.1',
+            'HTTP_USER_AGENT' => 'TYPO3 Functional Test Request', 'SCRIPT_NAME' => '/index.php',
+            'SCRIPT_FILENAME' => Environment::getPublicPath() . '/index.php', 'REQUEST_URI' => $path, 'REQUEST_METHOD' => 'GET',
+        ])->withQueryParams($query)->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->withCookieParams([BackendUserAuthentication::getCookieName() => $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'))]);
+        $this->get(Context::class)->setAspect('backend.user', new UserAspect());
+        $GLOBALS['TYPO3_REQUEST'] = $request;
+        $response = $this->get(FrontendApplication::class)->handle($request);
+        self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
+        self::assertStringContainsString('Authenticated AJAX', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    #[DataProvider('ajaxPreviewFormats')]
+    public function testPreviewWithoutInjectedContextUsesTheAuthenticatedSharedContext(string $format): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
+        $response = $this->requestPreview('site:card:Default', format: $format, overrides: [
+            'componentVariantValues' => '{"title":"Shared context preview"}',
+            'componentVariantSlots' => '{"default":"<strong>Shared slot</strong>"}',
+        ], backendCookie: $cookie);
+        self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
+        self::assertStringContainsString('Shared context preview', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        self::assertStringContainsString('Shared slot', html_entity_decode(strip_tags((string)$response->getBody()), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function ajaxPreviewFormats(): iterable
+    {
+        yield 'fragment' => ['fragment'];
+        yield 'highlighted' => ['highlighted-fragment'];
+        yield 'usage' => ['fluid-usage'];
+    }
+
+    public function testPreviewOverridesRequireARealBackendSession(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
+        $overrides = ['componentVariantValues' => '{"title":"Session preview"}'];
+        $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: $cookie);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('Session preview', (string)$response->getBody());
+
+        $backendUser->logoff();
+        $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: $cookie);
+        self::assertSame(403, $response->getStatusCode());
+
+        $response = $this->requestPreview('site:card:Default', format: 'fragment', overrides: $overrides, backendCookie: 'forged-session');
+        self::assertSame(403, $response->getStatusCode());
+    }
+
     /**
      * @param array<string, string> $overrides
      */
-    private function requestPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null, array $overrides = []): ResponseInterface
+    private function requestPreview(string $variantIdentifier, string $installationPath = '/', ?string $format = null, array $overrides = [], ?string $backendCookie = null): ResponseInterface
     {
         $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
         $site = $this->get(SiteFinder::class)->getSiteByIdentifier('preview');
@@ -621,6 +702,14 @@ final class OwnComponentsTest extends FunctionalTestCase
             $this->get(ListenerProvider::class),
             $this->get(PreviewTypoScriptContextBuilderInterface::class),
         );
+        if ($backendCookie !== null) {
+            $this->get(Context::class)->setAspect('backend.user', new UserAspect());
+            $request = $request->withCookieParams([BackendUserAuthentication::getCookieName() => $backendCookie]);
+            $handler = $this->createMock(RequestHandlerInterface::class);
+            $handler->method('handle')->willReturnCallback(fn(ServerRequestInterface $authenticatedRequest): ResponseInterface => $middleware->process($authenticatedRequest, $this->createMock(RequestHandlerInterface::class)));
+            return $this->get(BackendUserAuthenticator::class)->process($request, $handler);
+        }
+
         return $middleware->process($request, $this->createMock(RequestHandlerInterface::class));
     }
 

@@ -18,6 +18,7 @@ final readonly class ComponentFixtureProvider
 {
     public function __construct(
         private PackageManager $packageManager,
+        private ComponentWritePolicy $writePolicy = new ComponentWritePolicy(),
     ) {
     }
 
@@ -85,6 +86,7 @@ final readonly class ComponentFixtureProvider
         string $newVariantName,
         array $slotNames = [],
     ): array {
+        $this->writePolicy->assertWritable();
         $newVariantName = trim($newVariantName);
         if ($newVariantName === '') {
             throw new InvalidArgumentException('The variant title must not be empty.', 6596881576);
@@ -150,6 +152,7 @@ final readonly class ComponentFixtureProvider
         array $variantValues = [],
         array $slotNames = [],
     ): array {
+        $this->writePolicy->assertWritable();
         $variantName = trim($variantName);
         if ($variantName === '') {
             throw new InvalidArgumentException('The variant title must not be empty.', 8617766585);
@@ -200,6 +203,7 @@ final readonly class ComponentFixtureProvider
         ?array $slotValues = null,
         array $slotNames = [],
     ): array {
+        $this->writePolicy->assertWritable();
         $newVariantName = trim($newVariantName);
         if ($newVariantName === '') {
             throw new InvalidArgumentException('The variant title must not be empty.', 6666536237);
@@ -252,6 +256,7 @@ final readonly class ComponentFixtureProvider
         string $variantName,
         array $slotNames = [],
     ): array {
+        $this->writePolicy->assertWritable();
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
             throw new RuntimeException('Fixture file does not exist.', 8076247836);
@@ -296,6 +301,7 @@ final readonly class ComponentFixtureProvider
         ?array $slotValues = null,
         array $slotNames = [],
     ): array {
+        $this->writePolicy->assertWritable();
         $fixturePath = $this->resolveFixturePath($resolverDelegate, $componentName);
         if (!is_file($fixturePath)) {
             throw new RuntimeException('Fixture file does not exist.', 3973298810);

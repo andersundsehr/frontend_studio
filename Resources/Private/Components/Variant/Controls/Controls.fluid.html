@@ -34,30 +34,37 @@
           <core:icon identifier="actions-undo"/>
           Reset
         </button>
-        <button
-          type="button"
-          class="btn btn-default btn-sm"
-          data-frontend-studio-variant-copy
-        >
-          <core:icon identifier="actions-edit-copy"/>
-          Save as new
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          data-frontend-studio-variant-save
-          disabled
-        >
-          <core:icon identifier="actions-save"/>
-          Save
-        </button>
-        <span
-          class="frontend-studio-variant-save-state"
-          data-frontend-studio-variant-save-state
-          hidden
-        >
-          Unsaved changes
-        </span>
+        <f:if condition="{selectedComponentMetadata.readOnly}">
+          <f:then>
+            <span class="text-body-secondary">Production: fixture files are read-only.</span>
+          </f:then>
+          <f:else>
+            <button
+              type="button"
+              class="btn btn-default btn-sm"
+              data-frontend-studio-variant-copy
+            >
+              <core:icon identifier="actions-edit-copy"/>
+              Save as new
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              data-frontend-studio-variant-save
+              disabled
+            >
+              <core:icon identifier="actions-save"/>
+              Save
+            </button>
+            <span
+              class="frontend-studio-variant-save-state"
+              data-frontend-studio-variant-save-state
+              hidden
+            >
+              Unsaved changes
+            </span>
+          </f:else>
+        </f:if>
       </div>
       <f:if condition="{selectedComponentMetadata.fixture.selectedVariant.values} || {selectedComponentMetadata.fixture.selectedVariant.slots}">
         <f:then>

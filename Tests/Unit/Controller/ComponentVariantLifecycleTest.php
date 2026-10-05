@@ -17,6 +17,10 @@ use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
 use JsonException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionProperty;
+use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Core\ApplicationContext;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -123,6 +127,50 @@ final class ComponentVariantLifecycleTest extends TestCase
         self::assertTrue($copyPayload['success']);
         self::assertIsArray($copyPayload['variant']);
         self::assertSame('<strong>Copied</strong>', file_get_contents($this->getSlotPath('Copy')));
+    }
+
+    #[DataProvider('productionActions')]
+    public function testProductionActionsLeaveAllFilesUnchanged(string $context, string $action): void
+    {
+        $provider = $this->createDataProvider();
+        $provider->createVariant('test:Card', 'Default');
+        $provider->updateVariantValues('test:Card:Default', ComponentVariantValues::empty(), ['content' => '<p>Original</p>']);
+
+        $fixture = file_get_contents($this->getFixturePath());
+        $slot = file_get_contents($this->getSlotPath('Default'));
+        $contextProperty = new ReflectionProperty(Environment::class, 'context');
+        $originalContext = Environment::getContext();
+        $contextProperty->setValue(null, new ApplicationContext($context));
+        try {
+            $response = $this->createController($provider)->{$action}(new ServerRequest('https://example.test/', 'POST')->withParsedBody([
+                'identifier' => $action === 'createVariantAction' ? 'test:Card' : 'test:Card:Default',
+                'name' => 'New',
+                'values' => [],
+                'slots' => ['content' => '<p>Changed</p>'],
+            ]));
+            self::assertSame(403, $response->getStatusCode());
+            self::assertFalse($this->decodeResponse($response)['success']);
+            self::assertSame($fixture, file_get_contents($this->getFixturePath()));
+            self::assertSame($slot, file_get_contents($this->getSlotPath('Default')));
+            self::assertFileDoesNotExist($this->getSlotPath('New'));
+            foreach ($provider->getTreeNodes() as $node) {
+                self::assertTrue($node['readOnly']);
+                self::assertFalse($node['editable']);
+            }
+        } finally {
+            $contextProperty->setValue(null, $originalContext);
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function productionActions(): iterable
+    {
+        foreach (['Production', 'Production/Staging'] as $context) {
+            foreach (['create', 'copy', 'rename', 'delete', 'updateVariantValues'] as $action) {
+                $method = $action === 'updateVariantValues' ? $action . 'Action' : $action . 'VariantAction';
+                yield $context . '/' . $action => [$context, $method];
+            }
+        }
     }
 
     private function createDataProvider(): ComponentTreeDataProvider

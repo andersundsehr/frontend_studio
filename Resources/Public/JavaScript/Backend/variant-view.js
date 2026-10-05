@@ -619,6 +619,21 @@ class FrontendStudioVariantView {
     return previewUrl;
   }
 
+  previewErrorMessage(source, fallback) {
+    try {
+      const payload = JSON.parse(source);
+      if (typeof payload.message === 'string') {
+        return payload.message;
+      }
+    } catch {
+      // Preview errors can also be returned as HTML.
+    }
+    const document = new DOMParser().parseFromString(source, 'text/html');
+    const message = Array.from(document.body.children, (element) => element.textContent.trim()).join(' ').trim()
+      || document.body.textContent.trim();
+    return message || fallback;
+  }
+
   buildRenderedHtmlUrl() {
     const renderedHtmlUrl = this.buildPreviewUrl();
     renderedHtmlUrl.searchParams.set('frontendStudioPreviewFormat', 'highlighted-fragment');
@@ -702,7 +717,7 @@ class FrontendStudioVariantView {
     }
 
     if (!response.ok) {
-      throw new Error(fluidUsageSource || `The Fluid usage request failed with status ${response.status}.`);
+      throw new Error(this.previewErrorMessage(fluidUsageSource, `The Fluid usage request failed with status ${response.status}.`));
     }
 
     const snippets = JSON.parse(fluidUsageSource);
@@ -752,7 +767,7 @@ class FrontendStudioVariantView {
       }
 
       if (!response.ok) {
-        throw new Error(renderedHtml || `The rendered HTML request failed with status ${response.status}.`);
+        throw new Error(this.previewErrorMessage(renderedHtml, `The rendered HTML request failed with status ${response.status}.`));
       }
 
       this.renderHtmlSource(renderedHtml);
