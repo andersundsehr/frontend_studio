@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Service;
 
+use ReflectionFunction;
 use Andersundsehr\FrontendStudio\Controller\ComponentTransformerController;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentTransformerGenerator;
@@ -138,6 +139,35 @@ final class ComponentTransformerGeneratorTest extends FunctionalTestCase
         $transformers = require $this->path;
         self::assertInstanceOf(ArgumentTransformers::class, $transformers);
         self::assertInstanceOf(stdClass::class, ($transformers->arguments['payload'])());
+    }
+
+    public function testNullableTypedArrayTemplateCanBeReloaded(): void
+    {
+        $provider = $this->get(ComponentMetadataProvider::class);
+        $identifier = 'site:nullableTransformer:Default';
+        $metadata = $provider->getComponentMetadataForVariantIdentifier($identifier);
+        self::assertNotNull($metadata?->missingTransformers);
+        self::assertSame(['items' => '?ArrayObject[]'], $metadata->missingTransformers->arguments);
+        $this->path = $metadata->missingTransformers->absolutePath;
+        self::assertFileDoesNotExist($this->path);
+
+        $this->login();
+        $response = $this->dispatch(identifier: $identifier);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertTrue(json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['hasTodos']);
+        $transformers = require $this->path;
+        self::assertInstanceOf(ArgumentTransformers::class, $transformers);
+        self::assertSame('?array', new ReflectionFunction($transformers->arguments['items'])->getReturnType()?->__toString());
+
+        $reloaded = $provider->getComponentMetadataForVariantIdentifier($identifier);
+        self::assertNotNull($reloaded);
+        self::assertNull($reloaded->missingTransformerError);
+        self::assertNull($reloaded->missingTransformers);
+        self::assertSame([], $reloaded->errors);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('TODO: implement transformer for argument "items"');
+        ($transformers->arguments['items'])();
     }
 
     public function testExistingIncompleteFileIsNeverExtended(): void

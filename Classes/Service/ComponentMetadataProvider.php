@@ -24,6 +24,7 @@ use DateTimeImmutable;
 use RuntimeException;
 use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Throwable;
+use UnitEnum;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolverFactoryInterface;
@@ -404,6 +405,10 @@ final readonly class ComponentMetadataProvider
 
     private function formatTransformerInputValue(string $type, mixed $value): string
     {
+        if ($value instanceof UnitEnum) {
+            return $value->name;
+        }
+
         if (!$this->isDateType($type) || !is_string($value)) {
             return ValueFormatter::format($value);
         }
