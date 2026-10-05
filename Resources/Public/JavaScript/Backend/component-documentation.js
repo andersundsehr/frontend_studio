@@ -60,10 +60,15 @@ export default class ComponentDocumentation extends VariantFeature {
   async load() {
     if (this.pending) return;
     this.pending = true;
+    const sourceAtStart = this.source.value;
     this.status.textContent = 'Loading documentation…';
     try {
       const result = await this.request('GET');
       if (this.destroyed) return;
+      if (this.loaded && this.source.value !== sourceAtStart) {
+        this.status.textContent = 'Documentation was edited while loading. Your edits were kept; reload again to discard them.';
+        return;
+      }
       this.editor?.destroy(); this.editor = null;
       this.baseline = this.source.value = result.markdown;
       this.revision = result.revision;
