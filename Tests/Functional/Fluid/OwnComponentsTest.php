@@ -57,6 +57,25 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringContainsString('No component variant selected', $html);
         self::assertStringContainsString('The rendered component preview is not available.', $html);
         self::assertStringNotContainsString('data-frontend-studio-variant-sidebar-resize', $html);
+        self::assertStringContainsString('data-sidebar-height=""', $html);
+        self::assertStringNotContainsString('--frontend-studio-variant-sidebar-height:', $html);
+    }
+
+    public function testRendersSavedSidebarHeightSeparatelyFromWidth(): void
+    {
+        $html = $this->renderVariantView(['variantSidebarWidth' => 420, 'variantSidebarHeight' => 480]);
+
+        self::assertStringContainsString('--frontend-studio-variant-sidebar-width: 420px', $html);
+        self::assertStringContainsString('data-sidebar-height="480"', $html);
+        self::assertStringContainsString('--frontend-studio-variant-sidebar-height: 480px;', $html);
+    }
+
+    public function testRendersZeroSidebarHeightBeforeJavaScriptInitializes(): void
+    {
+        $html = $this->renderVariantView(['variantSidebarHeight' => 0]);
+
+        self::assertStringContainsString('data-sidebar-height="0"', $html);
+        self::assertStringContainsString('--frontend-studio-variant-sidebar-height: 0px;', $html);
     }
 
     public function testRendersSelectedVariantControlsAndPreview(): void
@@ -655,6 +674,7 @@ final class OwnComponentsTest extends FunctionalTestCase
             'selectedSiteIdentifier' => '',
             'selectedLanguageHreflang' => '',
             'variantSidebarWidth' => 360,
+            'variantSidebarHeight' => null,
             'variantActiveTab' => 'values',
             'renderedHtmlSource' => '',
             'renderedHtmlStatus' => '',

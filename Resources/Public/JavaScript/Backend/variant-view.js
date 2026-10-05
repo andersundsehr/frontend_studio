@@ -9,6 +9,8 @@ const componentFileActionCancelledEventName = 'frontend-studio:component-file-ac
 class FrontendStudioVariantView {
   static sidebarWidthStorageKey = 'frontendStudio.variantView.sidebarWidth';
 
+  static sidebarHeightStorageKey = 'frontendStudio.variantView.sidebarHeight';
+
   static activeTabStorageKey = 'frontendStudio.variantView.activeTab';
 
   static defaultSidebarWidth = 360;
@@ -16,6 +18,10 @@ class FrontendStudioVariantView {
   static minimumSidebarWidth = 280;
 
   static minimumPreviewWidth = 320;
+
+  static minimumSidebarHeight = 160;
+
+  static minimumPreviewHeight = 160;
 
   constructor(root) {
     this.root = root;
@@ -56,7 +62,10 @@ class FrontendStudioVariantView {
     this.renderedHtmlRequestId = 0;
     this.fluidUsageRequestId = 0;
     this.sidebarWidth = FrontendStudioVariantView.defaultSidebarWidth;
+    this.sidebarHeight = Number.parseInt(root.dataset.sidebarHeight || window.innerHeight * 0.45, 10);
+    this.isSidebarStacked = false;
     this.isResizingSidebar = false;
+    this.sidebarResizePointerId = null;
     this.componentChangeEventSource = null;
     this.ignoreNextComponentFilesChanged = false;
   }
@@ -318,27 +327,30 @@ class FrontendStudioVariantView {
       return;
     }
 
-    this.applySidebarWidth(this.readInitialSidebarWidth());
+    this.sidebarWidth = this.readInitialSidebarWidth();
+    this.updateSidebarLayout();
+    window.addEventListener('resize', () => this.updateSidebarLayout());
 
     this.sidebarResizeHandle.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) {
+      if (event.button !== 0 || this.isResizingSidebar) {
         return;
       }
 
       event.preventDefault();
       this.isResizingSidebar = true;
+      this.sidebarResizePointerId = event.pointerId;
       this.root.classList.add('is-resizing-sidebar');
       this.sidebarResizeHandle.setPointerCapture(event.pointerId);
-      this.updateSidebarWidthFromPointer(event.clientX);
+      this.updateSidebarSizeFromPointer(event);
     });
 
     this.sidebarResizeHandle.addEventListener('pointermove', (event) => {
-      if (!this.isResizingSidebar) {
+      if (!this.isResizingSidebar || event.pointerId !== this.sidebarResizePointerId) {
         return;
       }
 
       event.preventDefault();
-      this.updateSidebarWidthFromPointer(event.clientX);
+      this.updateSidebarSizeFromPointer(event);
     });
 
     this.sidebarResizeHandle.addEventListener('pointerup', (event) => {
@@ -348,6 +360,25 @@ class FrontendStudioVariantView {
     this.sidebarResizeHandle.addEventListener('pointercancel', (event) => {
       this.finishSidebarResize(event.pointerId);
     });
+
+    this.sidebarResizeHandle.addEventListener('lostpointercapture', (event) => {
+      this.finishSidebarResize(event.pointerId);
+    });
+  }
+
+  updateSidebarLayout() {
+    const isSidebarStacked = getComputedStyle(this.workspace).flexDirection === 'column';
+    if (isSidebarStacked !== this.isSidebarStacked) {
+      this.finishSidebarResize(this.sidebarResizePointerId);
+      this.isSidebarStacked = isSidebarStacked;
+    }
+
+    this.sidebarResizeHandle.setAttribute('aria-orientation', isSidebarStacked ? 'horizontal' : 'vertical');
+    if (isSidebarStacked) {
+      this.applySidebarHeight(this.sidebarHeight);
+    } else {
+      this.applySidebarWidth(this.sidebarWidth);
+    }
   }
 
   readInitialSidebarWidth() {
@@ -363,15 +394,17 @@ class FrontendStudioVariantView {
     return FrontendStudioVariantView.defaultSidebarWidth;
   }
 
-  updateSidebarWidthFromPointer(pointerClientX) {
+  updateSidebarSizeFromPointer(event) {
     if (this.workspace === null) {
       return;
     }
 
     const workspaceRect = this.workspace.getBoundingClientRect();
-    const width = workspaceRect.right - pointerClientX;
-
-    this.applySidebarWidth(width);
+    if (this.isSidebarStacked) {
+      this.sidebarHeight = this.applySidebarHeight(workspaceRect.bottom - event.clientY);
+    } else {
+      this.sidebarWidth = this.applySidebarWidth(workspaceRect.right - event.clientX);
+    }
   }
 
   applySidebarWidth(width) {
@@ -389,29 +422,59 @@ class FrontendStudioVariantView {
       maximumSidebarWidth,
     );
 
-    this.sidebarWidth = clampedWidth;
     this.root.style.setProperty('--frontend-studio-variant-sidebar-width', `${clampedWidth}px`);
+    this.sidebarResizeHandle?.setAttribute('aria-valuemin', String(FrontendStudioVariantView.minimumSidebarWidth));
+    this.sidebarResizeHandle?.setAttribute('aria-valuemax', String(Math.round(maximumSidebarWidth)));
     this.sidebarResizeHandle?.setAttribute('aria-valuenow', String(Math.round(clampedWidth)));
+
+    return clampedWidth;
+  }
+
+  applySidebarHeight(height) {
+    if (this.workspace === null || this.sidebarResizeHandle === null) {
+      return;
+    }
+
+    const maximumSidebarHeight = Math.max(
+      0,
+      this.workspace.getBoundingClientRect().height
+        - this.sidebarResizeHandle.getBoundingClientRect().height
+        - (this.root.querySelector('.frontend-studio-variant-header')?.getBoundingClientRect().height ?? 0)
+        - FrontendStudioVariantView.minimumPreviewHeight,
+    );
+    const minimumSidebarHeight = Math.min(FrontendStudioVariantView.minimumSidebarHeight, maximumSidebarHeight);
+    const clampedHeight = Math.min(Math.max(height, minimumSidebarHeight), maximumSidebarHeight);
+
+    this.root.style.setProperty('--frontend-studio-variant-sidebar-height', `${clampedHeight}px`);
+    this.sidebarResizeHandle.setAttribute('aria-valuemin', String(Math.round(minimumSidebarHeight)));
+    this.sidebarResizeHandle.setAttribute('aria-valuemax', String(Math.round(maximumSidebarHeight)));
+    this.sidebarResizeHandle.setAttribute('aria-valuenow', String(Math.round(clampedHeight)));
+
+    return clampedHeight;
   }
 
   finishSidebarResize(pointerId) {
-    if (!this.isResizingSidebar) {
+    if (!this.isResizingSidebar || pointerId !== this.sidebarResizePointerId) {
       return;
     }
 
     this.isResizingSidebar = false;
+    this.sidebarResizePointerId = null;
     this.root.classList.remove('is-resizing-sidebar');
 
     if (this.sidebarResizeHandle?.hasPointerCapture(pointerId)) {
       this.sidebarResizeHandle.releasePointerCapture(pointerId);
     }
 
-    this.persistSidebarWidth(Math.round(this.sidebarWidth));
+    this.persistSidebarSize();
   }
 
-  async persistSidebarWidth(width) {
+  async persistSidebarSize() {
     try {
-      await PersistentStorage.set(FrontendStudioVariantView.sidebarWidthStorageKey, width);
+      await PersistentStorage.set(
+        this.isSidebarStacked ? FrontendStudioVariantView.sidebarHeightStorageKey : FrontendStudioVariantView.sidebarWidthStorageKey,
+        Math.round(this.isSidebarStacked ? this.sidebarHeight : this.sidebarWidth),
+      );
     } catch {
       // Ignore persistence failures; resizing still works for the current page load.
     }
