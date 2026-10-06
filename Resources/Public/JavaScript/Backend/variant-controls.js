@@ -95,7 +95,7 @@ class VariantControls extends VariantValues {
       return;
     }
 
-    const variantName = this.view.variantIdentifier.split(':').pop() || '';
+    const variantName = this.view.variantIdentifier.split(':').slice(2).join(':');
     const name = window.prompt('New variant name', `${variantName} copy`);
     if (name === null) {
       return;

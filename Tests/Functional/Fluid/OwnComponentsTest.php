@@ -43,6 +43,7 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use TYPO3Fluid\Fluid\View\TemplateView;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
 use stdClass;
+use Symfony\Component\Yaml\Yaml;
 
 final class OwnComponentsTest extends FunctionalTestCase
 {
@@ -66,6 +67,7 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringContainsString('The rendered component preview is not available.', $html);
         self::assertStringNotContainsString('data-frontend-studio-variant-sidebar-resize', $html);
         self::assertStringContainsString('data-sidebar-height=""', $html);
+        self::assertStringContainsString('data-component-identifier=""', $html);
         self::assertStringNotContainsString('--frontend-studio-variant-sidebar-height:', $html);
     }
 
@@ -121,6 +123,56 @@ final class OwnComponentsTest extends FunctionalTestCase
             ],
             $this->get(AssetCollector::class)->getJavaScriptModules(),
         );
+    }
+
+    public function testColonVariantUsesMetadataComponentIdentifierOnEveryViewRoot(): void
+    {
+        $identifier = 'site:card:Mobile:Dark';
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier($identifier);
+        self::assertNotNull($metadata);
+        self::assertSame('site:card', $metadata->componentIdentifier);
+        self::assertSame('Mobile:Dark', $metadata->variantName);
+        self::assertSame($identifier, $metadata->selectedVariantIdentifier);
+        self::assertNotNull($metadata->fixture?->selectedVariant);
+
+        $html = $this->renderVariantView([
+            'selectedVariantIdentifier' => $identifier,
+            'selectedComponentMetadata' => $metadata,
+        ]);
+        self::assertSame(5, substr_count($html, 'data-component-identifier="site:card"'));
+        self::assertSame(4, substr_count($html, 'data-variant-identifier="' . $identifier . '"'));
+        self::assertMatchesRegularExpression('/data-component-documentation\s+data-component-identifier="site:card"/', $html);
+        self::assertStringContainsString('Colon variant from fixture', $this->renderPreview($identifier));
+        $nodes = $this->get(ComponentTreeDataProvider::class)->getTreeNodes();
+        self::assertNotNull(array_find($nodes, static fn(array $node): bool => $node['identifier'] === $identifier));
+    }
+
+    #[DataProvider('isolatedComponentRoots')]
+    public function testIsolatedRootsRenderTheMetadataComponentIdentifier(string $component): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $backendUser = $this->setUpBackendUser(1);
+        $cookie = $backendUser->getSession()->getJwt(new CookieScope('preview.test', true, '/'));
+        $fixture = Yaml::parseFile(__DIR__ . '/../../../Resources/Private/Components/Variant/' . ucfirst($component) . '/' . ucfirst($component) . '.fixture.yaml');
+        $response = $this->requestPreview('frontend.studio:variant.' . $component . ':Default', overrides: [
+            'componentVariantValues' => json_encode(array_replace($fixture['variants']['Default'], [
+                'selectedVariantIdentifier' => 'site:card:Mobile:Dark',
+                'selectedComponentMetadata' => ['variantIdentifier' => 'site:card:Mobile:Dark'],
+            ]), JSON_THROW_ON_ERROR),
+        ], backendCookie: $cookie);
+        $html = (string)$response->getBody();
+        self::assertSame(200, $response->getStatusCode(), $html);
+        self::assertStringContainsString('data-component-identifier="site:card"', $html);
+        self::assertStringContainsString('data-variant-identifier="site:card:Mobile:Dark"', $html);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function isolatedComponentRoots(): iterable
+    {
+        yield 'header' => ['header'];
+        yield 'sidebar' => ['sidebar'];
+        yield 'controls' => ['controls'];
     }
 
     public function testOwnComponentsAreHiddenFromTheTreeByDefault(): void

@@ -45,9 +45,7 @@ final readonly class ComponentDocumentation
             }
 
             $path = $this->resolvePath($identifier);
-            if (!hash_equals($this->revision($this->readPath($path)), $revision)) {
-                throw new RuntimeException('Documentation changed on disk. Copy your edits, then reload before saving.', 1791201001);
-            }
+            $this->assertRevision($path, $revision);
 
             if (!is_writable(dirname($path)) || (is_file($path) && !is_writable($path))) {
                 throw new RuntimeException('Documentation is not writable. Check file and directory permissions.', 8858025004);
@@ -64,9 +62,7 @@ final readonly class ComponentDocumentation
             }
 
             $this->resolvePath($identifier);
-            if (!hash_equals($this->revision($this->readPath($path)), $revision)) {
-                throw new RuntimeException('Documentation changed on disk. Copy your edits, then reload before saving.', 1791201001);
-            }
+            $this->assertRevision($path, $revision);
 
             if (!rename($temporary, $path)) {
                 throw new RuntimeException('Could not replace the documentation file.', 6399418644);
@@ -97,6 +93,14 @@ final readonly class ComponentDocumentation
         }
 
         return $path;
+    }
+
+    /** @phpstan-impure */
+    private function assertRevision(string $path, string $revision): void
+    {
+        if (!hash_equals($this->revision($this->readPath($path)), $revision)) {
+            throw new RuntimeException('Documentation changed on disk. Copy your edits, then reload before saving.', 1791201001);
+        }
     }
 
     /** @phpstan-impure */

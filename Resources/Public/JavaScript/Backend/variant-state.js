@@ -7,6 +7,7 @@ export class VariantState extends EventTarget {
     this.previewUri = root.dataset.previewUri || '';
     this.previewChanged = false;
     this.variantIdentifier = root.dataset.variantIdentifier || '';
+    this.componentIdentifier = root.dataset.componentIdentifier || '';
     this.controls = null;
     this.hasUnsavedChanges = false;
     this.ignoreNextComponentFilesChanged = false;
@@ -15,16 +16,14 @@ export class VariantState extends EventTarget {
     this.destroyed = false;
     this.features = new Map();
     this.abortController = new AbortController();
-    const identifierParts = this.variantIdentifier.split(':');
-    const componentIdentifier = identifierParts.length >= 3 ? identifierParts.slice(0, -1).join(':') : '';
     // Tree actions carry identifier; controls actions carry variantIdentifier and stay local.
     ['started', 'cancelled'].forEach((type) => {
       top.document.addEventListener(`frontend-studio:component-file-action-${type}`, (event) => {
         const identifier = event.detail?.identifier;
-        if (event.detail?.variantIdentifier !== undefined || typeof identifier !== 'string' || componentIdentifier === '') {
+        if (event.detail?.variantIdentifier !== undefined || typeof identifier !== 'string' || this.componentIdentifier === '') {
           return;
         }
-        if (identifier === componentIdentifier || identifier.startsWith(`${componentIdentifier}:`)) {
+        if (identifier === this.componentIdentifier || identifier.startsWith(`${this.componentIdentifier}:`)) {
           this.ignoreNextComponentFilesChanged = type === 'started';
         }
       }, { signal: this.abortController.signal });
