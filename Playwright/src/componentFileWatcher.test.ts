@@ -90,3 +90,30 @@ test('shared events retain component identifiers and suppress successful own fil
   env.change(undefined, env.streams[0]);
   assert.equal(events.length, 5, 'a closed connection cannot dispatch late changes');
 });
+
+for (const action of ['create', 'copy', 'delete', 'save']) {
+  test(`${action} retains colon variant actions through unrelated SSE and cancels by full identifier`, async (t) => {
+    const env = await setup();
+    t.after(() => env.watcher.destroy());
+    env.moduleLoaded();
+    const events: any[] = [];
+    env.document.addEventListener('frontend-studio:component-files-changed', (event) => events.push((event as CustomEvent).detail));
+    const identifier = action === 'create' ? 'site:card' : 'site:card:Mobile:Dark';
+    const detail = action === 'save' ? { action, variantIdentifier: identifier } : { action, identifier };
+    const dispatch = (type: string, payload = detail) => env.document.dispatchEvent(new CustomEvent(
+      `frontend-studio:component-file-action-${type}`, { detail: payload },
+    ));
+    dispatch('started');
+    env.change(JSON.stringify({ componentIdentifiers: ['site:cardOther'] }));
+    assert.equal(events.at(-1).ownAction, false);
+    env.change();
+    assert.equal(events.at(-1).ownAction, true);
+    assert.deepEqual(Array.from(events.at(-1).ownActionIdentifiers), action === 'save' ? [] : [identifier]);
+    env.change();
+    assert.equal(events.at(-1).ownAction, false);
+    dispatch('started');
+    dispatch('cancelled');
+    env.change();
+    assert.equal(events.at(-1).ownAction, false);
+  });
+}
