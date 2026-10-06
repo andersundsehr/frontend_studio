@@ -72,7 +72,6 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix Playwright --no-package-lock
+      - run: npx --prefix Playwright playwright install --with-deps chromium
       - run: npm test --prefix Playwright
       - run: npm run typecheck --prefix Playwright
-      - run: npx --prefix Playwright playwright install --with-deps chromium
-      - run: node Playwright/browser/variantPreview.mjs
