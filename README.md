@@ -453,7 +453,7 @@ and comparing it. Snapshot paths are project-relative and shown only with `-v` (
 States are green for passes, yellow for warnings and red for errors;
 component identifiers are cyan and variant names are magenta.
 Dynamic markers are mentioned only when the baseline contains them.
-To accept intentional changes, rerun the same command with `--update`:
+To accept intentional changes, rerun the same command with `--update` (or `-u`):
 
 ```bash
 vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text --update

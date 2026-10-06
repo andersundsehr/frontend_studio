@@ -31,7 +31,7 @@ final class SnapshotCommand extends Command
         $this->addArgument('site', InputArgument::REQUIRED, 'Site identifier')
             ->addArgument('language', InputArgument::REQUIRED, 'Site language hreflang')
             ->addOption('scope', null, InputOption::VALUE_REQUIRED, 'Variant, component, folder or namespace identifier', '')
-            ->addOption('update', null, InputOption::VALUE_NONE, 'Regenerate snapshots in the selected scope outside Production');
+            ->addOption('update', 'u', InputOption::VALUE_NONE, 'Regenerate snapshots in the selected scope outside Production');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

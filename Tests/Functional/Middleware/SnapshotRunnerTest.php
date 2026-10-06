@@ -296,7 +296,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
                 self::assertSame("changed\n", file_get_contents($path));
             }
 
-            self::assertSame(0, $tester->execute([...$arguments, '--update' => true], ['decorated' => true]));
+            self::assertSame(0, $tester->execute([...$arguments, '-u' => true], ['decorated' => true]));
             self::assertSame(2, substr_count($tester->getDisplay(), "\033[32;1mUPDATED"));
             self::assertStringContainsString('2/2 snapshots ready (2 updated).', $tester->getDisplay());
             self::assertStringNotContainsString('To accept these changes', $tester->getDisplay());
