@@ -26,6 +26,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $result = $runner->run('site:wrappedCard:Default', 'preview', 'de');
         try {
             self::assertSame('missing', $result['status'], $result['message']);
+            self::assertStringEndsWith('WrappedCard.html-snapshots/html-Default.html', $result['path']);
             self::assertStringContainsString('<section class="wrapper-example">', $result['expected']);
             self::assertStringContainsString('<article>Wrapped preview', $result['expected']);
             self::assertSame($result['expected'], file_get_contents($result['path']));
@@ -62,6 +63,24 @@ final class SnapshotRunnerTest extends FunctionalTestCase
                     rmdir(dirname($result['path']));
                 }
             }
+        }
+    }
+
+    public function testCollidingVariantNamesWithoutSlotsNeverReadOrCreateABaseline(): void
+    {
+        $fixture = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fixture.yaml';
+        $original = file_get_contents($fixture);
+        try {
+            file_put_contents($fixture, "variants:\n  a/b:\n    title: First\n  a-b:\n    title: Second\n");
+            $runner = $this->get(Runner::class);
+            foreach (['site:wrappedCard:a/b', 'site:wrappedCard:a-b'] as $identifier) {
+                $result = $runner->run($identifier, 'preview', 'de');
+                self::assertSame('error', $result['status']);
+                self::assertSame('Fixture variants use the same snapshot filename.', $result['message']);
+                self::assertFileDoesNotExist($result['path']);
+            }
+        } finally {
+            file_put_contents($fixture, $original);
         }
     }
 

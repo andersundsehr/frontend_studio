@@ -561,7 +561,7 @@ final readonly class ComponentFixtureProvider
 
         $names = [];
         foreach (array_keys($variants) as $variantName) {
-            $normalizedName = $this->normalizeSlotFilenameSegment((string)$variantName);
+            $normalizedName = self::normalizeSlotFilenameSegment((string)$variantName);
             if (isset($names[$normalizedName])) {
                 throw new InvalidArgumentException('Variant names "' . $names[$normalizedName] . '" and "' . $variantName . '" use the same slot filename.', 1768482509);
             }
@@ -577,7 +577,7 @@ final readonly class ComponentFixtureProvider
     {
         $names = [];
         foreach ($slotNames as $slotName) {
-            $normalizedName = $this->normalizeSlotFilenameSegment($slotName);
+            $normalizedName = self::normalizeSlotFilenameSegment($slotName);
             if (isset($names[$normalizedName])) {
                 throw new InvalidArgumentException('Slot names "' . $names[$normalizedName] . '" and "' . $slotName . '" use the same filename.', 1768482510);
             }
@@ -617,7 +617,7 @@ final readonly class ComponentFixtureProvider
         $sourceFiles = $this->getVariantSlotFiles($resolverDelegate, $componentName, $sourceVariantName);
         $targetFiles = [];
         foreach ($sourceFiles as $sourceFile) {
-            $targetFile = $this->getSlotDirectory($resolverDelegate, $componentName) . '/' . $this->normalizeSlotFilenameSegment($newVariantName) . '__slot__' . substr($sourceFile, strrpos($sourceFile, '__slot__') + strlen('__slot__'));
+            $targetFile = $this->getSlotDirectory($resolverDelegate, $componentName) . '/' . self::normalizeSlotFilenameSegment($newVariantName) . '__slot__' . substr($sourceFile, strrpos($sourceFile, '__slot__') + strlen('__slot__'));
             if (is_file($targetFile)) {
                 throw new RuntimeException('Target slot file already exists.', 1768482512);
             }
@@ -643,8 +643,8 @@ final readonly class ComponentFixtureProvider
         string $currentVariantName,
         string $newVariantName,
     ): void {
-        $currentPrefix = $this->normalizeSlotFilenameSegment($currentVariantName) . '__slot__';
-        $newPrefix = $this->normalizeSlotFilenameSegment($newVariantName) . '__slot__';
+        $currentPrefix = self::normalizeSlotFilenameSegment($currentVariantName) . '__slot__';
+        $newPrefix = self::normalizeSlotFilenameSegment($newVariantName) . '__slot__';
         if ($currentPrefix === $newPrefix) {
             return;
         }
@@ -685,7 +685,7 @@ final readonly class ComponentFixtureProvider
             return [];
         }
 
-        $prefix = $this->normalizeSlotFilenameSegment($variantName) . '__slot__';
+        $prefix = self::normalizeSlotFilenameSegment($variantName) . '__slot__';
         $files = [];
         foreach (scandir($directory) ?: [] as $filename) {
             if (!str_starts_with($filename, $prefix) || !str_ends_with($filename, '.fluid.html')) {
@@ -704,9 +704,9 @@ final readonly class ComponentFixtureProvider
     private function getSlotPath(ComponentTemplateResolverInterface $resolverDelegate, string $componentName, string $variantName, string $slotName): string
     {
         return $this->getSlotDirectory($resolverDelegate, $componentName)
-            . '/' . $this->normalizeSlotFilenameSegment($variantName)
+            . '/' . self::normalizeSlotFilenameSegment($variantName)
             . '__slot__'
-            . $this->normalizeSlotFilenameSegment($slotName)
+            . self::normalizeSlotFilenameSegment($slotName)
             . '.fluid.html';
     }
 
@@ -728,7 +728,7 @@ final readonly class ComponentFixtureProvider
         throw new RuntimeException('Slot path could not be derived from template path "' . $templatePath . '".', 1768482519);
     }
 
-    private function normalizeSlotFilenameSegment(string $name): string
+    public static function normalizeSlotFilenameSegment(string $name): string
     {
         $name = preg_replace('/[\x00-\x1F<>:"\/\\\\|?*]+/', '-', $name) ?? $name;
 

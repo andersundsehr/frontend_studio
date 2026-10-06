@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
 use Andersundsehr\FrontendStudio\Service\ComponentWritePolicy;
+use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use RuntimeException;
 
 final readonly class BaselineStorage
@@ -13,20 +14,19 @@ final readonly class BaselineStorage
     {
     }
 
-    public function path(string $template, string $identifier, string $site, string $language): string
+    public function path(string $template, string $variantName): string
     {
         $template = realpath($template);
         if ($template === false || !is_file($template)) {
             throw new RuntimeException('The component template does not exist.', 6175149859);
         }
 
-        $directory = dirname($template) . '/_html-snapshots';
+        $directory = $template . '-snapshots';
         if (is_link($directory)) {
             throw new RuntimeException('Snapshot directories must not be symbolic links.', 2269502052);
         }
 
-        $key = json_encode([basename($template), $identifier, $site, $language], JSON_THROW_ON_ERROR);
-        return $directory . '/' . hash('sha256', $key) . '.html';
+        return $directory . '/html-' . ComponentFixtureProvider::normalizeSlotFilenameSegment($variantName) . '.html';
     }
 
     /** @phpstan-impure */

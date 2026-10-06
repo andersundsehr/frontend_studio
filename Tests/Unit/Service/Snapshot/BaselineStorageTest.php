@@ -19,12 +19,12 @@ final class BaselineStorageTest extends TestCase
     {
         $directory = sys_get_temp_dir() . '/snapshot-' . bin2hex(random_bytes(8));
         mkdir($directory);
-        file_put_contents($directory . '/Card.html', '<p>card</p>');
+        file_put_contents($directory . '/Text.fluid.html', '<p>card</p>');
         $storage = new BaselineStorage(new ComponentWritePolicy());
-        $path = $storage->path($directory . '/Card.html', 'test:card:a/b', 'site', 'de');
-        self::assertNotSame($path, $storage->path($directory . '/Card.html', 'test:card:a-b', 'site', 'de'));
-        self::assertNotSame($path, $storage->path($directory . '/Card.html', 'test:card:a/b', 'site', 'en'));
-        self::assertNotSame($path, $storage->path($directory . '/Card.html', 'test:card:a/b', 'site2', 'de'));
+        $path = $storage->path($directory . '/Text.fluid.html', 'Default');
+        self::assertSame($directory . '/Text.fluid.html-snapshots/html-Default.html', $path);
+        self::assertSame($directory . '/Text.fluid.html-snapshots/html-a-b.html', $storage->path($directory . '/Text.fluid.html', 'a/b'));
+        self::assertSame($storage->path($directory . '/Text.fluid.html', 'a/b'), $storage->path($directory . '/Text.fluid.html', 'a-b'));
         $property = new ReflectionProperty(Environment::class, 'context');
         $original = Environment::getContext();
         try {
@@ -57,7 +57,7 @@ final class BaselineStorageTest extends TestCase
                 rmdir(dirname($path));
             }
 
-            unlink($directory . '/Card.html');
+            unlink($directory . '/Text.fluid.html');
             rmdir($directory);
         }
     }

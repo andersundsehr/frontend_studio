@@ -417,10 +417,13 @@ passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or new
 created baselines, and `3` when both failure categories occur. Invalid fixtures and
 empty/unknown scopes fail; a newly created baseline is never counted as a pass.
 
-Baselines live beside the resolved template in `_html-snapshots/`. The filename is
-the SHA-256 of the JSON tuple `[template basename, full variant identifier, site
-identifier, language hreflang]`; the command prints its full path. This avoids
-sanitized-name collisions between components, variants, sites and languages.
+Baselines live in a directory named after the resolved template, including its
+full extension: `Text.fluid.html-snapshots/html-Default.html` for variant `Default`.
+Variant names use the same filename normalization as slot HTML files;
+colliding variant names fail before a baseline is read or created, including
+components without slots. Each template and variant has one baseline shared by
+site and language selections; use the intended rendering context when creating
+and comparing it. The command prints the full path.
 Normal runs never overwrite baselines. To accept an intentional change, delete
 only the reviewed baseline, rerun outside Production, inspect the new diff and
 commit it. Concurrent creation publishes a complete file without replacement.
