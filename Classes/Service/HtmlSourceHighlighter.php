@@ -20,9 +20,94 @@ final class HtmlSourceHighlighter
         return $this->highlightSource($template, true);
     }
 
+    /**
+     * @param list<array{line: ?int, character?: ?int, severity: string, message: string}> $diagnostics
+     */
+    public function highlightFluidDiagnostics(string $template, array $diagnostics): string
+    {
+        $byLine = [];
+        $characters = [];
+        $summary = '';
+        foreach ($diagnostics as $diagnostic) {
+            $severity = $diagnostic['severity'] === 'deprecation' ? 'deprecation' : 'error';
+            $message = '<span class="frontend-studio-template-diagnostic is-' . $severity . '">'
+                . htmlspecialchars(ucfirst($severity) . ': ' . $diagnostic['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</span>';
+            if ($diagnostic['line'] === null) {
+                $summary .= $message;
+            } else {
+                $byLine[$diagnostic['line']][] = $message;
+                if (($diagnostic['character'] ?? null) !== null) {
+                    $characters[$diagnostic['line']][] = $diagnostic['character'];
+                }
+            }
+        }
+
+        $lines = explode("\n", $this->highlightSource($template, true, false));
+        $source = '';
+        foreach ($lines as $index => $line) {
+            $number = $index + 1;
+            $messages = $byLine[$number] ?? [];
+            $line = $this->markCharacters($line, $characters[$number] ?? []);
+            $source .= '<span class="frontend-studio-template-line' . ($messages !== [] ? ' is-error' : '') . '" data-line="' . $number . '">'
+                . '<span class="frontend-studio-template-line-number" aria-hidden="true">' . $number . '</span>'
+                . '<code>' . $line . '</code>' . implode('', $messages) . '</span>';
+            if ($number < count($lines)) {
+                $source .= "\n";
+            }
+        }
+
+        return ($summary !== '' ? '<div class="frontend-studio-template-summary">' . $summary . '</div>' : '')
+            . '<pre class="frontend-studio-variant-html-source frontend-studio-template-source">' . $source . '</pre>';
+    }
+
     public function highlightFluidUsage(string $fluidUsage): string
     {
         return $this->highlightSource($fluidUsage, true, false);
+    }
+
+    /**
+     * @param list<int> $characters Fluid's one-based UTF-8 byte positions.
+     */
+    private function markCharacters(string $line, array $characters): string
+    {
+        if ($characters === []) {
+            return $line;
+        }
+
+        $plainLine = rtrim(html_entity_decode(strip_tags($line), ENT_QUOTES | ENT_HTML5, 'UTF-8'), "\r");
+        $characters = array_values(array_unique(array_filter($characters, static fn(int $character): bool => $character > 0
+            && $character <= strlen($plainLine) + 1 && preg_match('//u', substr($plainLine, 0, $character - 1)) === 1)));
+        sort($characters);
+        if ($characters === []) {
+            return $line;
+        }
+
+        // Only split escaped text, never markup or an HTML entity. Retain token spans.
+        $parts = preg_split('/(<[^>]+>)/', $line, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+        $offset = 0;
+        $marked = '';
+        foreach ($parts as $part) {
+            if (str_starts_with($part, '<')) {
+                $marked .= $part;
+                continue;
+            }
+
+            $text = html_entity_decode($part, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $end = $offset + strlen($text);
+            $start = 0;
+            while ($characters !== [] && $characters[0] - 1 <= $end) {
+                $character = array_shift($characters);
+                $position = $character - 1 - $offset;
+                $marked .= htmlspecialchars(substr($text, $start, $position - $start), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                    . '<span class="frontend-studio-template-marker" data-character="' . $character . '" aria-hidden="true"></span>';
+                $start = $position;
+            }
+
+            $marked .= htmlspecialchars(substr($text, $start), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $offset = $end;
+        }
+
+        return $marked;
     }
 
     private function highlightSource(string $html, bool $highlightFluidExpressions = false, bool $wrapSource = true): string
@@ -229,8 +314,12 @@ final class HtmlSourceHighlighter
 
     private function wrap(string $token, string $value): string
     {
-        return '<span class="frontend-studio-variant-html-source__' . $token . '">'
-            . htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-            . '</span>';
+        // Tokenize the entire source first, then close spans at line boundaries.
+        // This preserves multiline token classes and makes line annotation safe.
+        $parts = preg_split('/(\r?\n)/', $value, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+        return implode('', array_map(static fn(string $part): string => in_array($part, ["\n", "\r\n"], true)
+            ? $part
+            : '<span class="frontend-studio-variant-html-source__' . $token . '">'
+                . htmlspecialchars($part, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</span>', $parts));
     }
 }

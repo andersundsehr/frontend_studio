@@ -8,7 +8,7 @@
 <f:argument name="variantActiveTab" type="string"/>
 <f:argument name="renderedHtmlSource" type="string"/>
 <f:argument name="renderedHtmlStatus" type="string"/>
-<f:argument name="fluidTemplateSource" type="string"/>
+<f:argument name="fluidTemplateAnalysis" type="array" default="{source: '', errorCount: 0, status: ''}"/>
 <f:argument name="fluidUsageSource" type="array"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
 <f:asset.module identifier="@andersundsehr/frontend-studio/backend/variant-sidebar.js"/>
@@ -66,6 +66,9 @@
           data-frontend-studio-variant-tab="template"
         >
           Fluid Template
+          <span class="frontend-studio-template-badge" data-frontend-studio-template-badge {f:if(condition: fluidTemplateAnalysis.errorCount, else: 'hidden')}>
+            <span aria-hidden="true">⚠</span> <span data-frontend-studio-template-count>{fluidTemplateAnalysis.errorCount}</span> errors
+          </span>
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -115,27 +118,8 @@
       aria-labelledby="frontend-studio-variant-template-tab"
       data-frontend-studio-variant-tab-panel="template"
     >
-      <f:if condition="{selectedComponentMetadata.template.error}">
-        <f:then>
-          <div class="frontend-studio-variant-template-status is-error">
-            The Fluid template could not be loaded. {selectedComponentMetadata.template.error}
-          </div>
-        </f:then>
-        <f:else>
-          <f:if condition="{selectedComponentMetadata.template.content}">
-            <f:then>
-              <div class="frontend-studio-variant-template">
-                {fluidTemplateSource -> f:format.raw()}
-              </div>
-            </f:then>
-            <f:else>
-              <div class="frontend-studio-variant-template-status">
-                The Fluid template content is not available.
-              </div>
-            </f:else>
-          </f:if>
-        </f:else>
-      </f:if>
+      <div class="frontend-studio-variant-template-status is-error" data-frontend-studio-template-status role="status" {f:if(condition: fluidTemplateAnalysis.status, else: 'hidden')}>{fluidTemplateAnalysis.status}</div>
+      <div class="frontend-studio-variant-template" data-frontend-studio-template-source>{fluidTemplateAnalysis.source -> f:format.raw()}</div>
     </div>
     <div
       class="frontend-studio-variant-tab-panel{f:if(condition: '{variantActiveTab} == \'usage\'', then: ' is-active', else: ' is-hidden')}"
