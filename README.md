@@ -451,8 +451,12 @@ Production and Production subcontexts permit reading only.
 Documentation endpoints require a backend login and TYPO3 route tokens.
 
 CKEditor from TYPO3’s `rte_ckeditor` extension supports paragraphs, headings, emphasis, lists, links, and code blocks.
-Writable documentation always opens in the rich text editor, without a mode switch or separate preview.
+Writable documentation opens in the rich text editor, whose **Markdown** toolbar button lets you edit the source directly.
+The editor itself is the preview; there is no separate preview below it.
+A small hint below the editor shows the documentation file path.
 Production shows rendered Markdown inline without an editor or action buttons.
+The Doc tab is hidden in Production when the Markdown file does not exist.
+Saving empty documentation removes the Markdown file.
 Opening a document keeps the original Markdown untouched; rich edits serialize it using consistent Markdown formatting.
 Raw HTML is displayed as text and executable link schemes are rejected.
 **Reset** restores the last loaded or saved document locally.

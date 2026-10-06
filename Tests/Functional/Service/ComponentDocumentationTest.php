@@ -72,13 +72,42 @@ final class ComponentDocumentationTest extends FunctionalTestCase
         self::assertSame('External change', file_get_contents($this->path));
     }
 
-    public function testMissingAndEmptyFilesHaveDifferentRevisions(): void
+    public function testEmptySaveRemovesDocumentationAndRestoresMissingRevision(): void
     {
         $service = $this->get(ComponentDocumentation::class);
         $initial = $service->read('site:card');
-        $saved = $service->save('site:card', '', $initial['revision']);
-        self::assertNotSame($initial['revision'], $saved['revision']);
-        self::assertFileExists($this->path);
+        self::assertSame($initial, $service->save('site:card', '', $initial['revision']));
+        self::assertFileDoesNotExist($this->path);
+        $saved = $service->save('site:card', 'Documentation', $initial['revision']);
+        self::assertSame($initial, $service->save('site:card', '', $saved['revision']));
+        self::assertFileDoesNotExist($this->path);
+        self::assertSame($initial, $service->read('site:card'));
+    }
+
+    public function testExistingEmptyFileIsRemoved(): void
+    {
+        $service = $this->get(ComponentDocumentation::class);
+        $missing = $service->read('site:card');
+        file_put_contents($this->path, '');
+        $empty = $service->read('site:card');
+        self::assertNotSame($missing['revision'], $empty['revision']);
+        self::assertSame($missing, $service->save('site:card', '', $empty['revision']));
+        self::assertFileDoesNotExist($this->path);
+    }
+
+    public function testStaleDeletionPreservesExternalChanges(): void
+    {
+        $service = $this->get(ComponentDocumentation::class);
+        $saved = $service->save('site:card', 'Original', $service->read('site:card')['revision']);
+        file_put_contents($this->path, 'External change');
+        try {
+            $service->save('site:card', '', $saved['revision']);
+            self::fail('Stale deletion must fail.');
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame(1791201001, $runtimeException->getCode());
+        }
+
+        self::assertSame('External change', file_get_contents($this->path));
     }
 
     public function testPathsCannotBeSuppliedByTheClient(): void
@@ -136,6 +165,24 @@ final class ComponentDocumentationTest extends FunctionalTestCase
         }
     }
 
+    public function testProductionCannotDeleteExistingDocumentation(): void
+    {
+        $this->login();
+        $service = $this->get(ComponentDocumentation::class);
+        $saved = $service->save('site:card', 'Keep this documentation', $service->read('site:card')['revision']);
+        $property = new ReflectionProperty(Environment::class, 'context');
+        $original = Environment::getContext();
+        try {
+            $property->setValue(null, new ApplicationContext('Production'));
+            self::assertSame(403, $this->dispatch(['markdown' => '', 'revision' => $saved['revision']])->getStatusCode());
+            $this->expectException(ComponentWriteDeniedException::class);
+            $service->save('site:card', '', $saved['revision']);
+        } finally {
+            $property->setValue(null, $original);
+            self::assertSame('Keep this documentation', file_get_contents($this->path));
+        }
+    }
+
     public function testAuthenticatedRouteRoundtripAndConflict(): void
     {
         $this->login();
@@ -143,7 +190,10 @@ final class ComponentDocumentationTest extends FunctionalTestCase
         $payload = ['markdown' => '# Shared documentation', 'revision' => $initial['revision']];
         self::assertSame(200, $this->dispatch($payload)->getStatusCode());
         self::assertSame(409, $this->dispatch($payload)->getStatusCode());
-        self::assertSame('# Shared documentation', $this->get(ComponentDocumentation::class)->read('site:card')['markdown']);
+        $saved = $this->get(ComponentDocumentation::class)->read('site:card');
+        self::assertSame('# Shared documentation', $saved['markdown']);
+        self::assertSame(200, $this->dispatch(['markdown' => '', 'revision' => $saved['revision']])->getStatusCode());
+        self::assertFileDoesNotExist($this->path);
     }
 
     public function testReadAndWriteRequireBackendLogin(): void

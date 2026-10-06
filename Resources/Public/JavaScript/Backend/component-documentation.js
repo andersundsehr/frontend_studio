@@ -103,9 +103,9 @@ export default class ComponentDocumentation extends VariantFeature {
       this.readOnly = result.readOnly;
       this.loaded = true;
       if (this.actions) this.actions.hidden = this.readOnly;
-      this.status.textContent = this.readOnly ? 'Documentation is read-only in Production.' : 'Documentation is shared by all variants of this component.';
+      this.status.textContent = this.readOnly ? '' : 'Documentation is shared by all variants of this component.';
       if (canReuseEditor) {
-        this.editor.setData(renderMarkdown(this.baseline));
+        this.editor.setData(this.baseline);
         this.markdown = this.baseline;
       } else {
         this.rich.innerHTML = renderMarkdown(this.markdown);
@@ -147,7 +147,7 @@ export default class ComponentDocumentation extends VariantFeature {
 
   reset() {
     if (!this.loaded || this.pending || !this.dirty || !this.editor) return;
-    this.editor.setData(renderMarkdown(this.baseline));
+    this.editor.setData(this.baseline);
     this.markdown = this.baseline;
     this.changed();
   }
@@ -163,7 +163,7 @@ export default class ComponentDocumentation extends VariantFeature {
       this.baseline = markdown;
       this.revision = result.revision;
       this.status.textContent = 'Documentation saved.';
-      Notification.success('Documentation saved', 'The documentation was written to the Markdown file.');
+      Notification.success('Documentation saved', markdown === '' ? 'The Markdown file was removed.' : 'The documentation was written to the Markdown file.');
     } catch (error) {
       if (!this.destroyed) {
         this.status.textContent = error.message;

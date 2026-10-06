@@ -69,7 +69,7 @@ test('the editor always opens without modifying original Markdown and exposes Co
   assert.equal(ui.elements.get('[data-doc-save-state]').hidden, false);
   ui.elements.get('[data-doc-reset]').dispatchEvent(new Event('click'));
   assert.equal(ui.doc.markdown, 'Original\n');
-  assert.equal(ui.doc.editor.data, '<p>Original</p>');
+  assert.equal(ui.doc.editor.data, 'Original\n');
   assert.equal(ui.doc.dirty, false);
   assert.equal(ui.view.documentationDirty, false);
   assert.equal(ui.bodies.length, 1, 'Reset must not reload from disk');
@@ -169,6 +169,7 @@ test('editor startup errors retain original Markdown and a reload can retry', as
 
 test('Production renders Markdown inline without an editor or action buttons and cannot save', async (t) => {
   const ui = await setup({ readOnly: true }); t.after(() => ui.doc.destroy());
+  assert.equal(ui.elements.get('[data-doc-status]').textContent, '');
   assert.equal(ui.editors.length, 0);
   assert.equal(ui.elements.get('[data-doc-rich]').innerHTML, '<p>Original</p>');
   assert.equal(ui.doc.saveButton, null);
@@ -189,7 +190,7 @@ test('disk changes refresh a clean editor in place and update the revision witho
   assert.equal(ui.doc.editor, editor);
   assert.equal(ui.editors.length, 1);
   assert.equal(editor.destroyed, 0);
-  assert.equal(editor.data, '<p>Changed on disk</p>');
+  assert.equal(editor.data, 'Changed on disk\n');
   assert.equal(ui.doc.markdown, 'Changed on disk\n');
   assert.equal(ui.doc.baseline, 'Changed on disk\n');
   assert.equal(ui.doc.revision, 'r2');
@@ -250,6 +251,7 @@ test('disk changes during Save refresh once saving completes if no later edits r
 
 test('read-only disk refresh replaces rendered HTML without creating an editor', async (t) => {
   const ui = await setup({ readOnly: true }); t.after(() => ui.doc.destroy());
+  assert.equal(ui.elements.get('[data-doc-status]').textContent, '');
   ui.view.dispatchEvent(new Event('documentation'));
   await ui.respond({ markdown: 'Updated documentation', revision: 'r2', readOnly: true });
   assert.equal(ui.elements.get('[data-doc-rich]').innerHTML, '<p>Updated documentation</p>');
@@ -266,4 +268,22 @@ test('an SSE notification for our own saved revision preserves the current edito
   assert.equal(ui.doc.dirty, false);
   assert.equal(ui.doc.pending, false);
   assert.doesNotMatch(ui.status.textContent, /Loading/);
+});
+
+test('saving empty documentation submits deletion and retains the missing revision as its new baseline', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  ui.edit('');
+  const save = ui.doc.save();
+  assert.equal(ui.bodies.at(-1).markdown, '');
+  await ui.respond({ markdown: '', revision: 'missing' }); await save;
+  assert.equal(ui.doc.baseline, '');
+  assert.equal(ui.doc.revision, 'missing');
+  assert.equal(ui.doc.dirty, false);
+  assert.equal(ui.elements.get('[data-doc-save]').disabled, true);
+  assert.deepEqual(ui.notifications, ['success']);
+  ui.edit('Recreate');
+  const recreate = ui.doc.save();
+  assert.equal(ui.bodies.at(-1).revision, 'missing');
+  await ui.respond({ revision: 'recreated' }); await recreate;
+  assert.equal(ui.doc.baseline, 'Recreate');
 });

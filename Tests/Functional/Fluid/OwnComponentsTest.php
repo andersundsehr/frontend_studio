@@ -415,7 +415,7 @@ final class OwnComponentsTest extends FunctionalTestCase
     {
         $html = $this->renderPreview('frontend.studio:variant.sidebar:Default');
         $imports = $this->getPreviewImports($html);
-        foreach (['editor-classic', 'essentials', 'paragraph', 'heading', 'basic-styles', 'list', 'link', 'code-block'] as $plugin) {
+        foreach (['editor-classic', 'essentials', 'paragraph', 'heading', 'basic-styles', 'list', 'link', 'code-block', 'core', 'source-editing'] as $plugin) {
             self::assertArrayHasKey('@ckeditor/ckeditor5-' . $plugin, $imports);
             self::assertStringContainsString('/rte_ckeditor/', $imports['@ckeditor/ckeditor5-' . $plugin]);
         }
@@ -448,6 +448,8 @@ final class OwnComponentsTest extends FunctionalTestCase
         }
 
         self::assertStringContainsString('data-doc-save-state', $html);
+        self::assertStringContainsString('data-doc-file', $html);
+        self::assertStringContainsString(htmlspecialchars($metadata->template->documentationPath ?? ''), $html);
     }
 
     public function testModuleUrlsRespectTheInstallationSubdirectory(): void
@@ -813,7 +815,36 @@ final class OwnComponentsTest extends FunctionalTestCase
             self::assertStringNotContainsString('data-doc-' . $element, $html);
         }
 
-        self::assertStringContainsString('data-doc-rich', $html);
+        self::assertStringNotContainsString('data-doc-rich', $html);
+        self::assertStringNotContainsString('data-frontend-studio-variant-tab="doc"', $html);
+    }
+
+    public function testProductionShowsDocumentationOnlyWhenItsFileExists(): void
+    {
+        $provider = $this->get(ComponentMetadataProvider::class);
+        $metadata = $provider->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        self::assertNotNull($metadata->template->absolutePath);
+        $path = dirname($metadata->template->absolutePath) . '/Card.md';
+        self::assertFalse($metadata->template->documentationExists);
+        self::assertStringEndsWith('/Card.md', $metadata->template->documentationPath ?? '');
+        file_put_contents($path, '# Documentation');
+        try {
+            $metadata = $provider->getComponentMetadataForVariantIdentifier('site:card:Default');
+            self::assertNotNull($metadata);
+            self::assertTrue($metadata->template->documentationExists);
+            $metadata = new ComponentMetadata(...array_replace(get_object_vars($metadata), ['readOnly' => true]));
+            $html = $this->renderVariantView(['selectedVariantIdentifier' => 'site:card:Default', 'selectedComponentMetadata' => $metadata]);
+            self::assertStringContainsString('data-frontend-studio-variant-tab="doc"', $html);
+            self::assertStringContainsString('data-doc-rich', $html);
+            foreach (['actions', 'save', 'reset', 'file'] as $element) {
+                self::assertStringNotContainsString('data-doc-' . $element, $html);
+            }
+
+            self::assertStringNotContainsString('Documentation is read-only in Production.', $html);
+        } finally {
+            unlink($path);
+        }
     }
 
     #[DataProvider('ajaxPreviewFormats')]

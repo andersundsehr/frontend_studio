@@ -1,6 +1,7 @@
 .frontend-studio-documentation { padding: 1rem; }
 .frontend-studio-documentation [hidden] { display: none !important; }
-.frontend-studio-documentation .ck-editor__editable {
+.frontend-studio-documentation .ck-editor__editable,
+.frontend-studio-documentation .ck-source-editing-area textarea {
   min-height: 16rem;
   color: var(--typo3-rte-base-text, var(--typo3-text-color-base));
   background-color: var(--typo3-rte-base-bg, var(--typo3-surface-container-lowest));
@@ -8,3 +9,4 @@
 .frontend-studio-documentation pre { white-space: pre-wrap; }
 .frontend-studio-documentation img { max-width: 100%; }
 .frontend-studio-documentation [data-doc-status] { margin-block: .5rem; }
+.frontend-studio-documentation [data-doc-file] { display: block; margin-block-start: .5rem; }

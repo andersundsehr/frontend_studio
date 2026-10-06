@@ -51,6 +51,16 @@ final readonly class ComponentDocumentation
                 throw new RuntimeException('Documentation is not writable. Check file and directory permissions.', 8858025004);
             }
 
+            if ($markdown === '') {
+                $this->resolvePath($identifier);
+                $this->assertRevision($path, $revision);
+                if (is_file($path) && !unlink($path)) {
+                    throw new RuntimeException('Could not remove the documentation file.', 6512741533);
+                }
+
+                return ['markdown' => '', 'revision' => $this->revision(null), 'readOnly' => false];
+            }
+
             $temporary = tempnam(dirname($path), '.frontend-studio-doc-');
             if ($temporary === false || file_put_contents($temporary, $markdown) !== strlen($markdown)) {
                 throw new RuntimeException('Could not write the complete documentation.', 3102501412);
