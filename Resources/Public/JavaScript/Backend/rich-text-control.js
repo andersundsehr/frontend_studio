@@ -12,10 +12,21 @@ export default async function mount({ field, changed, signal }) {
     toolbar: ['undo', 'redo', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList'],
     initialData: field.value,
   });
+  const getData = () => {
+    const template = document.createElement('template');
+    template.innerHTML = editor.getData({ skipListItemIds: true });
+    template.content.querySelectorAll('li.ck-list-marker-bold, li.ck-list-marker-italic').forEach((item) => {
+      item.classList.remove('ck-list-marker-bold', 'ck-list-marker-italic');
+      if (item.classList.length === 0) {
+        item.removeAttribute('class');
+      }
+    });
+    return template.innerHTML;
+  };
   const editable = editor.ui.getEditableElement();
   editable.setAttribute('aria-label', field.getAttribute('aria-label') || field.name);
   editor.model.document.on('change:data', () => {
-    field.value = editor.getData();
+    field.value = getData();
     changed();
   });
   field.addEventListener('invalid', (event) => {
@@ -26,9 +37,9 @@ export default async function mount({ field, changed, signal }) {
   const required = field.required;
   field.required = false;
   return {
-    getValue: () => editor.getData(),
-    setValue: (value) => { editor.setData(value ?? ''); field.value = editor.getData(); },
-    validate: () => required && editor.getData().trim() === '' ? 'Enter rich text.' : '',
+    getValue: getData,
+    setValue: (value) => { editor.setData(value ?? ''); field.value = getData(); },
+    validate: () => required && getData().trim() === '' ? 'Enter rich text.' : '',
     destroy: async () => { await editor.destroy(); field.required = required; },
   };
 }

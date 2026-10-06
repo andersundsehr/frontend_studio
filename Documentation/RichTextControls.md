@@ -1,5 +1,10 @@
 # Rich-text arguments
 
+This feature emulates TYPO3's `f:render.text` for component fixtures:
+plain string arguments retain Fluid escaping,
+while rich-text unions produce sanitized HTML that Fluid can render directly.
+It does not resolve database records or TCA field configuration like `f:render.text`.
+
 Arguments declared `string|Stringable` or
 `string|TYPO3Fluid\Fluid\Core\Parser\UnsafeHTML` use TYPO3's CKEditor 5.
 Union member order does not matter. Plain `string` remains a normal input,
@@ -18,6 +23,11 @@ variants:
 The editor provides paragraphs, bold/italic, links, ordered/unordered lists,
 and undo/redo. Reset, live preview and saving use its current HTML.
 Existing authentication and Production write restrictions apply.
+
+Saved HTML excludes CKEditor's internal `data-list-item-id` attributes and
+`ck-list-marker-bold` / `ck-list-marker-italic` classes.
+Bold and italic formatting inside list items is preserved.
+Editor text follows TYPO3's backend theme colors in light and dark mode.
 
 Rendering passes the stored HTML through the TYPO3 HTML sanitizer's `CommonBuilder`
 profile before wrapping it as `UnsafeHTML`. Supported formatting survives;
