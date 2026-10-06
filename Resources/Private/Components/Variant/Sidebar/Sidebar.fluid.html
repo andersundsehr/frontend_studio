@@ -110,11 +110,11 @@
             <span class="frontend-studio-variant-save-state" data-doc-save-state hidden>Unsaved changes</span>
           </div>
         </f:if>
-        <p data-doc-status role="status" aria-live="polite"></p>
         <div data-doc-rich></div>
         <f:if condition="{selectedComponentMetadata.readOnly} == false">
           <small class="text-body-secondary" data-doc-file>Documentation file: <code>{selectedComponentMetadata.template.documentationPath}</code></small>
         </f:if>
+        <p data-doc-status role="status" aria-live="polite"></p>
       </div>
     </f:if>
     <frontend.studio:variant.controls
