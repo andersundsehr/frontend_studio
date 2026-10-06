@@ -74,6 +74,8 @@ final readonly class ComponentMetadataProvider
         }
 
         $template = $this->getTemplateMetadata($resolverDelegate, $componentName);
+        // Frontend Studio intentionally treats the template as the component itself.
+        // Without a resolvable template there is no valid component, so fail hard here.
         if ($template->relativePath === null || $template->relativePath === '') {
             throw new RuntimeException('Component template path could not be resolved: ' . ($template->error ?? 'No project-relative or EXT: path is available.'), 1622510750);
         }
