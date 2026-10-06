@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
+use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
 use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
 use RuntimeException;
+use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
 use TYPO3\CMS\Frontend\Resource\PublicUrlPrefixer;
@@ -34,15 +36,36 @@ final readonly class FrontendRenderer
 
     public function render(string $identifier, string $siteIdentifier, string $hreflang): string
     {
-        $site = $this->siteFinder->getSiteByIdentifier($siteIdentifier);
+        try {
+            $site = $this->siteFinder->getSiteByIdentifier($siteIdentifier);
+        } catch (SiteNotFoundException $siteNotFoundException) {
+            throw new RuntimeException(
+                'Snapshot site "' . $siteIdentifier . '" was not found. Available sites: ' . implode(', ', array_keys($this->siteFinder->getAllSites())) . '.',
+                6736937331,
+                $siteNotFoundException,
+            );
+        }
+
         $language = array_find($site->getLanguages(), static fn($language): bool => $language->getHreflang() === $hreflang);
-        if ($language === null || $site->invalidSets !== []) {
-            throw new RuntimeException('Invalid snapshot site, language or site sets.', 6736937330);
+        if ($language === null) {
+            $available = array_map(static fn(SiteLanguage $language): string => $language->getHreflang(), $site->getLanguages());
+            throw new RuntimeException(
+                'Snapshot language "' . $hreflang . '" was not found in site "' . $siteIdentifier . '". Available enabled hreflangs: ' . implode(', ', $available) . '.',
+                6736937330,
+            );
+        }
+
+        if ($site->invalidSets !== []) {
+            $errors = array_map(
+                static fn(array $set): string => $set['name'] . ': ' . $set['error']->value . ' (' . $set['context'] . ')',
+                $site->invalidSets,
+            );
+            throw new RuntimeException('Invalid sets for snapshot site "' . $siteIdentifier . '": ' . implode('; ', $errors), 6736937332);
         }
 
         $uri = $language->getBase();
         if ($uri->getHost() === '' || !in_array($uri->getScheme(), ['https', 'http'], true)) {
-            throw new RuntimeException('Snapshot rendering requires an absolute HTTP(S) site language base URL.', 3531165321);
+            throw new RuntimeException('Snapshot site "' . $siteIdentifier . '", language "' . $hreflang . '" requires an absolute HTTP(S) base URL; configured base: "' . $uri . '".', 3531165321);
         }
 
         $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;

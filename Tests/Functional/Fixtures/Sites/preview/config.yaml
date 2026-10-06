@@ -11,3 +11,10 @@ languages:
     locale: de-DE
     hreflang: de
     base: 'https://preview.test/de/'
+  -
+    title: English
+    enabled: true
+    languageId: 1
+    locale: en-US
+    hreflang: en
+    base: 'https://preview.test/en/'

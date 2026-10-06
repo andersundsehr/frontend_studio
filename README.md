@@ -416,6 +416,11 @@ its subcontexts only compare and never create files. Exit codes are `0` for all
 passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or newly
 created baselines, and `3` when both failure categories occur. Invalid fixtures and
 empty/unknown scopes fail; a newly created baseline is never counted as a pass.
+Mismatches and missing baselines print warnings without stack traces.
+Discovery, configuration, rendering and storage errors print the exception,
+including chained exceptions and stack traces, even without `-v`.
+Configuration errors identify missing sites, available enabled language hreflangs,
+invalid set names and reasons, or the configured base URL.
 
 Baselines live in a directory named after the resolved template, including its
 full extension: `Text.fluid.html-snapshots/html-Default.html` for variant `Default`.

@@ -1,0 +1,10 @@
+wrapper: '<marquee>{{component}}</marquee>'
+variants:
+  'Simple Test':
+    uid: '50'
+    bodytext:
+      string: Test
+  "Test:You/!\"§$%&/()=? shit <script>alert('FUCK');</script>":
+    uid: 50
+    bodytext:
+      string: "Test:You/!\"§$%&/()=? shit <script>alert('FUCK');</script>"

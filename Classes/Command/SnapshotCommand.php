@@ -34,7 +34,7 @@ final class SnapshotCommand extends Command
         try {
             $identifiers = $this->runner->discover((string)$input->getOption('scope'));
         } catch (Throwable $throwable) {
-            $output->writeln(OutputFormatter::escape($throwable->getMessage()));
+            $output->writeln(OutputFormatter::escape("ERROR during snapshot discovery:\n" . $throwable));
             return 1;
         }
 
@@ -42,8 +42,16 @@ final class SnapshotCommand extends Command
         foreach ($identifiers as $identifier) {
             $result = $this->runner->run($identifier, (string)$input->getArgument('site'), (string)$input->getArgument('language'));
             $results[] = $result;
-            $label = $result['status'] === 'missing' ? 'WARNING (MISSING)' : strtoupper($result['status']);
+            $label = match ($result['status']) {
+                'missing' => 'WARNING (MISSING)',
+                'failed' => 'WARNING (MISMATCH)',
+                default => strtoupper($result['status']),
+            };
             $output->writeln(OutputFormatter::escape($label . ' ' . $identifier . ': ' . $result['message'] . ' ' . $result['path']));
+            if ($result['exception'] !== null) {
+                $output->writeln(OutputFormatter::escape((string)$result['exception']));
+            }
+
             if ($result['status'] === 'failed') {
                 $output->writeln(OutputFormatter::escape("EXPECTED:\n" . $result['expected'] . "ACTUAL:\n" . $result['actual']));
             }

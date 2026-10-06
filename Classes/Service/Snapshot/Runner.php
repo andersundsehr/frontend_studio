@@ -54,12 +54,13 @@ final readonly class Runner
         return $variants;
     }
 
-    /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string} */
+    /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null} */
     public function run(string $identifier, string $site, string $language): array
     {
         $path = '';
         $expected = '';
         $actual = '';
+        $exception = null;
         try {
             $metadata = $this->metadata->getComponentMetadataForVariantIdentifier($identifier);
             if ($metadata === null || $metadata->fixture?->selectedVariant === null || $metadata->errors !== [] || $metadata->template->absolutePath === null) {
@@ -98,11 +99,12 @@ final readonly class Runner
                 }
             }
         } catch (Throwable $throwable) {
+            $exception = $throwable;
             $status = 'error';
             $message = $throwable->getMessage();
         }
 
-        return ['identifier' => $identifier, 'status' => $status, 'message' => $message, 'path' => $path, 'expected' => $expected, 'actual' => $actual];
+        return ['identifier' => $identifier, 'status' => $status, 'message' => $message, 'path' => $path, 'expected' => $expected, 'actual' => $actual, 'exception' => $exception];
     }
 
     /** @param list<array{status: string}> $results */
