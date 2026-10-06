@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createContext, SourceTextModule, SyntheticModule } from 'node:vm';
 import test from 'node:test';
 
-async function setup() {
+async function setup({ rich = false, readOnly = false } = {}) {
   const elements = new Map<string, any>();
   for (const name of ['source', 'rich', 'preview', 'status', 'save', 'mode', 'toolbar', 'reload']) {
     elements.set(`[data-doc-${name}]`, Object.assign(new EventTarget(), { value: '', textContent: '', hidden: false, disabled: false }));
@@ -22,9 +22,10 @@ async function setup() {
   });
   const lifecycle = new SourceTextModule(await readFile(new URL('../../Resources/Public/JavaScript/Backend/variant-lifecycle.js', import.meta.url), 'utf8'), { context });
   await lifecycle.link(() => { throw new Error('Unexpected import'); });
+  const editors: any[] = [];
   const markdown = new SyntheticModule(['canEditRichText', 'createEditor', 'renderMarkdown'], function () {
-    this.setExport('canEditRichText', () => false);
-    this.setExport('createEditor', () => { throw new Error('Source-mode test'); });
+    this.setExport('canEditRichText', () => rich);
+    this.setExport('createEditor', (_root: unknown, _source: string, change: (markdown: string) => void) => new Promise((resolve, reject) => editors.push({ resolve, reject, change })));
     this.setExport('renderMarkdown', (source: string) => source);
   }, { context });
   await markdown.link(() => { throw new Error('Unexpected import'); });
@@ -37,8 +38,8 @@ async function setup() {
     pending.shift()!({ ok, json: async () => body });
     await new Promise(setImmediate);
   };
-  await respond({ markdown: 'Original\n', revision: 'r1', readOnly: false });
-  return { doc, view, bodies, respond, source: elements.get('[data-doc-source]'), status: elements.get('[data-doc-status]') };
+  await respond({ markdown: 'Original\n', revision: 'r1', readOnly });
+  return { doc, view, bodies, respond, editors, elements, source: elements.get('[data-doc-source]'), status: elements.get('[data-doc-status]') };
 }
 
 test('a late reload preserves documentation typed while the request was pending', async (t) => {
@@ -68,4 +69,62 @@ test('save snapshots only submitted text and conflicts retain pending edits', as
   assert.equal(ui.doc.revision, 'r2');
   assert.equal(ui.doc.dirty, true);
   assert.equal(ui.status.textContent, 'Changed externally');
+});
+
+for (const scenario of ['source edited', 'mode cancelled', 'destroyed']) {
+  test(`pending CKEditor startup preserves source when ${scenario}`, async () => {
+    const ui = await setup({ rich: true });
+    let destroyed = 0;
+    assert.equal(ui.editors.length, 1);
+    assert.equal(ui.source.hidden, false);
+    if (scenario === 'source edited') {
+      ui.source.value = 'Typed during startup'; ui.source.dispatchEvent(new Event('input'));
+    } else if (scenario === 'mode cancelled') {
+      await ui.doc.toggleMode();
+    } else {
+      ui.doc.destroy();
+    }
+    ui.editors[0].resolve({ destroy: async () => { destroyed++; } });
+    await new Promise(setImmediate);
+    assert.equal(destroyed, 1);
+    assert.ok(!ui.doc.editor);
+    assert.equal(ui.source.hidden, false);
+    assert.equal(ui.source.value, scenario === 'source edited' ? 'Typed during startup' : 'Original\n');
+    ui.editors[0].change('Stale callback');
+    assert.equal(ui.source.value, scenario === 'source edited' ? 'Typed during startup' : 'Original\n');
+    ui.doc.destroy();
+  });
+}
+
+test('CKEditor startup errors leave source usable and a retry synchronizes rich edits', async (t) => {
+  const ui = await setup({ rich: true }); t.after(() => ui.doc.destroy());
+  ui.editors[0].reject(new Error('CKEditor startup failed'));
+  await new Promise(setImmediate);
+  assert.equal(ui.status.textContent, 'CKEditor startup failed');
+  assert.equal(ui.source.hidden, false);
+  assert.equal(ui.doc.pending, false);
+  const retry = ui.doc.toggleMode();
+  let destroyed = 0;
+  ui.editors[1].resolve({ destroy: async () => { destroyed++; } });
+  await retry;
+  assert.equal(ui.source.hidden, true);
+  ui.editors[1].change('Rich edit');
+  assert.equal(ui.source.value, 'Rich edit');
+  assert.equal(ui.view.documentationDirty, true);
+  await ui.doc.toggleMode();
+  assert.equal(destroyed, 1);
+  assert.equal(ui.source.hidden, false);
+  assert.equal(ui.source.value, 'Rich edit');
+  ui.editors[1].change('Late callback');
+  assert.equal(ui.source.value, 'Rich edit');
+});
+
+test('Production documentation never starts CKEditor or permits saving', async (t) => {
+  const ui = await setup({ rich: true, readOnly: true }); t.after(() => ui.doc.destroy());
+  await ui.doc.toggleMode();
+  ui.source.value = 'Attempted edit';
+  await ui.doc.save();
+  assert.equal(ui.editors.length, 0);
+  assert.equal(ui.source.readOnly, true);
+  assert.equal(ui.bodies.length, 1);
 });

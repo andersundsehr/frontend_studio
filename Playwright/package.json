@@ -28,7 +28,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "linkedom": "^0.18.12"
   },
   "scripts": {
     "test": "node --test --experimental-strip-types --experimental-vm-modules **/*.test.{cts,mts,ts}",

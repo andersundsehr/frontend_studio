@@ -46,6 +46,8 @@ use stdClass;
 
 final class OwnComponentsTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [
         __DIR__ . '/../../..',
         __DIR__ . '/../Fixtures/Extensions/preview_site_set',
@@ -348,6 +350,20 @@ final class OwnComponentsTest extends FunctionalTestCase
 
             self::assertStringStartsWith('/subdirectory/typo3/ajax/frontend-studio/', $matches[1]);
         }
+    }
+
+    public function testDocumentationUsesTypo3CkeditorAssets(): void
+    {
+        $html = $this->renderPreview('frontend.studio:variant.sidebar:Default');
+        $imports = $this->getPreviewImports($html);
+        foreach (['editor-classic', 'essentials', 'paragraph', 'heading', 'basic-styles', 'list', 'link', 'code-block'] as $plugin) {
+            self::assertArrayHasKey('@ckeditor/ckeditor5-' . $plugin, $imports);
+            self::assertStringContainsString('/rte_ckeditor/', $imports['@ckeditor/ckeditor5-' . $plugin]);
+        }
+
+        self::assertStringContainsString('data-doc-rich', $html);
+        self::assertStringNotContainsString('data-doc-toolbar', $html);
+        self::assertStringContainsString('/rte_ckeditor/Resources/Public/Css/editor.css', $html);
     }
 
     public function testModuleUrlsRespectTheInstallationSubdirectory(): void

@@ -1,9 +1,7 @@
 .frontend-studio-documentation { padding: 1rem; }
 .frontend-studio-documentation textarea { width: 100%; min-height: 16rem; font-family: monospace; }
-.frontend-studio-documentation [data-doc-toolbar] { display: flex; flex-wrap: wrap; gap: .25rem; margin-block: .5rem; }
 .frontend-studio-documentation [hidden] { display: none !important; }
-.frontend-studio-documentation .ProseMirror { min-height: 16rem; padding: .75rem; border: 1px solid var(--typo3-input-border-color, #999); white-space: pre-wrap; overflow-wrap: anywhere; }
-.frontend-studio-documentation .ProseMirror:focus { outline: 2px solid var(--typo3-state-primary, #0078d4); }
+.frontend-studio-documentation .ck-editor__editable { min-height: 16rem; }
 .frontend-studio-documentation pre { white-space: pre-wrap; }
 .frontend-studio-documentation img { max-width: 100%; }
 .frontend-studio-documentation [data-doc-status] { margin-block: .5rem; }

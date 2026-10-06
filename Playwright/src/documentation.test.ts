@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+
+const { DOMParser } = createRequire(import.meta.url)('linkedom');
+
+Object.assign(globalThis, { window: { document: new DOMParser().parseFromString('<html></html>', 'text/html'), DOMParser } });
 
 const source = await readFile(new URL('../../Resources/Public/JavaScript/Backend/markdown-editor.bundle.js', import.meta.url), 'utf8');
 const editor = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
@@ -20,4 +25,10 @@ test('rich text accepts its supported Markdown and leaves lossy documents in sou
   for (const markdown of ['Paragraph\n', '<custom>HTML</custom>', '[x][ref]\n\n[ref]: https://example.org', '| one | two |\n| --- | --- |']) {
     assert.equal(editor.canEditRichText(markdown), false, markdown);
   }
+});
+
+
+test('CKEditor plaintext code blocks retain unannotated fences and escape embedded fences', () => {
+  assert.equal(editor.toMarkdown('<pre><code class="language-plaintext">code\n</code></pre>'), '```\ncode\n```');
+  assert.equal(editor.toMarkdown('<pre><code class="language-plaintext">```\n</code></pre>'), '````\n```\n````');
 });

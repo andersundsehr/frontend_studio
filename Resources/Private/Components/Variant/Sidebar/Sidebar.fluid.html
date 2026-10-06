@@ -89,6 +89,7 @@
     </ul>
   </div>
   <div class="frontend-studio-variant-sidebar-body">
+    <f:asset.css identifier="frontend-studio-ckeditor" href="EXT:rte_ckeditor/Resources/Public/Css/editor.css"/>
     <f:asset.css identifier="frontend-studio-documentation" href="EXT:frontend_studio/Resources/Public/Css/Backend/component-documentation.css"/>
     <div class="frontend-studio-variant-tab-panel frontend-studio-documentation{f:if(condition: '{variantActiveTab} == \'doc\'', then: ' is-active', else: ' is-hidden')}"
       id="frontend-studio-variant-doc-panel" role="tabpanel" aria-labelledby="frontend-studio-variant-doc-tab"
@@ -99,18 +100,6 @@
       <button type="button" class="btn btn-default btn-sm" data-doc-reload>Reload documentation</button>
       <button type="button" class="btn btn-primary btn-sm" data-doc-save disabled>Save documentation</button>
       <p data-doc-status role="status" aria-live="polite"></p>
-      <div data-doc-toolbar hidden role="group" aria-label="Documentation formatting">
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="paragraph">Paragraph</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="heading">Heading</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="bold">Bold</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="italic">Italic</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="bullet">Bullet list</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="ordered">Numbered list</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="code">Code block</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="link">Link</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="undo">Undo</button>
-        <button type="button" class="btn btn-default btn-sm" data-doc-command="redo">Redo</button>
-      </div>
       <div data-doc-rich hidden></div>
       <textarea data-doc-source aria-label="Component documentation Markdown" readonly></textarea>
       <details><summary>Preview</summary><div data-doc-preview></div></details>

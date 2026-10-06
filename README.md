@@ -450,15 +450,16 @@ Opening a missing document does not create a file; **Save documentation** create
 Production and Production subcontexts permit reading only.
 Documentation endpoints require a backend login and TYPO3 route tokens.
 
-The locally bundled ProseMirror editor supports paragraphs, headings, emphasis, lists, links, and code blocks.
-Use **Markdown source** for exact text editing. Documents that cannot roundtrip byte-for-byte through the rich-text editor stay in source mode,
+CKEditor from TYPO3’s `rte_ckeditor` extension supports paragraphs, headings, emphasis, lists, links, and code blocks.
+Use **Markdown source** for exact text editing. Documents that cannot roundtrip byte-for-byte through the Markdown converter and CKEditor stay in source mode,
 including raw HTML and tables. Previews display raw HTML as text and reject executable link schemes.
 Changing modes never silently normalizes an existing document.
 Documentation has its own Save button and unsaved-change warning, independent of fixture controls.
 A save uses an optimistic content revision; external edits or another editor's save produce a conflict instead of overwriting stale content.
 Copy your pending text before reloading a conflicting document.
 
-To rebuild the checked-in editor bundle, run `npm ci --prefix Build/MarkdownEditor`
+To rebuild the checked-in Markdown conversion/preview bundle, run `npm ci --prefix Build/MarkdownEditor`
 and `npm run build --prefix Build/MarkdownEditor`.
 Dependency versions and third-party licenses are kept in that directory.
-No CDN or additional TYPO3 RTE extension is required.
+The editor modules and styling come from the required `typo3/cms-rte-ckeditor` Composer package.
+No separate CKEditor bundle or CDN is used.

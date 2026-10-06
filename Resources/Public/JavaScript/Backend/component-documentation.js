@@ -1,5 +1,6 @@
 import VariantFeature from '@andersundsehr/frontend-studio/backend/variant-lifecycle.js';
-import { canEditRichText, createEditor, renderMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
+import { canEditRichText, renderMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
+import { createEditor } from '@andersundsehr/frontend-studio/backend/markdown-editor.js';
 
 export default class ComponentDocumentation extends VariantFeature {
   constructor(root, view) {
@@ -10,7 +11,8 @@ export default class ComponentDocumentation extends VariantFeature {
     this.status = root.querySelector('[data-doc-status]');
     this.saveButton = root.querySelector('[data-doc-save]');
     this.modeButton = root.querySelector('[data-doc-mode]');
-    this.toolbar = root.querySelector('[data-doc-toolbar]');
+    this.editorGeneration = 0;
+    this.editorPending = false;
     this.baseline = '';
     this.loaded = false;
     this.pending = false;
@@ -20,10 +22,6 @@ export default class ComponentDocumentation extends VariantFeature {
     this.listen(this.modeButton, 'click', () => this.toggleMode());
     this.listen(root.querySelector('[data-doc-reload]'), 'click', () => {
       if (!this.dirty || window.confirm('Discard unsaved documentation changes and reload?')) this.load();
-    });
-    this.listen(this.toolbar, 'click', (event) => {
-      const button = event.target.closest('[data-doc-command]');
-      if (button) this.editor?.command(button.dataset.docCommand);
     });
     this.listen(window, 'beforeunload', (event) => {
       if (this.dirty) { event.preventDefault(); event.returnValue = ''; }
@@ -69,6 +67,8 @@ export default class ComponentDocumentation extends VariantFeature {
         this.status.textContent = 'Documentation was edited while loading. Your edits were kept; reload again to discard them.';
         return;
       }
+      this.editorGeneration += 1;
+      this.editorPending = false;
       this.editor?.destroy(); this.editor = null;
       this.baseline = this.source.value = result.markdown;
       this.revision = result.revision;
@@ -77,11 +77,11 @@ export default class ComponentDocumentation extends VariantFeature {
       this.source.readOnly = this.readOnly;
       this.saveButton.hidden = this.readOnly;
       this.modeButton.hidden = this.readOnly;
-      this.rich.hidden = this.toolbar.hidden = true;
+      this.rich.hidden = true;
       this.source.hidden = false;
       this.modeButton.textContent = 'Rich text';
       this.status.textContent = this.readOnly ? 'Documentation is read-only in Production.' : 'Documentation is shared by all variants of this component.';
-      if (!this.readOnly && canEditRichText(this.source.value)) this.toggleMode();
+      if (!this.readOnly && canEditRichText(this.source.value)) await this.toggleMode();
     } catch (error) {
       if (!this.destroyed) this.status.textContent = error.message;
     } finally {
@@ -90,11 +90,13 @@ export default class ComponentDocumentation extends VariantFeature {
     }
   }
 
-  toggleMode() {
+  async toggleMode() {
     if (!this.loaded || this.readOnly) return;
-    if (this.editor) {
-      this.editor.destroy(); this.editor = null;
-      this.rich.hidden = this.toolbar.hidden = true;
+    if (this.editor || this.editorPending) {
+      this.editorGeneration += 1;
+      this.editorPending = false;
+      this.editor?.destroy(); this.editor = null;
+      this.rich.hidden = true;
       this.source.hidden = false;
       this.modeButton.textContent = 'Rich text';
       return;
@@ -103,13 +105,39 @@ export default class ComponentDocumentation extends VariantFeature {
       this.status.textContent = 'Keep editing in Markdown source: rich text would change the existing Markdown formatting or unsupported syntax.';
       return;
     }
-    this.rich.hidden = this.toolbar.hidden = false;
-    this.source.hidden = true;
+    const source = this.source.value;
+    const generation = ++this.editorGeneration;
+    this.editorPending = true;
     this.modeButton.textContent = 'Markdown source';
-    this.editor = createEditor(this.rich, this.source.value, (markdown) => {
-      this.source.value = markdown;
-      this.changed();
-    });
+    try {
+      const editor = await createEditor(this.rich, source, (markdown) => {
+        if (!this.destroyed && generation === this.editorGeneration) {
+          this.source.value = markdown;
+          this.changed();
+        }
+      });
+      if (this.destroyed || generation !== this.editorGeneration || this.source.value !== source) {
+        if (!this.destroyed && generation === this.editorGeneration) {
+          this.editorGeneration += 1;
+          this.editorPending = false;
+          this.modeButton.textContent = 'Rich text';
+        }
+        await editor.destroy();
+        return;
+      }
+      this.editor = editor;
+      this.rich.hidden = false;
+      this.source.hidden = true;
+    } catch (error) {
+      if (!this.destroyed && generation === this.editorGeneration) {
+        this.status.textContent = error.message;
+      }
+    } finally {
+      if (!this.destroyed && generation === this.editorGeneration) {
+        this.editorPending = false;
+        if (!this.editor) this.modeButton.textContent = 'Rich text';
+      }
+    }
   }
 
   async save() {
@@ -132,6 +160,8 @@ export default class ComponentDocumentation extends VariantFeature {
   }
 
   destroy() {
+    this.editorGeneration += 1;
+    this.editorPending = false;
     this.editor?.destroy();
     this.view.documentationDirty = false;
     super.destroy();

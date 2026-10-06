@@ -34,6 +34,8 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[CoversClass(PreviewTypoScriptContextBuilder::class)]
 final class ComponentPreviewWithoutPageTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [
         __DIR__ . '/../../..',
         __DIR__ . '/../Fixtures/Extensions/preview_site_set',
