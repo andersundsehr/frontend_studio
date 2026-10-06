@@ -68,6 +68,22 @@
               </f:if>
             </div>
           </f:if>
+          <f:if condition="{componentPreviewUri}">
+            <div class="d-flex flex-wrap align-items-center gap-2" role="group" aria-label="Preview viewport">
+              <select class="form-select form-select-sm" aria-label="Preview viewport" data-frontend-studio-viewport>
+                <option value="responsive">Responsive</option>
+                <option value="mobile" data-width="375" data-height="667">Mobile (375 × 667)</option>
+                <option value="tablet" data-width="768" data-height="1024">Tablet (768 × 1024)</option>
+                <option value="desktop" data-width="1280" data-height="800">Desktop (1280 × 800)</option>
+                <option value="custom">Custom</option>
+              </select>
+              <span data-frontend-studio-viewport-custom hidden>
+                <label>Width <input class="form-control form-control-sm" type="number" min="1" max="10000" step="1" required value="375" data-frontend-studio-viewport-width/> px</label>
+                <label>Height <input class="form-control form-control-sm" type="number" min="1" max="10000" step="1" required value="667" data-frontend-studio-viewport-height/> px</label>
+              </span>
+              <button type="button" class="btn btn-default btn-sm" data-frontend-studio-viewport-reset disabled>Reset viewport</button>
+            </div>
+          </f:if>
           <f:if condition="{selectedComponentMetadata.template.relativePath}">
             <button
               type="button"
