@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
 // Exercise the shipped controls, CSS and ES modules in a real browser. Only the
@@ -105,15 +105,6 @@ try {
   assert.deepEqual(await size(), [1280, 800]);
   assert.deepEqual(await sidebar.boundingBox(), stackedSidebar);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), true);
-  if (process.env.SCREENSHOT_DIR) {
-    await mkdir(process.env.SCREENSHOT_DIR, { recursive: true });
-    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/viewport-stacked.png` });
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await select.selectOption('custom');
-    await width.fill('420');
-    await height.fill('640');
-    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/viewport-custom.png` });
-  }
   await page.evaluate(() => preview.destroy());
   const beforeDestroy = await size();
   await select.selectOption('mobile');

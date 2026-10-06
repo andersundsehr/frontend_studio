@@ -76,9 +76,3 @@ jobs:
       - run: npm run typecheck --prefix Playwright
       - run: npx --prefix Playwright playwright install --with-deps chromium
       - run: node Playwright/browser/variantPreview.mjs
-        env:
-          SCREENSHOT_DIR: preview-screenshots
-      - uses: actions/upload-artifact@v4
-        with:
-          name: preview-screenshots
-          path: preview-screenshots
