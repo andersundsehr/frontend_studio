@@ -56,8 +56,8 @@ final class ComparisonTest extends TestCase
     {
         $comparison = new Comparison();
         $baseline = $comparison->create('<p id="c123" class="stable">Token abc123, status ready</p>', '<p id="c124" class="stable">Token abc124, status ready</p>');
-        self::assertSame('<p id="' . Comparison::MARKER . '" class="stable">Token ' . Comparison::MARKER . ' status ready</p>', $baseline);
-        self::assertTrue($comparison->matches($baseline, '<p id="c999999" class="stable">Token completely-new, status ready</p>'));
+        self::assertSame('<p id="c' . Comparison::MARKER . '" class="stable">Token abc' . Comparison::MARKER . ', status ready</p>', $baseline);
+        self::assertTrue($comparison->matches($baseline, '<p id="c999999" class="stable">Token abc999999, status ready</p>'));
         self::assertFalse($comparison->matches($baseline, '<p id="c999" class="changed">Token abc999, status ready</p>'));
         self::assertFalse($comparison->matches($baseline, '<p id="c999" class="stable">Token abc999, status broken</p>'));
         self::assertFalse($comparison->matches($baseline, '<p id="c999" class="stable">Token abc999, extra status ready</p>'));

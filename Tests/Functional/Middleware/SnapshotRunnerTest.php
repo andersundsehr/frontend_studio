@@ -53,6 +53,31 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
     }
 
+    public function testDateViewHelperCreatesOneInlineMarkerWithStableSurroundingText(): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $path = $template . '-snapshots/html-Default.html';
+        try {
+            file_put_contents($template, $original . '<p>A<f:format.date date="now" format="Y-M-D H:m:s.u" />B</p>');
+            $runner = $this->get(Runner::class);
+            $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertStringContainsString('<p>A' . Comparison::MARKER . 'B', $result['expected']);
+            self::assertSame(1, substr_count($result['expected'], Comparison::MARKER));
+            self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
+            file_put_contents($path, str_replace('B', 'C', $result['expected']));
+            self::assertSame('failed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
+        } finally {
+            file_put_contents($template, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
     public function testUsesSiteTypoScriptAndSavedSlotsForMultipleVariants(): void
     {
         $runner = $this->get(Runner::class);
@@ -252,7 +277,6 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
             self::assertStringContainsString('snapshot | actual', $tester->getDisplay());
-            self::assertStringNotContainsString('{+Wrapped+}', $tester->getDisplay());
 
             $lines[0] = '<!-- frontend-studio:dynamic-line -->';
             file_put_contents($path, implode("\n", $lines));

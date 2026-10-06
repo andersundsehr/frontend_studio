@@ -479,18 +479,16 @@ can produce this snapshot:
 <div id="{{frontend-studio:dynamic}}" class="stable">Hello</div>
 ```
 
-The marker matches one non-whitespace value token. The element, attribute names,
-quotes, neighboring attributes and surrounding text remain checked, even on the
-same line. Multiple values on a line can have separate markers. Whole changing
-tokens are masked so coincidentally shared characters in sampled IDs or timestamps
-do not become fixed requirements. Whitespace runs still compare as one space.
-Markers cannot consume whitespace, quotes or HTML tag boundaries.
-Changing structure, inserted/removed tokens and detected moved values between
-the two creation samples fail for manual review. Existing markers alone control
-later comparisons; a mismatch never expands them. Two samples cannot discover
-all nondeterminism; review the marked values before committing snapshots.
-Legacy `<!-- frontend-studio:dynamic-line -->` markers are rejected with an
-instruction to regenerate the selected snapshots using `--update`.
+Known patterns recognize changing dates, times, UUIDs, numeric IDs, ULIDs,
+hexadecimal tokens and URL parameter values. Unrecognized changing attributes
+mask the full value; unrecognized text masks changed regions between stable text.
+Elements, attribute names and neighboring content remain checked.
+No template changes are required. Review generated markers,
+or manually edit the snapshot to mark a dynamic value missed by the two samples.
+See [dynamic pattern matching](Documentation/ComponentSnapshots.md) for an overview,
+manual editing instructions, and detailed patterns and examples.
+Legacy `<!-- frontend-studio:dynamic-line -->` markers are rejected;
+regenerate those snapshots with `--update` or `-u`.
 
 These HTML baselines are separate from the Playwright screenshot, ARIA and
 accessibility checks, which remain useful for browser layout and behavior.
