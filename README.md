@@ -401,7 +401,7 @@ The `variants` value must also be a map.
 Confirm that TYPO3 runs in `Development` context or a Development subcontext.
 Auto reload is intentionally disabled outside development contexts.
 
-## HTML regression snapshots
+## Component Snapshots
 
 Run `vendor/bin/typo3 frontend-studio:test <site-identifier> <language-hreflang>`
 against an installed project. Relative site and language bases such as `/` and
@@ -419,7 +419,22 @@ its subcontexts only compare and never create files. Exit codes are `0` for all
 passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or newly
 created baselines, and `3` when both failure categories occur. Invalid fixtures and
 empty/unknown scopes fail; a newly created baseline is never counted as a pass.
-Mismatches and missing baselines print warnings without stack traces.
+Mismatches and missing snapshots print warnings without stack traces.
+Mismatches show an inline diff with red `[-removed-]` and green `{+added+}` text,
+plus surrounding context. The delimiters remain visible without ANSI colors.
+
+```text
+WARNING (MISMATCH) site:card:Default: Rendered HTML differs from the saved baseline.
+[-removed-] {+added+}
+  <p>Hello [-world-]{+TYPO3+}
+  </p>
+```
+
+Comparison treats each consecutive whitespace run (spaces, tabs or newlines)
+as one space; whitespace presence still matters, so `a b` differs from `ab`.
+This rule also applies inside attributes, scripts and whitespace-sensitive blocks;
+review changes to those components with this limitation in mind.
+Whitespace-only length changes do not create dynamic markers or rewrite snapshots.
 Discovery, configuration, rendering and storage errors print the exception,
 with chained exceptions, file locations and stack traces available with `-v`.
 Configuration errors identify missing sites, available enabled language hreflangs,
@@ -442,9 +457,9 @@ commit it. Concurrent creation publishes a complete file without replacement.
 Tags start on separate lines, and start tags longer than 80 characters split
 attributes onto separate lines. Comments and raw/whitespace-sensitive blocks
 (`script`, `style`, `pre`, `textarea`) retain their contents. These are comparison
-representations, not HTML intended for serving. Changing lines become explicit
+representations, not HTML intended for serving. Lines with changing content become explicit
 `<!-- frontend-studio:dynamic-line -->` markers. Existing markers alone control
-later comparisons; a new mismatch never expands the ignored region. Insertions,
+later comparisons; a new mismatch never expands the ignored region. Content insertions,
 removals and detected line moves during baseline creation fail for manual review.
 Two samples cannot discover all nondeterminism, and a whole-line marker can hide
 other changes on that line. Review markers carefully, especially short opening

@@ -12,6 +12,30 @@ use RuntimeException;
 
 final class ComparisonTest extends TestCase
 {
+    public function testWhitespaceRunsCompareAsOneButPresenceStillMatters(): void
+    {
+        $comparison = new Comparison();
+        self::assertTrue($comparison->matches("<p>one \t\n\n two</p>\n", "<p>one two</p> "));
+        self::assertTrue($comparison->matches('<pre>one  two</pre>', "<pre>one\ttwo</pre>"));
+        self::assertFalse($comparison->matches('<p>one two</p>', '<p>onetwo</p>'));
+        self::assertFalse($comparison->matches('<p>onetwo</p>', '<p>one two</p>'));
+    }
+
+    public function testWhitespaceLengthChangesDoNotCreateMarkers(): void
+    {
+        $first = "<p>one  two</p>\n\n";
+        self::assertSame($first, new Comparison()->create($first, "<p>one\ttwo</p>\n"));
+    }
+
+    public function testWhitespaceChangesPreserveDynamicMarkerBoundaries(): void
+    {
+        $comparison = new Comparison();
+        $expected = "<div>\n" . Comparison::MARKER . "\nhello world\n</div>\n";
+        self::assertTrue($comparison->matches($expected, "<div>\n\nrandom value\nhello   world\n</div>\n"));
+        self::assertFalse($comparison->matches($expected, "<div>\nrandom value\nextra\nhello world\n</div>\n"));
+        self::assertFalse($comparison->matches($expected, "<div>\nrandom value\nhelloworld\n</div>\n"));
+    }
+
     public function testSavedMarkersDoNotMaskNewStableChanges(): void
     {
         $comparison = new Comparison();

@@ -187,6 +187,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             file_put_contents($result['path'], "changed\n");
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
+            self::assertStringContainsString('[-removed-] {+added+}', $tester->getDisplay());
+            self::assertStringNotContainsString('EXPECTED:', $tester->getDisplay());
+            self::assertStringNotContainsString('ACTUAL:', $tester->getDisplay());
             self::assertStringNotContainsString('Stack trace:', $tester->getDisplay());
             self::assertStringNotContainsString('RuntimeException:', $tester->getDisplay());
         } finally {
@@ -227,6 +230,11 @@ final class SnapshotRunnerTest extends FunctionalTestCase
 
             $baseline = file_get_contents($path);
             self::assertNotFalse($baseline);
+            $spacedBaseline = str_replace(' ', " \t ", $baseline);
+            file_put_contents($path, $spacedBaseline);
+            self::assertSame(0, $tester->execute($arguments));
+            self::assertSame($spacedBaseline, file_get_contents($path));
+            self::assertStringNotContainsString('Dynamic markers used.', $tester->getDisplay());
             $lines = explode("\n", $baseline);
             $lines[0] = Comparison::MARKER;
             file_put_contents($path, implode("\n", $lines));

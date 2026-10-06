@@ -16,8 +16,9 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Throwable;
+use Andersundsehr\FrontendStudio\Service\Snapshot\InlineDiff;
 
-#[AsCommand(name: 'frontend-studio:test', description: 'Compare saved fixture HTML in a site/language against reviewed baselines')]
+#[AsCommand(name: 'frontend-studio:test', description: 'Component Snapshots: compare rendered fixture HTML against reviewed snapshots')]
 final class SnapshotCommand extends Command
 {
     public function __construct(private readonly Runner $runner)
@@ -74,7 +75,7 @@ final class SnapshotCommand extends Command
             }
 
             if ($result['status'] === 'failed') {
-                $output->writeln(OutputFormatter::escape("EXPECTED:\n" . $result['expected'] . "ACTUAL:\n" . $result['actual']));
+                $output->writeln(new InlineDiff()->render($result['expected'], $result['actual']));
             }
         }
 
