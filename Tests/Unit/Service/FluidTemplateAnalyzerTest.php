@@ -15,12 +15,37 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use RuntimeException;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateLocation;
+use TYPO3Fluid\Fluid\Core\Parser\Exception as ParserException;
 use TYPO3Fluid\Fluid\Core\TemplateLocationException;
 use TYPO3Fluid\Fluid\Validation\Deprecation;
 use TYPO3Fluid\Fluid\Validation\TemplateValidatorResult;
 
 final class FluidTemplateAnalyzerTest extends TestCase
 {
+    public function testParserContextIsRemovedFromMessageWithoutLosingTheLocation(): void
+    {
+        $original = new ParserException('Required argument "type" was not supplied.', 1237823699);
+        $error = new ParserException(
+            'Fluid parse error in template /template.html, line 1 at character 5. Error: Required argument "type" was not supplied. (error code 1237823699). Template source chunk: <f:argument name="bodytext"/>',
+            $original->getCode(),
+            $original,
+            new TemplateLocation('/template.html', 1, 5),
+        );
+        $analyzer = new ReflectionClass(FluidTemplateAnalyzer::class)->newInstanceWithoutConstructor();
+        $diagnostics = $analyzer->diagnostics(new TemplateValidatorResult('id', '/template.html', [$error], [], null), '    <f:argument name="bodytext"/>');
+        self::assertSame([
+            'line' => 1,
+            'character' => 5,
+            'severity' => 'error',
+            'message' => 'Required argument "type" was not supplied. (error code 1237823699).',
+        ], $diagnostics[0]);
+        $html = new HtmlSourceHighlighter()->highlightFluidDiagnostics('    <f:argument name="bodytext"/>', $diagnostics);
+        self::assertStringContainsString('Error: Required argument &quot;type&quot; was not supplied. (error code 1237823699).', $html);
+        self::assertStringContainsString('data-character="5"', $html);
+        self::assertStringNotContainsString('/template.html', $html);
+        self::assertStringNotContainsString('Template source chunk:', $html);
+    }
+
     public function testOnlyLocationsWithinTheDisplayedTemplateAreAnnotated(): void
     {
         $errors = [new RuntimeException('Unlocated <script>')];

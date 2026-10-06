@@ -9,6 +9,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentTemplateMetadata;
 use Throwable;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3Fluid\Fluid\Core\TemplateLocationException;
+use TYPO3Fluid\Fluid\Core\Parser\Exception as ParserException;
 use TYPO3Fluid\Fluid\Validation\TemplateValidator;
 use TYPO3Fluid\Fluid\Validation\TemplateValidatorResult;
 
@@ -66,7 +67,12 @@ final readonly class FluidTemplateAnalyzer
             $location = $error instanceof TemplateLocationException ? $error->getTemplateLocation() : null;
             $line = $location !== null && $location->identifierOrPath === $result->path && $location->line > 0 && $location->line <= $lineCount
                 ? $location->line : null;
-            $diagnostics[] = ['line' => $line, 'character' => $line !== null && $location->character > 0 ? $location->character : null, 'severity' => 'error', 'message' => $error->getMessage()];
+            // Fluid's location wrapper repeats the path, position and source chunk.
+            // Keep its structured location for the marker, but display the original error.
+            $message = $error instanceof ParserException && $error->getPrevious() !== null
+                ? $error->getPrevious()->getMessage() . ' (error code ' . $error->getCode() . ').'
+                : $error->getMessage();
+            $diagnostics[] = ['line' => $line, 'character' => $line !== null && $location->character > 0 ? $location->character : null, 'severity' => 'error', 'message' => $message];
         }
 
         foreach ($result->deprecations as $deprecation) {

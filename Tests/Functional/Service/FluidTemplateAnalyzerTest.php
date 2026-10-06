@@ -36,6 +36,10 @@ final class FluidTemplateAnalyzerTest extends FunctionalTestCase
             self::assertSame(1, $result['errorCount']);
             self::assertStringContainsString('is-error" data-line="2"', $result['source']);
             self::assertStringContainsString('frontend-studio-template-marker" data-character="2"', $result['source']);
+            self::assertStringContainsString('Error: Required argument &quot;each&quot; was not supplied. (error code 1237823699).', $result['source']);
+            self::assertStringNotContainsString($path, $result['source']);
+            self::assertStringNotContainsString('Fluid parse error in template', $result['source']);
+            self::assertStringNotContainsString('Template source chunk:', $result['source']);
         }
 
         // Rendering this throws without a configured link target; parsing must succeed.
