@@ -244,10 +244,23 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame($spacedBaseline, file_get_contents($path));
             self::assertStringNotContainsString('Dynamic markers used.', $tester->getDisplay());
             $lines = explode("\n", $baseline);
-            $lines[0] = Comparison::MARKER;
+            $lines[1] = str_replace('Wrapped', Comparison::MARKER, $lines[1]);
             file_put_contents($path, implode("\n", $lines));
             self::assertSame(0, $tester->execute($arguments));
             self::assertStringContainsString('Dynamic markers used.', $tester->getDisplay());
+            file_put_contents($path, str_replace('preview', 'broken', implode("\n", $lines)));
+            self::assertSame(1, $tester->execute($arguments));
+            self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
+            self::assertStringContainsString('snapshot | actual', $tester->getDisplay());
+            self::assertStringNotContainsString('{+Wrapped+}', $tester->getDisplay());
+
+            $lines[0] = '<!-- frontend-studio:dynamic-line -->';
+            file_put_contents($path, implode("\n", $lines));
+            self::assertSame(1, $tester->execute($arguments));
+            self::assertStringContainsString('Regenerate this snapshot with --update', $tester->getDisplay());
+            self::assertSame(0, $tester->execute([...$arguments, '--update' => true]));
+            self::assertSame($baseline, file_get_contents($path));
+            self::assertSame(0, $tester->execute($arguments));
         } finally {
             if (is_file($path)) {
                 unlink($path);

@@ -34,20 +34,41 @@ final class InlineDiffTest extends TestCase
         self::assertSame($diff->render('<p>one two</p>', '<p>one two</p>'), $diff->render("<p>one \t\n two</p>", '<p>one two</p>'));
     }
 
-    public function testSavedDynamicLinesAreExcludedFromStableDiffs(): void
+    public function testInlineDynamicValuesAreExcludedFromStableDiffs(): void
     {
-        $diff = new InlineDiff()->render(Comparison::MARKER . "\n<p>old</p>\n", "random value\n<p>new</p>\n");
+        $diff = new InlineDiff()->render('<p id="' . Comparison::MARKER . '">old</p>', '<p id="random">new</p>');
         self::assertStringContainsString('[-old-]', $diff);
         self::assertStringContainsString('{+new+}', $diff);
-        self::assertStringNotContainsString('random value', $diff);
+        self::assertStringNotContainsString('random', $diff);
     }
 
     public function testLongUnchangedSectionsAreCollapsed(): void
     {
-        $start = str_repeat('<p>unchanged</p>', 20);
+        $start = str_repeat("<p>unchanged</p>\n", 20);
         $diff = new InlineDiff()->render($start . '<p>old</p>', $start . '<p>new</p>');
         self::assertStringContainsString('…', $diff);
         self::assertLessThan(6, substr_count($diff, 'unchanged'));
         self::assertStringContainsString('[-old-]', $diff);
+    }
+
+    public function testLineNumbersReferToEachOriginalSource(): void
+    {
+        $diff = new OutputFormatter()->format(new InlineDiff()->render("<p>same</p>\n\n<p>old</p>\n", "<p>same</p>\n<p>new</p>\n"));
+        self::assertNotNull($diff);
+        self::assertStringContainsString('snapshot | actual', $diff);
+        self::assertStringContainsString('1 | 1  <p>same</p>', $diff);
+        self::assertStringContainsString('3 | 2  <p>[-old-]{+new+}</p>', $diff);
+    }
+
+    public function testInsertedAndDeletedLinesHaveSeparateSourceNumbers(): void
+    {
+        $diff = new OutputFormatter()->format(new InlineDiff()->render("<p>one</p>\n<p>two</p>\n", "<p>one</p>\n<p>added</p>\n<p>two</p>\n"));
+        self::assertNotNull($diff);
+        self::assertStringContainsString('{+', $diff);
+        self::assertStringContainsString('2 | 3', $diff);
+        $deleted = new OutputFormatter()->format(new InlineDiff()->render("<p>one</p>\n<p>added</p>\n<p>two</p>\n", "<p>one</p>\n<p>two</p>\n"));
+        self::assertNotNull($deleted);
+        self::assertStringContainsString('[-', $deleted);
+        self::assertStringContainsString('3 | 2', $deleted);
     }
 }

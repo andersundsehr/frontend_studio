@@ -422,13 +422,15 @@ empty/unknown scopes fail; a newly created baseline is never counted as a pass.
 Mismatches and missing snapshots print warnings without stack traces.
 Mismatches show an inline diff with red `[-removed-]` and green `{+added+}` text,
 plus surrounding context. The delimiters remain visible without ANSI colors.
+Two line-number columns show the original snapshot and rendered-output lines;
+`-` means that side has no content on the displayed diff row.
 After all mismatches, one note explains how to update snapshots with `--update`.
 
 ```text
 WARNING (MISMATCH) site:card:Default: Rendered HTML differs from the saved baseline.
-[-removed-] {+added+}
-  <p>Hello [-world-]{+TYPO3+}
-  </p>
+[-removed-] {+added+}  snapshot | actual
+1 | 1  <p>Hello [-world-]{+TYPO3+}
+2 | 2  </p>
 ```
 
 Comparison treats each consecutive whitespace run (spaces, tabs or newlines)
@@ -469,13 +471,26 @@ replaces an existing baseline.
 Tags start on separate lines, and start tags longer than 80 characters split
 attributes onto separate lines. Comments and raw/whitespace-sensitive blocks
 (`script`, `style`, `pre`, `textarea`) retain their contents. These are comparison
-representations, not HTML intended for serving. Lines with changing content become explicit
-`<!-- frontend-studio:dynamic-line -->` markers. Existing markers alone control
-later comparisons; a new mismatch never expands the ignored region. Content insertions,
-removals and detected line moves during baseline creation fail for manual review.
-Two samples cannot discover all nondeterminism, and a whole-line marker can hide
-other changes on that line. Review markers carefully, especially short opening
-tags containing both dynamic IDs and stable attributes.
+representations, not HTML intended for serving. Dynamic values use inline
+`{{frontend-studio:dynamic}}` markers. For example, two renders with changing IDs
+can produce this snapshot:
+
+```html
+<div id="{{frontend-studio:dynamic}}" class="stable">Hello</div>
+```
+
+The marker matches one non-whitespace value token. The element, attribute names,
+quotes, neighboring attributes and surrounding text remain checked, even on the
+same line. Multiple values on a line can have separate markers. Whole changing
+tokens are masked so coincidentally shared characters in sampled IDs or timestamps
+do not become fixed requirements. Whitespace runs still compare as one space.
+Markers cannot consume whitespace, quotes or HTML tag boundaries.
+Changing structure, inserted/removed tokens and detected moved values between
+the two creation samples fail for manual review. Existing markers alone control
+later comparisons; a mismatch never expands them. Two samples cannot discover
+all nondeterminism; review the marked values before committing snapshots.
+Legacy `<!-- frontend-studio:dynamic-line -->` markers are rejected with an
+instruction to regenerate the selected snapshots using `--update`.
 
 These HTML baselines are separate from the Playwright screenshot, ARIA and
 accessibility checks, which remain useful for browser layout and behavior.

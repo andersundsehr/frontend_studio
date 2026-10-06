@@ -27,20 +27,20 @@ final class ComparisonTest extends TestCase
         self::assertSame($first, new Comparison()->create($first, "<p>one\ttwo</p>\n"));
     }
 
-    public function testWhitespaceChangesPreserveDynamicMarkerBoundaries(): void
+    public function testWhitespaceChangesPreserveInlineMarkerBoundaries(): void
     {
         $comparison = new Comparison();
-        $expected = "<div>\n" . Comparison::MARKER . "\nhello world\n</div>\n";
-        self::assertTrue($comparison->matches($expected, "<div>\n\nrandom value\nhello   world\n</div>\n"));
-        self::assertFalse($comparison->matches($expected, "<div>\nrandom value\nextra\nhello world\n</div>\n"));
-        self::assertFalse($comparison->matches($expected, "<div>\nrandom value\nhelloworld\n</div>\n"));
+        $expected = '<div id="' . Comparison::MARKER . '" class="stable">' . "\nhello world\n</div>\n";
+        self::assertTrue($comparison->matches($expected, '<div id="random" class="stable">' . "\n\nhello   world\n</div>\n"));
+        self::assertFalse($comparison->matches($expected, '<div id="random" class="changed">' . "\nhello world\n</div>\n"));
+        self::assertFalse($comparison->matches($expected, '<div id="random" class="stable">' . "\nhelloworld\n</div>\n"));
     }
 
     public function testSavedMarkersDoNotMaskNewStableChanges(): void
     {
         $comparison = new Comparison();
         $baseline = $comparison->create("<p id=one>\nhello\n</p>\n", "<p id=two>\nhello\n</p>\n");
-        self::assertSame(Comparison::MARKER . "\nhello\n</p>\n", $baseline);
+        self::assertSame('<p id=' . Comparison::MARKER . ">\nhello\n</p>\n", $baseline);
         self::assertTrue($comparison->matches($baseline, "<p id=three>\nhello\n</p>\n"));
         self::assertFalse($comparison->matches($baseline, "<p id=three>\nchanged\n</p>\n"));
         self::assertFalse($comparison->matches($baseline, "<p id=three>\nhello\nextra\n</p>\n"));
@@ -50,6 +50,40 @@ final class ComparisonTest extends TestCase
     {
         $this->expectException(RuntimeException::class);
         new Comparison()->create("a\nb\n", "b\na\n");
+    }
+
+    public function testMultipleInlineValuesKeepStableAttributesAndTextChecked(): void
+    {
+        $comparison = new Comparison();
+        $baseline = $comparison->create('<p id="c123" class="stable">Token abc123, status ready</p>', '<p id="c124" class="stable">Token abc124, status ready</p>');
+        self::assertSame('<p id="' . Comparison::MARKER . '" class="stable">Token ' . Comparison::MARKER . ' status ready</p>', $baseline);
+        self::assertTrue($comparison->matches($baseline, '<p id="c999999" class="stable">Token completely-new, status ready</p>'));
+        self::assertFalse($comparison->matches($baseline, '<p id="c999" class="changed">Token abc999, status ready</p>'));
+        self::assertFalse($comparison->matches($baseline, '<p id="c999" class="stable">Token abc999, status broken</p>'));
+        self::assertFalse($comparison->matches($baseline, '<p id="c999" class="stable">Token abc999, extra status ready</p>'));
+        self::assertFalse($comparison->matches($baseline, '<p id="c999" class="stable">Token <b>injected</b> status ready</p>'));
+    }
+
+    public function testChangingTagNamesCannotBecomeDynamicMarkers(): void
+    {
+        $this->expectException(RuntimeException::class);
+        new Comparison()->create('<p>same</p>', '<div>same</div>');
+    }
+
+    public function testInlineMarkersCannotConsumeUnquotedAttributeBoundaries(): void
+    {
+        $comparison = new Comparison();
+        $baseline = $comparison->create('<input value=123/>', '<input value=124/>');
+        self::assertSame('<input value=' . Comparison::MARKER . '/>', $baseline);
+        self::assertTrue($comparison->matches($baseline, '<input value=99999/>'));
+        self::assertFalse($comparison->matches($baseline, '<input value=99999>'));
+        self::assertFalse($comparison->matches($baseline, '<input value=99999 extra=bad/>'));
+    }
+
+    public function testLegacyMarkersRequireExplicitRegeneration(): void
+    {
+        $this->expectExceptionMessage('Regenerate this snapshot with --update');
+        new Comparison()->matches('<!-- frontend-studio:dynamic-line -->', 'anything');
     }
 
     public function testInsertedLinesCannotBecomeDynamicMarkers(): void
@@ -62,6 +96,12 @@ final class ComparisonTest extends TestCase
     {
         $this->expectException(RuntimeException::class);
         new Comparison()->create(Comparison::MARKER, Comparison::MARKER);
+    }
+
+    public function testInvalidUtf8CannotSilentlyMatch(): void
+    {
+        $this->expectExceptionMessage('Snapshot HTML is not valid UTF-8');
+        new Comparison()->matches("<p>\xFF</p>", "<p>\xFE</p>");
     }
 
     public function testFormatterKeepsQuotedAnglesAndRawText(): void
