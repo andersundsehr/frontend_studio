@@ -12,12 +12,14 @@ async function setup({ deferEditor = false, readOnly = false } = {}) {
   const view = Object.assign(new EventTarget(), { documentationDirty: false });
   const pending: Array<(value: unknown) => void> = [];
   const bodies: any[] = [];
+  const requests: any[] = [];
   const notifications: string[] = [];
   const window = Object.assign(new EventTarget(), { location: { href: 'https://example.test' }, confirm: () => true });
   const context = createContext({
-    Event, EventTarget, AbortController, URL, window, top: { document: new EventTarget() },
+    Event, EventTarget, AbortController, URL, URLSearchParams, window, top: { document: new EventTarget() },
     fetch: async (_url: URL, options: any) => {
-      bodies.push(options.body ? JSON.parse(options.body) : null);
+      requests.push({ url: _url, ...options });
+      bodies.push(options.body ? Object.fromEntries(new URLSearchParams(options.body)) : null);
       return new Promise(resolve => pending.push(resolve));
     },
   });
@@ -48,7 +50,7 @@ async function setup({ deferEditor = false, readOnly = false } = {}) {
   };
   await respond({ markdown: 'Original\n', revision: 'r1', readOnly });
   if (!deferEditor && !readOnly) { editors[0].resolve(); await tick(); }
-  return { doc, root, view, bodies, respond, editors, elements, notifications, tick, status: elements.get('[data-doc-status]'),
+  return { doc, root, view, bodies, requests, respond, editors, elements, notifications, tick, status: elements.get('[data-doc-status]'),
     edit: (markdown: string) => editors.at(-1).change(markdown) };
 }
 
@@ -105,6 +107,24 @@ test('save snapshots submitted text, conflicts retain edits, and Reset uses the 
   assert.deepEqual(ui.notifications, ['success', 'error']);
   ui.doc.reset();
   assert.equal(ui.doc.markdown, 'Submitted');
+  assert.equal(ui.doc.dirty, false);
+});
+
+test('Save posts form fields that TYPO3 parses, preserving the component identifier and Markdown', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  const markdown = '# Über uns\n\nA & B + C = 100%\n\n[Link](https://example.test/?a=1&b=2)\nこんにちは';
+  ui.edit(markdown);
+  ui.elements.get('[data-doc-save]').dispatchEvent(new Event('click'));
+  const request = ui.requests.at(-1);
+  assert.equal(request.method, 'POST');
+  assert.match(request.headers['Content-Type'], /^application\/x-www-form-urlencoded\b/);
+  assert.equal(request.credentials, 'same-origin');
+  assert.equal(request.url.searchParams.get('identifier'), 'site:card');
+  const form = new URLSearchParams(request.body);
+  assert.equal(form.get('identifier'), 'site:card');
+  assert.equal(form.get('markdown'), markdown);
+  assert.equal(form.get('revision'), 'r1');
+  await ui.respond({ revision: 'r2' });
   assert.equal(ui.doc.dirty, false);
 });
 

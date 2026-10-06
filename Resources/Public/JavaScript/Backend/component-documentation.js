@@ -54,7 +54,7 @@ export default class ComponentDocumentation extends VariantFeature {
     url.searchParams.set('identifier', this.root.dataset.componentIdentifier);
     const response = await fetch(url, {
       method, credentials: 'same-origin', signal: this.abortController.signal,
-      ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: this.root.dataset.componentIdentifier, ...body }) } : {}),
+      ...(body ? { headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: new URLSearchParams({ identifier: this.root.dataset.componentIdentifier, ...body }).toString() } : {}),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || `Documentation request failed (${response.status}).`);
