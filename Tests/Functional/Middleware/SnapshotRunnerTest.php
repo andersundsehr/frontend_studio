@@ -8,6 +8,10 @@ use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use RuntimeException;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Filesystem\Path;
+use TYPO3\CMS\Core\Core\Environment;
+use Andersundsehr\FrontendStudio\Service\Snapshot\Comparison;
 use Andersundsehr\FrontendStudio\Command\SnapshotCommand;
 use Symfony\Component\Console\Tester\CommandTester;
 use TYPO3\CMS\Core\Site\SiteFinder;
@@ -159,6 +163,10 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $tester = new CommandTester(new SnapshotCommand($runner));
         $arguments = ['site' => 'preview', 'language' => 'unknown', '--scope' => 'site:wrappedCard'];
         self::assertSame(1, $tester->execute($arguments));
+        self::assertStringContainsString('RuntimeException:', $tester->getDisplay());
+        self::assertStringNotContainsString('Stack trace:', $tester->getDisplay());
+        self::assertStringNotContainsString('html-Default.html', $tester->getDisplay());
+        self::assertSame(1, $tester->execute($arguments, ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]));
         $output = $tester->getDisplay();
         self::assertStringContainsString('Snapshot language "unknown" was not found in site "preview"', $output);
         self::assertStringContainsString('Available enabled hreflangs: de, en', $output);
@@ -166,7 +174,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         self::assertStringContainsString('Stack trace:', $output);
 
         $arguments['site'] = 'missing';
-        self::assertSame(1, $tester->execute($arguments));
+        self::assertSame(1, $tester->execute($arguments, ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]));
         self::assertStringContainsString('Snapshot site "missing" was not found. Available sites: preview', $tester->getDisplay());
         self::assertStringContainsString('SiteNotFoundException:', $tester->getDisplay());
         self::assertStringContainsString('Next RuntimeException:', $tester->getDisplay());
@@ -189,8 +197,51 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
 
         $arguments['--scope'] = 'site:unknown';
-        self::assertSame(1, $tester->execute($arguments));
+        self::assertSame(1, $tester->execute($arguments, ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]));
         self::assertStringContainsString('Stack trace:', $tester->getDisplay());
+    }
+
+    public function testCommandColorsLabelsAndOnlyShowsRelativePathsWhenVerbose(): void
+    {
+        $runner = $this->get(Runner::class);
+        $tester = new CommandTester(new SnapshotCommand($runner));
+        $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard'];
+        $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html-snapshots/html-Default.html';
+        try {
+            self::assertSame(2, $tester->execute($arguments, ['decorated' => true]));
+            $output = $tester->getDisplay();
+            self::assertStringContainsString("\033[33;1mWARNING (MISSING)", $output);
+            self::assertStringContainsString("\033[36msite:wrappedCard", $output);
+            self::assertStringContainsString("\033[35mDefault", $output);
+            self::assertStringNotContainsString('html-Default.html', $output);
+            self::assertStringNotContainsString('dynamic markers', strtolower($output));
+
+            self::assertSame(0, $tester->execute($arguments, ['decorated' => true]));
+            self::assertStringContainsString("\033[32;1mPASSED", $tester->getDisplay());
+            self::assertStringNotContainsString('html-Default.html', $tester->getDisplay());
+            self::assertSame(0, $tester->execute($arguments, ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]));
+            $absolutePath = realpath($path);
+            self::assertNotFalse($absolutePath);
+            self::assertStringContainsString(Path::makeRelative($absolutePath, Environment::getProjectPath()), $tester->getDisplay());
+            self::assertStringNotContainsString(Environment::getProjectPath() . '/', $tester->getDisplay());
+
+            $baseline = file_get_contents($path);
+            self::assertNotFalse($baseline);
+            $lines = explode("\n", $baseline);
+            $lines[0] = Comparison::MARKER;
+            file_put_contents($path, implode("\n", $lines));
+            self::assertSame(0, $tester->execute($arguments));
+            self::assertStringContainsString('Dynamic markers used.', $tester->getDisplay());
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+
+        $arguments['language'] = 'unknown';
+        self::assertSame(1, $tester->execute($arguments, ['decorated' => true]));
+        self::assertStringContainsString("\033[31;1mERROR", $tester->getDisplay());
     }
 
     public function testReportsInvalidSetNameReasonAndContext(): void

@@ -421,7 +421,7 @@ created baselines, and `3` when both failure categories occur. Invalid fixtures 
 empty/unknown scopes fail; a newly created baseline is never counted as a pass.
 Mismatches and missing baselines print warnings without stack traces.
 Discovery, configuration, rendering and storage errors print the exception,
-including chained exceptions and stack traces, even without `-v`.
+with chained exceptions, file locations and stack traces available with `-v`.
 Configuration errors identify missing sites, available enabled language hreflangs,
 invalid set names and reasons, or the configured base URL.
 
@@ -431,7 +431,10 @@ Variant names use the same filename normalization as slot HTML files;
 colliding variant names fail before a baseline is read or created, including
 components without slots. Each template and variant has one baseline shared by
 site and language selections; use the intended rendering context when creating
-and comparing it. The command prints the full path.
+and comparing it. Snapshot paths are project-relative and shown only with `-v` (or higher verbosity).
+States are green for passes, yellow for warnings and red for errors;
+component identifiers are cyan and variant names are magenta.
+Dynamic markers are mentioned only when the baseline contains them.
 Normal runs never overwrite baselines. To accept an intentional change, delete
 only the reviewed baseline, rerun outside Production, inspect the new diff and
 commit it. Concurrent creation publishes a complete file without replacement.

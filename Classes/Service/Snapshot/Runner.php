@@ -84,7 +84,7 @@ final readonly class Runner
                 $message = 'Missing baseline; creation blocked in Production.';
                 if (!$this->writePolicy->isReadOnly()) {
                     $this->storage->create($path, $expected);
-                    $message = 'Created baseline. Review its dynamic markers and commit it before rerunning.';
+                    $message = 'Created baseline. Review and commit it before rerunning.';
                 }
 
                 $status = 'missing';
