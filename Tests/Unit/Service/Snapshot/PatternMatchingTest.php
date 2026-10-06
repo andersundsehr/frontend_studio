@@ -88,6 +88,8 @@ final class PatternMatchingTest extends TestCase
         yield 'lowercase named months' => ['<p>A06 oct 2026 14:10:01B</p>', '<p>A06 oct 2026 14:10:02B</p>', '<p>A@B</p>', '<p>A01 jan 2027 23:59:59B</p>'];
         yield 'text insertion preserves surrounding words' => ['<p>AfooB</p>', '<p>AfooxyzB</p>', '<p>Afoo@B</p>', '<p>AfooanythingB</p>'];
         yield 'text deletion preserves surrounding words' => ['<p>AfooxyzB</p>', '<p>AfooB</p>', '<p>Afoo@B</p>', '<p>AfooanythingB</p>'];
+        yield 'empty text becomes nonempty' => ['<p></p>', '<p>xyz</p>', '<p>@</p>', '<p></p>'];
+        yield 'nonempty text becomes empty' => ['<p>xyz</p>', '<p></p>', '<p>@</p>', '<p>anything</p>'];
         yield 'namespaced attribute' => ['<svg xlink:href="/path?token=abc"></svg>', '<svg xlink:href="/path?token=xyz"></svg>', '<svg xlink:href="/path?token=@"></svg>', '<svg xlink:href="/path?token=new"></svg>'];
         yield 'whitespace only changes stay literal' => ["<p>same \t words</p>\n", "<p>same words</p>\n\n", "<p>same \t words</p>\n", "<p>same\nwords</p>\n"];
     }
@@ -103,6 +105,11 @@ final class PatternMatchingTest extends TestCase
     {
         yield 'date marker may include spaces' => ['<p>A@B</p>', '<p>A2027-Jan-Mon 23:59:59.999999B</p>', true];
         yield 'empty text marker' => ['<p>A@B</p>', '<p>AB</p>', true];
+        yield 'entire text marker matches empty node' => ['<p>@</p>', '<p></p>', true];
+        yield 'leading text marker matches empty node' => ['@<p>fixed</p>', '<p>fixed</p>', true];
+        yield 'trailing text marker matches empty node' => ['<p>fixed</p>@', '<p>fixed</p>', true];
+        yield 'plain text marker matches empty output' => ['@', '', true];
+        yield 'empty full text marker cannot swallow element' => ['<p>@</p>', '<p><b>bad</b></p>', false];
         yield 'stable prefix changed' => ['<p>A@B</p>', '<p>CvalueB</p>', false];
         yield 'stable suffix changed' => ['<p>A@B</p>', '<p>AvalueC</p>', false];
         yield 'marker cannot swallow element' => ['<p>A@B</p>', '<p>A<b>value</b>B</p>', false];

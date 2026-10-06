@@ -111,7 +111,14 @@ final readonly class Comparison
         }
 
         $tokens = [];
+        $previousWasMarkup = true;
         foreach ($matches[0] as $part) {
+            $isMarkup = str_starts_with($part, '<');
+            if ($isMarkup && $previousWasMarkup) {
+                $tokens[] = ['value' => '', 'type' => 'text', 'name' => ''];
+            }
+
+            $previousWasMarkup = $isMarkup;
             if (str_starts_with($part, '<!')) {
                 $tokens[] = ['value' => $part, 'type' => 'literal', 'name' => ''];
                 continue;
@@ -138,6 +145,10 @@ final readonly class Comparison
             } else {
                 $tokens[] = ['value' => $part, 'type' => 'text', 'name' => ''];
             }
+        }
+
+        if ($previousWasMarkup) {
+            $tokens[] = ['value' => '', 'type' => 'text', 'name' => ''];
         }
 
         return $tokens;
