@@ -179,3 +179,91 @@ test('Production renders Markdown inline without an editor or action buttons and
   assert.equal(ui.doc.dirty, false);
   assert.equal(ui.bodies.length, 1);
 });
+
+test('disk changes refresh a clean editor in place and update the revision without dirtying it', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  const editor = ui.doc.editor;
+  ui.view.dispatchEvent(new Event('documentation'));
+  assert.equal(ui.requests.at(-1).method, 'GET');
+  await ui.respond({ markdown: 'Changed on disk\n', revision: 'r2', readOnly: false });
+  assert.equal(ui.doc.editor, editor);
+  assert.equal(ui.editors.length, 1);
+  assert.equal(editor.destroyed, 0);
+  assert.equal(editor.data, '<p>Changed on disk</p>');
+  assert.equal(ui.doc.markdown, 'Changed on disk\n');
+  assert.equal(ui.doc.baseline, 'Changed on disk\n');
+  assert.equal(ui.doc.revision, 'r2');
+  assert.equal(ui.doc.dirty, false);
+  assert.equal(ui.view.documentationDirty, false);
+  assert.equal(ui.elements.get('[data-doc-save]').disabled, true);
+});
+
+test('disk changes preserve unsaved documentation, then refresh after Reset makes the editor clean', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  ui.edit('Unsaved local content');
+  ui.view.dispatchEvent(new Event('documentation'));
+  assert.equal(ui.bodies.length, 1);
+  assert.equal(ui.doc.markdown, 'Unsaved local content');
+  assert.equal(ui.doc.revision, 'r1');
+  ui.doc.reset();
+  assert.equal(ui.requests.at(-1).method, 'GET');
+  await ui.respond({ markdown: 'External edit', revision: 'r2', readOnly: false });
+  assert.equal(ui.doc.markdown, 'External edit');
+  assert.equal(ui.doc.dirty, false);
+});
+
+test('a second disk change during loading queues a refresh for the latest documentation', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  ui.view.dispatchEvent(new Event('documentation'));
+  ui.view.dispatchEvent(new Event('documentation'));
+  assert.equal(ui.bodies.length, 2);
+  await ui.respond({ markdown: 'Earlier disk content', revision: 'r2', readOnly: false });
+  assert.equal(ui.bodies.length, 3);
+  await ui.respond({ markdown: 'Latest disk content', revision: 'r3', readOnly: false });
+  assert.equal(ui.doc.markdown, 'Latest disk content');
+  assert.equal(ui.doc.revision, 'r3');
+  assert.equal(ui.doc.dirty, false);
+});
+
+test('typing during an automatic disk refresh preserves local text and its original revision', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  ui.view.dispatchEvent(new Event('documentation'));
+  ui.edit('Typed while refreshing');
+  await ui.respond({ markdown: 'External content', revision: 'r2', readOnly: false });
+  assert.equal(ui.doc.markdown, 'Typed while refreshing');
+  assert.equal(ui.doc.revision, 'r1');
+  assert.equal(ui.doc.dirty, true);
+});
+
+test('disk changes during Save refresh once saving completes if no later edits remain', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  ui.edit('Saved text');
+  const save = ui.doc.save();
+  ui.view.dispatchEvent(new Event('documentation'));
+  assert.equal(ui.bodies.length, 2);
+  await ui.respond({ revision: 'r2' }); await save;
+  assert.equal(ui.requests.at(-1).method, 'GET');
+  await ui.respond({ markdown: 'Latest disk content', revision: 'r3', readOnly: false });
+  assert.equal(ui.doc.markdown, 'Latest disk content');
+  assert.equal(ui.doc.dirty, false);
+});
+
+test('read-only disk refresh replaces rendered HTML without creating an editor', async (t) => {
+  const ui = await setup({ readOnly: true }); t.after(() => ui.doc.destroy());
+  ui.view.dispatchEvent(new Event('documentation'));
+  await ui.respond({ markdown: 'Updated documentation', revision: 'r2', readOnly: true });
+  assert.equal(ui.elements.get('[data-doc-rich]').innerHTML, '<p>Updated documentation</p>');
+  assert.equal(ui.editors.length, 0);
+});
+
+test('an SSE notification for our own saved revision preserves the current editor data and undo state', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  let replacements = 0;
+  ui.doc.editor.setData = () => { replacements++; };
+  ui.view.dispatchEvent(new Event('documentation'));
+  await ui.respond({ markdown: 'Original\n', revision: 'r1', readOnly: false });
+  assert.equal(replacements, 0);
+  assert.equal(ui.doc.dirty, false);
+  assert.equal(ui.doc.pending, false);
+  assert.doesNotMatch(ui.status.textContent, /Loading/);
+});

@@ -36,6 +36,7 @@ final readonly class ComponentTemplateRootWatcher
      */
     public function createSnapshot(): array
     {
+        clearstatcache();
         $snapshot = [];
 
         foreach ($this->getTemplateRootPaths() as $rootPath) {
@@ -56,6 +57,26 @@ final readonly class ComponentTemplateRootWatcher
      */
     public function getChangedComponentIdentifiers(array $previousSnapshot, array $currentSnapshot): array
     {
+        return $this->getChangedIdentifiers($previousSnapshot, $currentSnapshot, false);
+    }
+
+    /**
+     * @param array<string, string> $previousSnapshot
+     * @param array<string, string> $currentSnapshot
+     * @return list<string>
+     */
+    public function getChangedDocumentationComponentIdentifiers(array $previousSnapshot, array $currentSnapshot): array
+    {
+        return $this->getChangedIdentifiers($previousSnapshot, $currentSnapshot, true);
+    }
+
+    /**
+     * @param array<string, string> $previousSnapshot
+     * @param array<string, string> $currentSnapshot
+     * @return list<string>
+     */
+    private function getChangedIdentifiers(array $previousSnapshot, array $currentSnapshot, bool $documentationOnly): array
+    {
         $changedPaths = [];
         foreach ($currentSnapshot as $path => $signature) {
             if (!array_key_exists($path, $previousSnapshot) || $previousSnapshot[$path] !== $signature) {
@@ -73,7 +94,7 @@ final readonly class ComponentTemplateRootWatcher
             return [];
         }
 
-        $componentIdentifiersByPath = $this->getComponentIdentifiersByWatchedFilePath();
+        $componentIdentifiersByPath = $this->getComponentIdentifiersByWatchedFilePath($documentationOnly);
         $changedComponentIdentifiers = [];
         foreach (array_keys($changedPaths) as $path) {
             foreach ($componentIdentifiersByPath as $watchedPath => $componentIdentifiers) {
@@ -96,7 +117,7 @@ final readonly class ComponentTemplateRootWatcher
     /**
      * @return array<string, list<string>>
      */
-    private function getComponentIdentifiersByWatchedFilePath(): array
+    private function getComponentIdentifiersByWatchedFilePath(bool $documentationOnly): array
     {
         $componentIdentifiersByPath = [];
         $fluidNamespaceAliases = $this->getFluidNamespaceAliasesByClassNamespace();
@@ -113,7 +134,7 @@ final readonly class ComponentTemplateRootWatcher
 
             foreach ($components as $componentName) {
                 $componentIdentifier = $namespace . ':' . $componentName;
-                foreach ($this->resolveWatchedComponentFiles($resolverDelegate, $componentName) as $path) {
+                foreach ($this->resolveWatchedComponentFiles($resolverDelegate, $componentName, $documentationOnly) as $path) {
                     $componentIdentifiersByPath[$path][] = $componentIdentifier;
                 }
             }
@@ -132,7 +153,7 @@ final readonly class ComponentTemplateRootWatcher
     /**
      * @return list<string>
      */
-    private function resolveWatchedComponentFiles(ComponentTemplateResolverInterface $resolverDelegate, string $componentName): array
+    private function resolveWatchedComponentFiles(ComponentTemplateResolverInterface $resolverDelegate, string $componentName, bool $documentationOnly): array
     {
         try {
             $templateName = $resolverDelegate->resolveTemplateName($componentName);
@@ -148,6 +169,13 @@ final readonly class ComponentTemplateRootWatcher
 
         if (!is_string($templatePath) || $templatePath === '') {
             return [];
+        }
+
+        if ($documentationOnly) {
+            $documentationPath = preg_replace('/(?:\\.fluid)?\\.html$/i', '.md', $templatePath);
+            return $documentationPath !== null && $documentationPath !== $templatePath
+                ? [$this->normalizeFilePath($documentationPath)]
+                : [];
         }
 
         $paths = [$this->normalizeFilePath($templatePath)];
@@ -288,7 +316,17 @@ final readonly class ComponentTemplateRootWatcher
                     continue;
                 }
 
-                $fileSignatures[$path] = $fileInfo->getMTime() . '|' . $fileInfo->getSize();
+                $signature = $fileInfo->getMTime() . '|' . $fileInfo->getSize();
+                if (str_ends_with(strtolower($path), '.md')) {
+                    $hash = @hash_file('sha256', $path);
+                    if ($hash === false) {
+                        continue;
+                    }
+
+                    $signature .= '|' . $hash;
+                }
+
+                $fileSignatures[$path] = $signature;
             } catch (Throwable) {
                 continue;
             }

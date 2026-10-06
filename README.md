@@ -457,6 +457,8 @@ Opening a document keeps the original Markdown untouched; rich edits serialize i
 Raw HTML is displayed as text and executable link schemes are rejected.
 **Reset** restores the last loaded or saved document locally.
 Documentation has its own Save button and unsaved-change warning, independent of fixture controls.
+In Development, changes to adjacent Markdown files refresh the editor automatically when documentation has no unsaved edits.
+Documentation-only changes keep the view and fixture controls in place.
 A save uses an optimistic content revision; external edits or another editor's save produce a conflict instead of overwriting stale content.
 Copy your pending text before reloading a conflicting document.
 

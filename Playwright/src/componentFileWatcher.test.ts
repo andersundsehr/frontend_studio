@@ -117,3 +117,25 @@ for (const action of ['create', 'copy', 'delete', 'save']) {
     assert.equal(events.at(-1).ownAction, false);
   });
 }
+
+test('documentation-only SSE updates are forwarded separately and do not consume a pending fixture write', async (t) => {
+  const env = await setup(); t.after(() => env.watcher.destroy());
+  env.moduleLoaded();
+  const documents: string[][] = [];
+  const files: any[] = [];
+  env.document.addEventListener('frontend-studio:component-documentation-changed', event => {
+    documents.push(Array.from((event as CustomEvent).detail.componentIdentifiers));
+  });
+  env.document.addEventListener('frontend-studio:component-files-changed', event => files.push((event as CustomEvent).detail));
+  env.document.dispatchEvent(new CustomEvent('frontend-studio:component-file-action-started', {
+    detail: { variantIdentifier: 'site:card:Default' },
+  }));
+  env.change(JSON.stringify({ componentIdentifiers: [], documentationComponentIdentifiers: ['site:card'] }));
+  assert.deepEqual(documents, [['site:card']]);
+  assert.equal(files.length, 0, 'Markdown changes must not trigger page/tree reloads');
+  env.change();
+  assert.equal(files[0].ownAction, true, 'the matching fixture event still belongs to our write');
+  env.change(JSON.stringify({ componentIdentifiers: ['site:other'], documentationComponentIdentifiers: ['site:card'] }));
+  assert.deepEqual(documents, [['site:card'], ['site:card']]);
+  assert.deepEqual(Array.from(files[1].componentIdentifiers), ['site:other']);
+});

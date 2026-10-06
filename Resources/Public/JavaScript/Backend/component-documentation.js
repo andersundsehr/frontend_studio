@@ -18,6 +18,7 @@ export default class ComponentDocumentation extends VariantFeature {
     this.baseline = '';
     this.loaded = false;
     this.pending = false;
+    this.reloadRequested = false;
     this.readOnly = true;
     this.listen(this.saveButton, 'click', () => this.save());
     this.listen(this.resetButton, 'click', () => this.reset());
@@ -36,6 +37,10 @@ export default class ComponentDocumentation extends VariantFeature {
       if (this.dirty && !window.confirm('Discard unsaved documentation changes?')) event.preventDefault();
     };
     this.listen(top.document, 'frontend-studio:before-navigate', this.navigationGuard);
+    this.listen(view, 'documentation', () => {
+      this.reloadRequested = true;
+      this.refreshIfClean();
+    });
     this.listen(view, 'files', () => { if (!this.dirty && !this.pending) this.load(); });
     this.load();
   }
@@ -47,6 +52,13 @@ export default class ComponentDocumentation extends VariantFeature {
     if (this.resetButton) this.resetButton.disabled = !this.loaded || this.pending || !this.dirty;
     if (this.saveState) this.saveState.hidden = !this.dirty;
     this.view.documentationDirty = this.dirty;
+    this.refreshIfClean();
+  }
+
+  refreshIfClean() {
+    if (!this.reloadRequested || this.dirty || this.pending || this.destroyed) return;
+    this.reloadRequested = false;
+    this.load();
   }
 
   async request(method, body) {
@@ -65,6 +77,7 @@ export default class ComponentDocumentation extends VariantFeature {
     if (this.pending) return;
     this.pending = true;
     const sourceAtStart = this.markdown;
+    const previousStatus = this.status.textContent;
     this.status.textContent = 'Loading documentation…';
     try {
       const result = await this.request('GET');
@@ -73,17 +86,31 @@ export default class ComponentDocumentation extends VariantFeature {
         this.status.textContent = 'Documentation was edited while loading. Your edits were kept; reload again to discard them.';
         return;
       }
-      this.editorGeneration += 1;
-      this.editorPending = false;
-      this.editor?.destroy(); this.editor = null;
+      if (this.loaded && (this.editor || this.readOnly) && result.revision === this.revision && result.readOnly === this.readOnly) {
+        this.status.textContent = previousStatus;
+        return;
+      }
+      const canReuseEditor = this.editor && !result.readOnly;
+      if (!canReuseEditor) {
+        this.editorGeneration += 1;
+        this.editorPending = false;
+        await this.editor?.destroy();
+        this.editor = null;
+        if (this.destroyed) return;
+      }
       this.baseline = this.markdown = result.markdown;
       this.revision = result.revision;
       this.readOnly = result.readOnly;
       this.loaded = true;
       if (this.actions) this.actions.hidden = this.readOnly;
-      this.rich.innerHTML = renderMarkdown(this.markdown);
       this.status.textContent = this.readOnly ? 'Documentation is read-only in Production.' : 'Documentation is shared by all variants of this component.';
-      if (!this.readOnly) await this.startEditor();
+      if (canReuseEditor) {
+        this.editor.setData(renderMarkdown(this.baseline));
+        this.markdown = this.baseline;
+      } else {
+        this.rich.innerHTML = renderMarkdown(this.markdown);
+        if (!this.readOnly) await this.startEditor();
+      }
     } catch (error) {
       if (!this.destroyed) this.status.textContent = error.message;
     } finally {

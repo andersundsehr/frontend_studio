@@ -1595,3 +1595,42 @@ test('copy prompt and request preserve the complete colon-containing variant nam
   assert.equal(requests[0].name, 'Mobile:Dark copy');
   assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:Mobile:Dark copy');
 });
+
+test('documentation subscriptions filter components without reloading previews or consuming write suppression', async (t) => {
+  const root = element({ componentIdentifier: 'site:card', variantIdentifier: 'site:card:Default' });
+  const env = environment([root]);
+  let reloads = 0;
+  env.window.location.reload = () => { reloads++; };
+  const modules = backendModules(env);
+  const { getVariantState } = await modules.import('variant-state.js');
+  const { default: Watcher } = await modules.import('variant-file-watcher.js');
+  const view = getVariantState(root);
+  const watcher = new Watcher(root, view);
+  t.after(() => { watcher.destroy(); view.destroy(); });
+  let docs = 0;
+  let files = 0;
+  view.addEventListener('documentation', () => { docs++; });
+  view.addEventListener('files', () => { files++; });
+  view.fileAction('started');
+  const changed = (componentIdentifiers: string[]) => env.top.document.dispatchEvent(new CustomEvent('frontend-studio:component-documentation-changed', {
+    detail: { componentIdentifiers },
+  }));
+  changed(['site:other']);
+  assert.equal(docs, 0);
+  view.hasUnsavedChanges = true;
+  changed(['site:card']);
+  assert.equal(docs, 1, 'unsaved fixture values do not prevent documentation updates');
+  assert.equal(files, 0);
+  assert.equal(reloads, 0);
+  assert.equal(view.previewChanged, false);
+  assert.equal(view.ignoreNextComponentFilesChanged, true);
+  view.changed('suspend');
+  changed(['site:card']);
+  assert.equal(docs, 1);
+  view.changed('resume');
+  changed(['site:card']);
+  assert.equal(docs, 2);
+  watcher.destroy();
+  changed(['site:card']);
+  assert.equal(docs, 2, 'destroyed subscriptions must not update documentation');
+});
