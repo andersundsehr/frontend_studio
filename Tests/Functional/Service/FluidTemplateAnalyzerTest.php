@@ -35,6 +35,7 @@ final class FluidTemplateAnalyzerTest extends FunctionalTestCase
             self::assertSame('', $result['status']);
             self::assertSame(1, $result['errorCount']);
             self::assertStringContainsString('is-error" data-line="2"', $result['source']);
+            self::assertStringContainsString('frontend-studio-template-marker" data-character="2"', $result['source']);
         }
 
         // Rendering this throws without a configured link target; parsing must succeed.

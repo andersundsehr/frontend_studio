@@ -11,6 +11,7 @@ use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
 use DOMDocument;
 use DOMXPath;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use RuntimeException;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateLocation;
@@ -41,6 +42,7 @@ final class FluidTemplateAnalyzerTest extends TestCase
         $analyzer = new ReflectionClass(FluidTemplateAnalyzer::class)->newInstanceWithoutConstructor();
         $diagnostics = $analyzer->diagnostics($result, "one\ntwo\n");
         self::assertSame([null, 2, null, null, null, null], array_column($diagnostics, 'line'));
+        self::assertSame([null, 1, null, null, null, null], array_column($diagnostics, 'character'));
         self::assertSame('deprecation', $diagnostics[5]['severity']);
     }
 
@@ -68,5 +70,97 @@ final class FluidTemplateAnalyzerTest extends TestCase
         self::assertSame(2.0, $xpath->evaluate('count(//*[@data-line="2"]/*[contains(@class,"diagnostic")])'));
         self::assertSame(1.0, $xpath->evaluate('count(//*[@data-line="2"]/code/*[contains(@class,"__comment")])'));
         self::assertSame(1.0, $xpath->evaluate('count(//*[@data-line="5"]/code/*[contains(@class,"__string")])'));
+    }
+
+    #[DataProvider('markerPositions')]
+    public function testMarkerPreservesTheExactSourcePrefixAndHighlightedText(string $source, int $line, string $prefix): void
+    {
+        $character = strlen($prefix) + 1;
+        $error = new class ($line, $character) extends RuntimeException implements TemplateLocationException {
+            public function __construct(private readonly int $templateLine, private readonly int $character)
+            {
+                parent::__construct('Bad <f:for> & "argument"');
+            }
+
+            public function getTemplateLocation(): TemplateLocation
+            {
+                return new TemplateLocation('/template.html', $this->templateLine, $this->character);
+            }
+        };
+        $analyzer = new ReflectionClass(FluidTemplateAnalyzer::class)->newInstanceWithoutConstructor();
+        $diagnostics = $analyzer->diagnostics(new TemplateValidatorResult('id', '/template.html', [$error], [], null), $source);
+        self::assertSame($character, $diagnostics[0]['character']);
+        $html = new HtmlSourceHighlighter()->highlightFluidDiagnostics($source, $diagnostics);
+        $dom = new DOMDocument();
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+
+        $xpath = new DOMXPath($dom);
+        $markers = $xpath->query('//span[@class="frontend-studio-template-marker"]');
+        self::assertNotFalse($markers);
+        self::assertCount(1, $markers);
+        $marker = $markers->item(0);
+        self::assertInstanceOf(DOMNode::class, $marker);
+        self::assertSame((string)$character, $xpath->evaluate('string(@data-character)', $marker));
+        $preceding = $xpath->query('preceding::text()[ancestor::code/parent::span[@data-line="' . $line . '"]]', $marker);
+        self::assertNotFalse($preceding);
+        self::assertSame($prefix, implode('', array_map(static function (DOMNode|DOMNameSpaceNode $node): string {
+            self::assertInstanceOf(DOMNode::class, $node);
+            return $node->textContent;
+        }, iterator_to_array($preceding))));
+        $code = $xpath->query('//code');
+        self::assertNotFalse($code);
+        self::assertSame(str_replace("\r\n", "\n", $source), implode("\n", array_map(static function (DOMNode|DOMNameSpaceNode $node): string {
+            self::assertInstanceOf(DOMNode::class, $node);
+            return rtrim($node->textContent, "\r");
+        }, iterator_to_array($code))));
+        self::assertSame('Error: Bad <f:for> & "argument"', $xpath->evaluate('string(//span[contains(@class,"template-diagnostic")])'));
+        self::assertSame('', $marker->textContent, 'The marker must not change copied source text.');
+        self::assertStringNotContainsString('<f:for>', $html);
+        if ($source !== '') {
+            self::assertGreaterThan(0, $xpath->evaluate('count(//code/span[starts-with(@class,"frontend-studio-variant-html-source__")])'));
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, int, string}>
+     */
+    public static function markerPositions(): iterable
+    {
+        yield 'tabs' => ["\t\t<f:for as=\"item\" />", 1, "\t\t"];
+        yield 'Unicode byte position' => ['ä世界😀 <f:for as="item" />', 1, 'ä世界😀 '];
+        yield 'CRLF' => ["first\r\n\t<f:for as=\"item\" />\r\n", 2, "\t"];
+        yield 'escaped HTML in string token' => ['a & <div title="<bad>">', 1, 'a & <div title="'];
+        yield 'inside tag token' => ['<f:for as="item" />', 1, '<f:'];
+        yield 'Unicode inside string token' => ['<div title="ä世界">', 1, '<div title="ä'];
+        yield 'inside Fluid token' => ['{foo -> f:format.raw()}', 1, '{foo -> f:for'];
+        yield 'multiline comment' => ["<!-- first\r\nä\t& second -->", 2, "ä\t& "];
+        yield 'end of line' => ['<p>ok</p>', 1, '<p>ok</p>'];
+        yield 'empty source' => ['', 1, ''];
+    }
+
+    public function testUnavailableCharactersKeepLineOnlyAndUnlocatedDiagnostics(): void
+    {
+        $diagnostics = [];
+        foreach ([null, 0, -1, 2, 99] as $character) {
+            $diagnostics[] = ['line' => 1, 'character' => $character, 'severity' => 'error', 'message' => 'Line-only'];
+        }
+
+        $diagnostics[] = ['line' => null, 'character' => 1, 'severity' => 'error', 'message' => 'Unlocated'];
+        $html = new HtmlSourceHighlighter()->highlightFluidDiagnostics('ä', $diagnostics);
+        self::assertStringNotContainsString('frontend-studio-template-marker', $html);
+        self::assertStringContainsString('is-error" data-line="1"', $html);
+        self::assertSame(6, substr_count($html, 'frontend-studio-template-diagnostic'));
+        self::assertStringContainsString('frontend-studio-template-summary', $html);
+    }
+
+    public function testMultipleDiagnosticsShareACaretAtTheSamePosition(): void
+    {
+        $html = new HtmlSourceHighlighter()->highlightFluidDiagnostics('abcd', [
+            ['line' => 1, 'character' => 3, 'severity' => 'error', 'message' => 'First'],
+            ['line' => 1, 'character' => 1, 'severity' => 'error', 'message' => 'Second'],
+            ['line' => 1, 'character' => 3, 'severity' => 'error', 'message' => 'Third'],
+        ]);
+        self::assertSame(2, substr_count($html, 'frontend-studio-template-marker'));
+        self::assertSame(3, substr_count($html, 'frontend-studio-template-diagnostic'));
     }
 }

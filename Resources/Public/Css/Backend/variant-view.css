@@ -349,7 +349,24 @@
   overflow-wrap: anywhere;
   font-family: var(--typo3-font-family);
   padding: 0.25em 0.5em;
+  user-select: text;
+}
+
+.frontend-studio-template-marker {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  color: light-dark(#b42318, #ff9c94);
+  pointer-events: none;
   user-select: none;
+}
+
+.frontend-studio-template-marker::before {
+  content: "";
+  position: absolute;
+  bottom: -0.15em;
+  height: 1.2em;
+  border-inline-start: 2px solid currentColor;
 }
 
 .frontend-studio-template-diagnostic.is-error,

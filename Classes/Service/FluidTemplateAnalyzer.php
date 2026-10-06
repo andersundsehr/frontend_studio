@@ -56,7 +56,7 @@ final readonly class FluidTemplateAnalyzer
     }
 
     /**
-     * @return list<array{line: ?int, severity: string, message: string}>
+     * @return list<array{line: ?int, character: ?int, severity: string, message: string}>
      */
     public function diagnostics(TemplateValidatorResult $result, string $source): array
     {
@@ -66,12 +66,12 @@ final readonly class FluidTemplateAnalyzer
             $location = $error instanceof TemplateLocationException ? $error->getTemplateLocation() : null;
             $line = $location !== null && $location->identifierOrPath === $result->path && $location->line > 0 && $location->line <= $lineCount
                 ? $location->line : null;
-            $diagnostics[] = ['line' => $line, 'severity' => 'error', 'message' => $error->getMessage()];
+            $diagnostics[] = ['line' => $line, 'character' => $line !== null && $location->character > 0 ? $location->character : null, 'severity' => 'error', 'message' => $error->getMessage()];
         }
 
         foreach ($result->deprecations as $deprecation) {
             // Deprecation locations refer to PHP, not the displayed Fluid source.
-            $diagnostics[] = ['line' => null, 'severity' => 'deprecation', 'message' => $deprecation->message];
+            $diagnostics[] = ['line' => null, 'character' => null, 'severity' => 'deprecation', 'message' => $deprecation->message];
         }
 
         return $diagnostics;
