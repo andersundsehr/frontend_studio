@@ -188,10 +188,16 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
             self::assertStringContainsString('[-removed-] {+added+}', $tester->getDisplay());
+            self::assertStringContainsString('To accept these changes, rerun this command with --update outside Production.', $tester->getDisplay());
+            self::assertStringContainsString('Review and commit the updated snapshot files, then rerun without --update to verify.', $tester->getDisplay());
+            self::assertStringNotContainsString('html-Default.html', $tester->getDisplay());
             self::assertStringNotContainsString('EXPECTED:', $tester->getDisplay());
             self::assertStringNotContainsString('ACTUAL:', $tester->getDisplay());
             self::assertStringNotContainsString('Stack trace:', $tester->getDisplay());
             self::assertStringNotContainsString('RuntimeException:', $tester->getDisplay());
+            self::assertSame(1, $tester->execute($arguments, ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]));
+            self::assertStringContainsString('To accept these changes, rerun this command with --update outside Production.', $tester->getDisplay());
+            self::assertStringContainsString('html-Default.html', $tester->getDisplay());
         } finally {
             if (is_file($result['path'])) {
                 unlink($result['path']);
@@ -218,9 +224,11 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertStringContainsString("\033[35mDefault", $output);
             self::assertStringNotContainsString('html-Default.html', $output);
             self::assertStringNotContainsString('dynamic markers', strtolower($output));
+            self::assertStringNotContainsString('To accept this change', $output);
 
             self::assertSame(0, $tester->execute($arguments, ['decorated' => true]));
             self::assertStringContainsString("\033[32;1mPASSED", $tester->getDisplay());
+            self::assertStringNotContainsString('To accept this change', $tester->getDisplay());
             self::assertStringNotContainsString('html-Default.html', $tester->getDisplay());
             self::assertSame(0, $tester->execute($arguments, ['verbosity' => OutputInterface::VERBOSITY_VERBOSE]));
             $absolutePath = realpath($path);
@@ -250,6 +258,63 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $arguments['language'] = 'unknown';
         self::assertSame(1, $tester->execute($arguments, ['decorated' => true]));
         self::assertStringContainsString("\033[31;1mERROR", $tester->getDisplay());
+    }
+
+    public function testCommandUpdatesOnlyScopedSnapshotsWithOneHintAfterAllMismatches(): void
+    {
+        $runner = $this->get(Runner::class);
+        $tester = new CommandTester(new SnapshotCommand($runner));
+        $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:text'];
+        $paths = [];
+        try {
+            foreach ([...$runner->discover('site:text'), 'site:wrappedCard:Default'] as $identifier) {
+                $result = $runner->run($identifier, 'preview', 'en');
+                $paths[] = $result['path'];
+                self::assertSame('missing', $result['status'], $result['message']);
+                file_put_contents($result['path'], "changed\n");
+            }
+
+            self::assertSame(1, $tester->execute($arguments));
+            $output = $tester->getDisplay();
+            self::assertSame(2, substr_count($output, 'WARNING (MISMATCH)'));
+            self::assertSame(1, substr_count($output, 'To accept these changes'));
+            self::assertGreaterThan(strrpos($output, '[-removed-]'), strpos($output, 'To accept these changes'));
+            foreach ($paths as $path) {
+                self::assertSame("changed\n", file_get_contents($path));
+            }
+
+            self::assertSame(0, $tester->execute([...$arguments, '--update' => true], ['decorated' => true]));
+            self::assertSame(2, substr_count($tester->getDisplay(), "\033[32;1mUPDATED"));
+            self::assertStringContainsString('2/2 snapshots ready (2 updated).', $tester->getDisplay());
+            self::assertStringNotContainsString('To accept these changes', $tester->getDisplay());
+            self::assertStringNotContainsString('html-Simple Test.html', $tester->getDisplay());
+            self::assertSame("changed\n", file_get_contents($paths[2]));
+            self::assertSame(0, $tester->execute($arguments));
+            self::assertStringContainsString('2/2 passed.', $tester->getDisplay());
+
+            self::assertSame(0, $tester->execute([...$arguments, '--update' => true]));
+            self::assertStringContainsString('2/2 snapshots ready (0 updated).', $tester->getDisplay());
+            $baseline = file_get_contents($paths[0]);
+            self::assertSame(1, $tester->execute([...$arguments, 'language' => 'unknown', '--update' => true]));
+            self::assertSame($baseline, file_get_contents($paths[0]));
+
+            unlink($paths[0]);
+            self::assertSame(0, $tester->execute([...$arguments, '--update' => true]));
+            self::assertStringContainsString('2/2 snapshots ready (1 updated).', $tester->getDisplay());
+            self::assertSame($baseline, file_get_contents($paths[0]));
+        } finally {
+            foreach ($paths as $path) {
+                if (is_file($path)) {
+                    unlink($path);
+                }
+            }
+
+            foreach (array_unique(array_map(dirname(...), $paths)) as $directory) {
+                if (is_dir($directory)) {
+                    rmdir($directory);
+                }
+            }
+        }
     }
 
     public function testReportsInvalidSetNameReasonAndContext(): void

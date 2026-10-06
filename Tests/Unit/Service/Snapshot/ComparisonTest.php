@@ -87,6 +87,7 @@ final class ComparisonTest extends TestCase
     public function testExitCodesDistinguishMissingAndErrors(): void
     {
         self::assertSame(0, Runner::exitCode([['status' => 'passed']]));
+        self::assertSame(0, Runner::exitCode([['status' => 'updated']]));
         self::assertSame(1, Runner::exitCode([]));
         self::assertSame(1, Runner::exitCode([['status' => 'error']]));
         self::assertSame(2, Runner::exitCode([['status' => 'missing']]));

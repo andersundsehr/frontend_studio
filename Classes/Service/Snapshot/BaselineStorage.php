@@ -50,6 +50,16 @@ final readonly class BaselineStorage
 
     public function create(string $path, string $content): void
     {
+        $this->write($path, $content, false);
+    }
+
+    public function update(string $path, string $content): void
+    {
+        $this->write($path, $content, true);
+    }
+
+    private function write(string $path, string $content, bool $replace): void
+    {
         $this->writePolicy->assertWritable();
         $directory = dirname($path);
         if (is_link($directory) || is_link($path)) {
@@ -74,12 +84,18 @@ final readonly class BaselineStorage
                 throw new RuntimeException('Cannot set baseline permissions.', 1791202501);
             }
 
-            // Publish a complete file atomically, without replacing a concurrent baseline.
-            if (!@link($temporary, $path)) {
+            // Both operations publish a complete file atomically; only explicit updates replace it.
+            if ($replace) {
+                if (!@rename($temporary, $path)) {
+                    throw new RuntimeException('Baseline could not be updated: ' . $path, 1791270001);
+                }
+            } elseif (!@link($temporary, $path)) {
                 throw new RuntimeException('Baseline already exists or could not be created: ' . $path, 8806510737);
             }
         } finally {
-            unlink($temporary);
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
         }
     }
 }

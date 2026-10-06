@@ -422,6 +422,7 @@ empty/unknown scopes fail; a newly created baseline is never counted as a pass.
 Mismatches and missing snapshots print warnings without stack traces.
 Mismatches show an inline diff with red `[-removed-]` and green `{+added+}` text,
 plus surrounding context. The delimiters remain visible without ANSI colors.
+After all mismatches, one note explains how to update snapshots with `--update`.
 
 ```text
 WARNING (MISMATCH) site:card:Default: Rendered HTML differs from the saved baseline.
@@ -450,9 +451,20 @@ and comparing it. Snapshot paths are project-relative and shown only with `-v` (
 States are green for passes, yellow for warnings and red for errors;
 component identifiers are cyan and variant names are magenta.
 Dynamic markers are mentioned only when the baseline contains them.
-Normal runs never overwrite baselines. To accept an intentional change, delete
-only the reviewed baseline, rerun outside Production, inspect the new diff and
-commit it. Concurrent creation publishes a complete file without replacement.
+To accept intentional changes, rerun the same command with `--update`:
+
+```bash
+vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text --update
+```
+
+This regenerates snapshots only in the selected scope from two fresh samples,
+including their dynamic markers. New and changed files print green `UPDATED`
+labels; unchanged files stay untouched. Successful updates return exit code `0`.
+Review and commit the updated files, then rerun without `--update` to verify.
+Production and its subcontexts reject `--update`. Rendering or alignment errors
+leave the affected snapshot unchanged. Normal runs never overwrite baselines.
+Updates replace complete files atomically; concurrent normal creation never
+replaces an existing baseline.
 
 Tags start on separate lines, and start tags longer than 80 characters split
 attributes onto separate lines. Comments and raw/whitespace-sensitive blocks

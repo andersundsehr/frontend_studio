@@ -49,7 +49,23 @@ final class BaselineStorageTest extends TestCase
             }
 
             $property->setValue(null, new ApplicationContext('Production'));
-            self::assertSame('baseline', $storage->read($path));
+            foreach (['Production', 'Production/Staging'] as $context) {
+                $property->setValue(null, new ApplicationContext($context));
+                try {
+                    $storage->update($path, 'replacement');
+                    self::fail('Production must not update snapshots.');
+                } catch (ComponentWriteDeniedException) {
+                    self::assertSame('baseline', $storage->read($path));
+                }
+            }
+
+            $property->setValue(null, new ApplicationContext('Testing'));
+            $storage->update($path, 'replacement');
+            self::assertSame('replacement', $storage->read($path));
+            self::assertSame(['.', '..', 'html-Default.html'], scandir(dirname($path)));
+            unlink($path);
+            $storage->update($path, 'new snapshot');
+            self::assertSame('new snapshot', $storage->read($path));
         } finally {
             $property->setValue(null, $original);
             if (is_file($path)) {

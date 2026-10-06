@@ -55,13 +55,17 @@ final readonly class Runner
     }
 
     /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null} */
-    public function run(string $identifier, string $site, string $language): array
+    public function run(string $identifier, string $site, string $language, bool $update = false): array
     {
         $path = '';
         $expected = '';
         $actual = '';
         $exception = null;
         try {
+            if ($update) {
+                $this->writePolicy->assertWritable();
+            }
+
             $metadata = $this->metadata->getComponentMetadataForVariantIdentifier($identifier);
             if ($metadata === null || $metadata->fixture?->selectedVariant === null || $metadata->errors !== [] || $metadata->template->absolutePath === null) {
                 throw new RuntimeException('Invalid variant or fixture: ' . implode('; ', $metadata->errors ?? []), 4582022199);
@@ -79,7 +83,17 @@ final readonly class Runner
             $actual = $this->formatter->format($this->renderer->render($identifier, $site, $language));
             sleep(1);
             $second = $this->formatter->format($this->renderer->render($identifier, $site, $language));
-            if ($baseline === null) {
+            if ($update) {
+                $expected = $this->comparison->create($actual, $second);
+                if ($baseline !== $expected) {
+                    $this->storage->update($path, $expected);
+                    $status = 'updated';
+                    $message = 'Updated snapshot. Review and commit the changes.';
+                } else {
+                    $status = 'passed';
+                    $message = 'Snapshot is up to date.';
+                }
+            } elseif ($baseline === null) {
                 $expected = $this->comparison->create($actual, $second);
                 $message = 'Missing baseline; creation blocked in Production.';
                 if (!$this->writePolicy->isReadOnly()) {
@@ -113,7 +127,7 @@ final readonly class Runner
         $code = $results === [] ? 1 : 0;
         foreach ($results as $result) {
             $code |= match ($result['status']) {
-                'passed' => 0,
+                'passed', 'updated' => 0,
                 'missing' => 2,
                 default => 1,
             };

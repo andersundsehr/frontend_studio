@@ -30,7 +30,8 @@ final class SnapshotCommand extends Command
     {
         $this->addArgument('site', InputArgument::REQUIRED, 'Site identifier')
             ->addArgument('language', InputArgument::REQUIRED, 'Site language hreflang')
-            ->addOption('scope', null, InputOption::VALUE_REQUIRED, 'Variant, component, folder or namespace identifier', '');
+            ->addOption('scope', null, InputOption::VALUE_REQUIRED, 'Variant, component, folder or namespace identifier', '')
+            ->addOption('update', null, InputOption::VALUE_NONE, 'Regenerate snapshots in the selected scope outside Production');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -42,14 +43,16 @@ final class SnapshotCommand extends Command
             return 1;
         }
 
+        $update = (bool)$input->getOption('update');
         $results = [];
         foreach ($identifiers as $identifier) {
-            $result = $this->runner->run($identifier, (string)$input->getArgument('site'), (string)$input->getArgument('language'));
+            $result = $this->runner->run($identifier, (string)$input->getArgument('site'), (string)$input->getArgument('language'), $update);
             $results[] = $result;
             [$label, $color] = match ($result['status']) {
                 'missing' => ['WARNING (MISSING)', 'yellow'],
                 'failed' => ['WARNING (MISMATCH)', 'yellow'],
                 'passed' => ['PASSED', 'green'],
+                'updated' => ['UPDATED', 'green'],
                 default => ['ERROR', 'red'],
             };
             $parts = explode(':', $identifier, 3);
@@ -79,9 +82,16 @@ final class SnapshotCommand extends Command
             }
         }
 
-        $passed = count(array_filter($results, static fn(array $result): bool => $result['status'] === 'passed'));
+        $passed = count(array_filter($results, static fn(array $result): bool => in_array($result['status'], ['passed', 'updated'], true)));
+        $updated = count(array_filter($results, static fn(array $result): bool => $result['status'] === 'updated'));
         $color = $passed === count($results) ? 'green' : (array_any($results, static fn(array $result): bool => $result['status'] === 'error') ? 'red' : 'yellow');
-        $output->writeln('<fg=' . $color . ';options=bold>' . $passed . '/' . count($results) . ' passed.</>');
+        $summary = $update ? ' snapshots ready (' . $updated . ' updated).' : ' passed.';
+        $output->writeln('<fg=' . $color . ';options=bold>' . $passed . '/' . count($results) . $summary . '</>');
+        if (array_any($results, static fn(array $result): bool => $result['status'] === 'failed')) {
+            $output->writeln('<fg=yellow>To accept these changes, rerun this command with --update outside Production.</>');
+            $output->writeln('<fg=yellow>Review and commit the updated snapshot files, then rerun without --update to verify.</>');
+        }
+
         return Runner::exitCode($results);
     }
 
