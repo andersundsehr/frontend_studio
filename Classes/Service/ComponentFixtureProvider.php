@@ -231,6 +231,7 @@ final readonly class ComponentFixtureProvider
 
         $sourceVariantValues = $fixture['variants'][$sourceVariantName];
         $fixture['variants'][$newVariantName] = $variantValues?->toYamlArray() ?? ComponentVariantValues::fromYamlValues($sourceVariantValues)->normalizeForArgumentTypes($argumentTypes)->toYamlArray();
+
         $this->assertSlotNamesAreUnique($slotNames);
         $this->assertVariantNamesAreUnique($fixture['variants'], $slotNames);
         $this->copySlotFiles($resolverDelegate, $componentName, $sourceVariantName, $newVariantName, $slotValues, $slotNames);
