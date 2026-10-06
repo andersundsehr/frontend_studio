@@ -64,8 +64,8 @@ final readonly class FrontendRenderer
         }
 
         $uri = $language->getBase();
-        if ($uri->getHost() === '' || !in_array($uri->getScheme(), ['https', 'http'], true)) {
-            throw new RuntimeException('Snapshot site "' . $siteIdentifier . '", language "' . $hreflang . '" requires an absolute HTTP(S) base URL; configured base: "' . $uri . '".', 3531165321);
+        if ($uri->getScheme() !== '' && !in_array($uri->getScheme(), ['https', 'http'], true)) {
+            throw new RuntimeException('Snapshot site "' . $siteIdentifier . '", language "' . $hreflang . '" has an unsupported base URL scheme; configured base: "' . $uri . '".', 3531165321);
         }
 
         $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;

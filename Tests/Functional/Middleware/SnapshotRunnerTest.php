@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
+use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use RuntimeException;
@@ -107,6 +108,47 @@ final class SnapshotRunnerTest extends FunctionalTestCase
                     unlink($result['path']);
                     rmdir(dirname($result['path']));
                 }
+            }
+        }
+    }
+
+    public function testCommandRendersAndComparesTextWithRelativeSiteAndLanguageBases(): void
+    {
+        $site = $this->get(SiteFinder::class)->getSiteByIdentifier('relative');
+        self::assertSame('/en/', (string)$site->getDefaultLanguage()->getBase());
+        $runner = $this->get(Runner::class);
+        $tester = new CommandTester(new SnapshotCommand($runner));
+        $arguments = ['site' => 'relative', 'language' => 'en-us', '--scope' => 'site:text'];
+        $paths = [];
+        foreach ($runner->discover('site:text') as $identifier) {
+            $paths[] = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/Text/Text.fluid.html-snapshots/html-'
+                . ComponentFixtureProvider::normalizeSlotFilenameSegment(explode(':', $identifier, 3)[2]) . '.html';
+        }
+
+        try {
+            self::assertSame(2, $tester->execute($arguments));
+            self::assertStringContainsString('WARNING (MISSING)', $tester->getDisplay());
+            self::assertStringNotContainsString('Stack trace:', $tester->getDisplay());
+            foreach ($paths as $path) {
+                self::assertFileExists($path);
+                $html = file_get_contents($path);
+                self::assertNotFalse($html);
+                self::assertStringContainsString('Federal Republic of Germany', $html);
+                self::assertStringContainsString('id="c50"', $html);
+                self::assertStringContainsString('<marquee>', $html);
+            }
+
+            self::assertSame(0, $tester->execute($arguments));
+            self::assertStringContainsString('2/2 passed.', $tester->getDisplay());
+        } finally {
+            foreach ($paths as $path) {
+                if (is_file($path)) {
+                    unlink($path);
+                }
+            }
+
+            if (is_dir(dirname($paths[0]))) {
+                rmdir(dirname($paths[0]));
             }
         }
     }

@@ -404,7 +404,10 @@ Auto reload is intentionally disabled outside development contexts.
 ## HTML regression snapshots
 
 Run `vendor/bin/typo3 frontend-studio:test <site-identifier> <language-hreflang>`
-against an installed project. The selected language needs an absolute HTTP(S) base URL.
+against an installed project. Relative site and language bases such as `/` and
+`/en/` are supported, along with absolute HTTP(S) URLs.
+Rendering uses the resolved language base directly, preserving its path;
+CLI snapshots do not invent a hostname for relative bases.
 Use `--scope=site:card:Default`, a component identifier, or a folder/namespace
 identifier from the tree to narrow the run. Saved fixture values and slots render
 through the preview renderer and site TypoScript, including fixture wrappers but
