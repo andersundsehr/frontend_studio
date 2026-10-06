@@ -64,6 +64,7 @@ final class OwnComponentsTest extends FunctionalTestCase
 
         self::assertStringContainsString('data-frontend-studio-variant-view', $html);
         self::assertStringContainsString('No component variant selected', $html);
+        self::assertStringNotContainsString('data-frontend-studio-viewport', $html);
         self::assertStringContainsString('The rendered component preview is not available.', $html);
         self::assertStringNotContainsString('data-frontend-studio-variant-sidebar-resize', $html);
         self::assertStringContainsString('data-sidebar-height=""', $html);
@@ -104,6 +105,10 @@ final class OwnComponentsTest extends FunctionalTestCase
             'selectedLanguageHreflang' => 'en-US',
         ]);
 
+        self::assertStringContainsString('data-frontend-studio-viewport', $html);
+        self::assertStringContainsString('aria-label="Preview viewport"', $html);
+        self::assertStringContainsString('data-frontend-studio-viewport-custom hidden', $html);
+        self::assertStringContainsString('data-frontend-studio-viewport-reset disabled', $html);
         self::assertStringContainsString('data-frontend-studio-site-select', $html);
         self::assertStringContainsString('data-frontend-studio-language-select', $html);
         self::assertMatchesRegularExpression('/<option value="preview"[^>]*\\bselected\\b/', $html);

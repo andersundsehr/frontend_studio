@@ -7,7 +7,10 @@ variants:
     variantActiveTab: values
     renderedHtmlSource: ''
     renderedHtmlStatus: ''
-    fluidTemplateSource: ''
+    fluidTemplateAnalysis:
+      source: ''
+      errorCount: 0
+      status: ''
     fluidUsageSource:
       tag: ''
       inline: ''

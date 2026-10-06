@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Controller;
 
-use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentPreviewRenderer;
 use Andersundsehr\FrontendStudio\Service\FluidUsageSnippetRenderer;
 use Andersundsehr\FrontendStudio\Service\HtmlSourceHighlighter;
+use Andersundsehr\FrontendStudio\Service\FluidTemplateAnalyzer;
+use TYPO3\CMS\Core\Http\JsonResponse;
 use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -46,12 +47,24 @@ final readonly class FrontendStudioModuleController
         private PreviewContextResolver $previewContextResolver,
         private Typo3Version $typo3Version,
         private AssetCollector $assetCollector,
+        private FluidTemplateAnalyzer $fluidTemplateAnalyzer,
     ) {
     }
 
     public function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
         return $this->renderVariantViewResponse($request);
+    }
+
+    public function templateAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $identifier = $request->getQueryParams()['componentVariant'] ?? '';
+        if (!is_string($identifier)) {
+            return new JsonResponse(['message' => 'Invalid component variant.'], 400);
+        }
+
+        $metadata = $this->componentMetadataProvider->getComponentMetadataForVariantIdentifier($identifier);
+        return new JsonResponse($this->fluidTemplateAnalyzer->analyze($metadata?->template));
     }
 
     private function renderVariantViewResponse(ServerRequestInterface $request): ResponseInterface
@@ -97,7 +110,7 @@ final readonly class FrontendStudioModuleController
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
             'renderedHtmlSource' => $renderedHtmlSource,
             'renderedHtmlStatus' => $renderedHtmlStatus,
-            'fluidTemplateSource' => $this->renderFluidTemplateSource($selectedComponentMetadata),
+            'fluidTemplateAnalysis' => $this->fluidTemplateAnalyzer->analyze($selectedComponentMetadata?->template),
             'fluidUsageSource' => $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata),
             'componentChangeStreamUri' => Environment::getContext()->isDevelopment()
                 ? (string)$this->uriBuilder->buildUriFromRoute('ajax_frontend_studio_component_change_stream')
@@ -123,16 +136,6 @@ final readonly class FrontendStudioModuleController
                 'The rendered HTML could not be loaded. ' . $throwable->getMessage(),
             ];
         }
-    }
-
-    private function renderFluidTemplateSource(?ComponentMetadata $selectedComponentMetadata): string
-    {
-        $templateContent = $selectedComponentMetadata?->template?->content;
-        if (!is_string($templateContent) || $templateContent === '') {
-            return '';
-        }
-
-        return $this->htmlSourceHighlighter->highlightFluidTemplate($templateContent);
     }
 
     /**
