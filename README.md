@@ -446,14 +446,16 @@ Site and language selection and stored variant previews do not require overrides
 
 The **Doc** inspector tab edits Markdown shared by every variant of a component.
 `Card.html` and `Card.fluid.html` use the adjacent `Card.md` file.
-Opening a missing document does not create a file; **Save documentation** creates it explicitly.
+Opening a missing document does not create a file; **Save** creates it explicitly.
 Production and Production subcontexts permit reading only.
 Documentation endpoints require a backend login and TYPO3 route tokens.
 
 CKEditor from TYPO3’s `rte_ckeditor` extension supports paragraphs, headings, emphasis, lists, links, and code blocks.
-Use **Markdown source** for exact text editing. Documents that cannot roundtrip byte-for-byte through the Markdown converter and CKEditor stay in source mode,
-including raw HTML and tables. Previews display raw HTML as text and reject executable link schemes.
-Changing modes never silently normalizes an existing document.
+Writable documentation always opens in the rich text editor, without a mode switch or separate preview.
+Production shows rendered Markdown inline without an editor or action buttons.
+Opening a document keeps the original Markdown untouched; rich edits serialize it using consistent Markdown formatting.
+Raw HTML is displayed as text and executable link schemes are rejected.
+**Reset** restores the last loaded or saved document locally.
 Documentation has its own Save button and unsaved-change warning, independent of fixture controls.
 A save uses an optimistic content revision; external edits or another editor's save produce a conflict instead of overwriting stale content.
 Copy your pending text before reloading a conflicting document.

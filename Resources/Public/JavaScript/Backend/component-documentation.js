@@ -1,27 +1,32 @@
+import Notification from '@typo3/backend/notification.js';
 import VariantFeature from '@andersundsehr/frontend-studio/backend/variant-lifecycle.js';
-import { canEditRichText, renderMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
+import { renderMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
 import { createEditor } from '@andersundsehr/frontend-studio/backend/markdown-editor.js';
 
 export default class ComponentDocumentation extends VariantFeature {
   constructor(root, view) {
     super(root, view);
-    this.source = root.querySelector('[data-doc-source]');
+    this.markdown = '';
     this.rich = root.querySelector('[data-doc-rich]');
-    this.preview = root.querySelector('[data-doc-preview]');
+    this.actions = root.querySelector('[data-doc-actions]');
     this.status = root.querySelector('[data-doc-status]');
     this.saveButton = root.querySelector('[data-doc-save]');
-    this.modeButton = root.querySelector('[data-doc-mode]');
+    this.resetButton = root.querySelector('[data-doc-reset]');
+    this.saveState = root.querySelector('[data-doc-save-state]');
     this.editorGeneration = 0;
     this.editorPending = false;
     this.baseline = '';
     this.loaded = false;
     this.pending = false;
     this.readOnly = true;
-    this.listen(this.source, 'input', () => this.changed());
     this.listen(this.saveButton, 'click', () => this.save());
-    this.listen(this.modeButton, 'click', () => this.toggleMode());
-    this.listen(root.querySelector('[data-doc-reload]'), 'click', () => {
-      if (!this.dirty || window.confirm('Discard unsaved documentation changes and reload?')) this.load();
+    this.listen(this.resetButton, 'click', () => this.reset());
+    this.listen(root, 'keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.save();
+      }
     });
     this.listen(window, 'beforeunload', (event) => {
       if (this.dirty) { event.preventDefault(); event.returnValue = ''; }
@@ -35,11 +40,12 @@ export default class ComponentDocumentation extends VariantFeature {
     this.load();
   }
 
-  get dirty() { return this.loaded && this.source.value !== this.baseline; }
+  get dirty() { return this.loaded && this.markdown !== this.baseline; }
 
   changed() {
-    this.preview.innerHTML = renderMarkdown(this.source.value);
-    this.saveButton.disabled = !this.loaded || this.readOnly || this.pending || !this.dirty;
+    if (this.saveButton) this.saveButton.disabled = !this.loaded || this.readOnly || this.pending || !this.dirty;
+    if (this.resetButton) this.resetButton.disabled = !this.loaded || this.pending || !this.dirty;
+    if (this.saveState) this.saveState.hidden = !this.dirty;
     this.view.documentationDirty = this.dirty;
   }
 
@@ -58,30 +64,26 @@ export default class ComponentDocumentation extends VariantFeature {
   async load() {
     if (this.pending) return;
     this.pending = true;
-    const sourceAtStart = this.source.value;
+    const sourceAtStart = this.markdown;
     this.status.textContent = 'Loading documentation…';
     try {
       const result = await this.request('GET');
       if (this.destroyed) return;
-      if (this.loaded && this.source.value !== sourceAtStart) {
+      if (this.loaded && this.markdown !== sourceAtStart) {
         this.status.textContent = 'Documentation was edited while loading. Your edits were kept; reload again to discard them.';
         return;
       }
       this.editorGeneration += 1;
       this.editorPending = false;
       this.editor?.destroy(); this.editor = null;
-      this.baseline = this.source.value = result.markdown;
+      this.baseline = this.markdown = result.markdown;
       this.revision = result.revision;
       this.readOnly = result.readOnly;
       this.loaded = true;
-      this.source.readOnly = this.readOnly;
-      this.saveButton.hidden = this.readOnly;
-      this.modeButton.hidden = this.readOnly;
-      this.rich.hidden = true;
-      this.source.hidden = false;
-      this.modeButton.textContent = 'Rich text';
+      if (this.actions) this.actions.hidden = this.readOnly;
+      this.rich.innerHTML = renderMarkdown(this.markdown);
       this.status.textContent = this.readOnly ? 'Documentation is read-only in Production.' : 'Documentation is shared by all variants of this component.';
-      if (!this.readOnly && canEditRichText(this.source.value)) await this.toggleMode();
+      if (!this.readOnly) await this.startEditor();
     } catch (error) {
       if (!this.destroyed) this.status.textContent = error.message;
     } finally {
@@ -90,59 +92,42 @@ export default class ComponentDocumentation extends VariantFeature {
     }
   }
 
-  async toggleMode() {
-    if (!this.loaded || this.readOnly) return;
-    if (this.editor || this.editorPending) {
-      this.editorGeneration += 1;
-      this.editorPending = false;
-      this.editor?.destroy(); this.editor = null;
-      this.rich.hidden = true;
-      this.source.hidden = false;
-      this.modeButton.textContent = 'Rich text';
-      return;
-    }
-    if (!canEditRichText(this.source.value)) {
-      this.status.textContent = 'Keep editing in Markdown source: rich text would change the existing Markdown formatting or unsupported syntax.';
-      return;
-    }
-    const source = this.source.value;
+  async startEditor() {
+    const source = this.markdown;
     const generation = ++this.editorGeneration;
     this.editorPending = true;
-    this.modeButton.textContent = 'Markdown source';
     try {
       const editor = await createEditor(this.rich, source, (markdown) => {
-        if (!this.destroyed && generation === this.editorGeneration) {
-          this.source.value = markdown;
+        if (!this.destroyed && !this.readOnly && generation === this.editorGeneration) {
+          this.markdown = markdown;
           this.changed();
         }
       });
-      if (this.destroyed || generation !== this.editorGeneration || this.source.value !== source) {
-        if (!this.destroyed && generation === this.editorGeneration) {
-          this.editorGeneration += 1;
-          this.editorPending = false;
-          this.modeButton.textContent = 'Rich text';
-        }
+      if (this.destroyed || generation !== this.editorGeneration) {
         await editor.destroy();
         return;
       }
       this.editor = editor;
-      this.rich.hidden = false;
-      this.source.hidden = true;
     } catch (error) {
       if (!this.destroyed && generation === this.editorGeneration) {
+        this.rich.innerHTML = renderMarkdown(this.markdown);
         this.status.textContent = error.message;
       }
     } finally {
-      if (!this.destroyed && generation === this.editorGeneration) {
-        this.editorPending = false;
-        if (!this.editor) this.modeButton.textContent = 'Rich text';
-      }
+      if (!this.destroyed && generation === this.editorGeneration) this.editorPending = false;
     }
+  }
+
+  reset() {
+    if (!this.loaded || this.pending || !this.dirty || !this.editor) return;
+    this.editor.setData(renderMarkdown(this.baseline));
+    this.markdown = this.baseline;
+    this.changed();
   }
 
   async save() {
     if (!this.loaded || this.readOnly || this.pending || !this.dirty) return;
-    const markdown = this.source.value;
+    const markdown = this.markdown;
     this.pending = true;
     this.changed();
     try {
@@ -151,8 +136,12 @@ export default class ComponentDocumentation extends VariantFeature {
       this.baseline = markdown;
       this.revision = result.revision;
       this.status.textContent = 'Documentation saved.';
+      Notification.success('Documentation saved', 'The documentation was written to the Markdown file.');
     } catch (error) {
-      if (!this.destroyed) this.status.textContent = error.message;
+      if (!this.destroyed) {
+        this.status.textContent = error.message;
+        Notification.error('Documentation save failed', error.message);
+      }
     } finally {
       this.pending = false;
       if (!this.destroyed) this.changed();

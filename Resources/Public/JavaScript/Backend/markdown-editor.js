@@ -22,11 +22,6 @@ export async function createEditor(root, source, onChange) {
     ] },
     link: { allowedProtocols: ['http', 'https', 'mailto', 'tel'] },
   });
-  // CKEditor may normalize more than the Markdown converter. Never silently rewrite a document.
-  if (toMarkdown(editor.getData()) !== source) {
-    await editor.destroy();
-    throw new Error('Keep editing in Markdown source: CKEditor would change the existing Markdown formatting or unsupported syntax.');
-  }
   editor.ui.getEditableElement().setAttribute('aria-label', 'Component documentation rich text');
   editor.model.document.on('change:data', () => onChange(toMarkdown(editor.getData())));
   return editor;

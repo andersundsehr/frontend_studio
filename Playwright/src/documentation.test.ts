@@ -18,15 +18,12 @@ test('Markdown rendering escapes raw HTML and rejects executable URLs', () => {
   assert.ok(html.includes('&lt;script&gt;'));
 });
 
-test('rich text accepts its supported Markdown and leaves lossy documents in source mode', () => {
+test('rich editing serializes supported Markdown using consistent formatting', () => {
   for (const markdown of ['', 'Paragraph', '# Heading\n\nParagraph', '* one\n* two', '1. one\n2. two', '[Example](https://example.org)', '```\ncode\n```']) {
-    assert.equal(editor.canEditRichText(markdown), true, markdown);
+    assert.equal(editor.toMarkdown(editor.renderMarkdown(markdown)), markdown);
   }
-  for (const markdown of ['Paragraph\n', '<custom>HTML</custom>', '[x][ref]\n\n[ref]: https://example.org', '| one | two |\n| --- | --- |']) {
-    assert.equal(editor.canEditRichText(markdown), false, markdown);
-  }
+  assert.equal(editor.toMarkdown(editor.renderMarkdown('Paragraph\n')), 'Paragraph');
 });
-
 
 test('CKEditor plaintext code blocks retain unannotated fences and escape embedded fences', () => {
   assert.equal(editor.toMarkdown('<pre><code class="language-plaintext">code\n</code></pre>'), '```\ncode\n```');

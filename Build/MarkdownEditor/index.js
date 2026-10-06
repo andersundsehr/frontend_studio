@@ -40,12 +40,3 @@ export function renderMarkdown(source) {
 export function toMarkdown(html) {
   return turndown.turndown(html);
 }
-
-export function canEditRichText(source) {
-  if (/<\/?[A-Za-z][^>]*>|^\s*\|.*\|\s*$/m.test(source)) return false;
-  try {
-    return toMarkdown(renderMarkdown(source)) === source;
-  } catch {
-    return false;
-  }
-}

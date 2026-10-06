@@ -97,13 +97,15 @@
       data-frontend-studio-variant-tab-panel="doc" data-component-documentation
       data-component-identifier="{selectedComponentMetadata.componentIdentifier}"
       data-doc-uri="{f:be.uri(route: 'ajax_frontend_studio_component_documentation')}">
-      <button type="button" class="btn btn-default btn-sm" data-doc-mode>Rich text</button>
-      <button type="button" class="btn btn-default btn-sm" data-doc-reload>Reload documentation</button>
-      <button type="button" class="btn btn-primary btn-sm" data-doc-save disabled>Save documentation</button>
+      <f:if condition="{selectedComponentMetadata.readOnly} == false">
+        <div class="frontend-studio-variant-values-actions" data-doc-actions>
+          <frontend.studio:variant.resetButton data="{doc-reset: ''}"/>
+          <frontend.studio:variant.saveButton data="{doc-save: ''}"/>
+          <span class="frontend-studio-variant-save-state" data-doc-save-state hidden>Unsaved changes</span>
+        </div>
+      </f:if>
       <p data-doc-status role="status" aria-live="polite"></p>
-      <div data-doc-rich hidden></div>
-      <textarea data-doc-source aria-label="Component documentation Markdown" readonly></textarea>
-      <details><summary>Preview</summary><div data-doc-preview></div></details>
+      <div data-doc-rich></div>
     </div>
     <frontend.studio:variant.controls
       selectedComponentMetadata="{selectedComponentMetadata}"

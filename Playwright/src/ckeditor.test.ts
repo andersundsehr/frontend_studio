@@ -72,8 +72,13 @@ test('TYPO3 CKEditor modules initialize Markdown, expose formatting and serializ
   assert.equal(ui.destroyed(), 1);
 });
 
-test('CKEditor normalization that would rewrite Markdown is rejected and cleaned up', async () => {
-  const ui = await setup('<p>Normalized content</p>');
-  await assert.rejects(ui.create(ui.root, 'Original', () => assert.fail('No edit callback during initialization')), /Keep editing in Markdown source/);
-  assert.equal(ui.destroyed(), 1);
+test('existing noncanonical Markdown opens in CKEditor without an initial edit or source switch', async () => {
+  const ui = await setup('<p>Original</p>');
+  const changes: string[] = [];
+  const editor = await ui.create(ui.root, 'Original\n', (markdown: string) => changes.push(markdown));
+  assert.equal(ui.destroyed(), 0);
+  assert.equal(changes.length, 0);
+  ui.change('<p>Edited</p>');
+  assert.deepEqual(changes, ['Edited']);
+  await editor.destroy();
 });

@@ -249,6 +249,8 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertSame([
             'frontend.studio:variant.controls',
             'frontend.studio:variant.header',
+            'frontend.studio:variant.resetButton',
+            'frontend.studio:variant.saveButton',
             'frontend.studio:variant.sidebar',
             'frontend.studio:variant.valueField',
         ], $this->getOwnComponentIdentifiers());
@@ -415,7 +417,32 @@ final class OwnComponentsTest extends FunctionalTestCase
 
         self::assertStringContainsString('data-doc-rich', $html);
         self::assertStringNotContainsString('data-doc-toolbar', $html);
+        foreach (['mode', 'source', 'preview', 'reload'] as $removedElement) {
+            self::assertStringNotContainsString('data-doc-' . $removedElement, $html);
+        }
+
         self::assertStringContainsString('/rte_ckeditor/Resources/Public/Css/editor.css', $html);
+    }
+
+    public function testDocumentationAndControlsRenderTheSameResetAndSaveButtons(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        $html = $this->renderVariantView(['selectedVariantIdentifier' => 'site:card:Default', 'selectedComponentMetadata' => $metadata]);
+        foreach (['reset' => ['default', 'actions-undo', 'Reset'], 'save' => ['primary', 'actions-save', 'Save']] as $action => [$style, $icon, $label]) {
+            foreach (['data-doc-', 'data-frontend-studio-variant-'] as $prefix) {
+                if (preg_match('/<button([^>]*' . $prefix . $action . '[^>]*)>(.*?)<\/button>/s', $html, $matches) !== 1) {
+                    self::fail('The shared ' . $action . ' button is missing.');
+                }
+
+                self::assertStringContainsString('class="btn btn-' . $style . ' btn-sm"', $matches[1]);
+                self::assertStringContainsString('disabled', $matches[1]);
+                self::assertStringContainsString($icon, $matches[2]);
+                self::assertStringContainsString($label, $matches[2]);
+            }
+        }
+
+        self::assertStringContainsString('data-doc-save-state', $html);
     }
 
     public function testModuleUrlsRespectTheInstallationSubdirectory(): void
@@ -777,6 +804,11 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringNotContainsString('data-frontend-studio-variant-save', $html);
         self::assertStringNotContainsString('data-frontend-studio-variant-copy', $html);
         self::assertStringContainsString('data-frontend-studio-variant-reset', $html);
+        foreach (['actions', 'save', 'reset', 'mode', 'source', 'preview'] as $element) {
+            self::assertStringNotContainsString('data-doc-' . $element, $html);
+        }
+
+        self::assertStringContainsString('data-doc-rich', $html);
     }
 
     #[DataProvider('ajaxPreviewFormats')]
