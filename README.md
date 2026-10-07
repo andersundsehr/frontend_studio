@@ -417,7 +417,7 @@ Each variant renders twice, one second apart. Missing baselines are created with
 warning outside Production; review and commit them, then rerun. Production and
 its subcontexts only compare and never create files. Exit codes are `0` for all
 passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or newly
-created baselines, and `3` when both failure categories occur. Invalid fixtures and
+created or updated baselines, and `3` when both failure categories occur. Invalid fixtures and
 empty/unknown scopes fail; a newly created baseline is never counted as a pass.
 Mismatches and missing snapshots print warnings without stack traces.
 Mismatches show an inline diff with red `[-removed-]` and green `{+added+}` text,
@@ -461,7 +461,9 @@ vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text --update
 
 This regenerates snapshots only in the selected scope from two fresh samples,
 including their dynamic markers. New and changed files print green `UPDATED`
-labels; unchanged files stay untouched. Successful updates return exit code `0`.
+labels; unchanged files stay untouched. Updates that create or change files return
+exit code `2`, so CI fails even when `--update` is given.
+An update run with no file changes returns `0`; updates combined with errors return `3`.
 Review and commit the updated files, then rerun without `--update` to verify.
 Production and its subcontexts reject `--update`. Rendering or alignment errors
 leave the affected snapshot unchanged. Normal runs never overwrite baselines.

@@ -282,7 +282,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             file_put_contents($path, implode("\n", $lines));
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('Regenerate this snapshot with --update', $tester->getDisplay());
-            self::assertSame(0, $tester->execute([...$arguments, '--update' => true]));
+            self::assertSame(2, $tester->execute([...$arguments, '--update' => true]));
             self::assertSame($baseline, file_get_contents($path));
             self::assertSame(0, $tester->execute($arguments));
         } finally {
@@ -320,7 +320,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
                 self::assertSame("changed\n", file_get_contents($path));
             }
 
-            self::assertSame(0, $tester->execute([...$arguments, '-u' => true], ['decorated' => true]));
+            self::assertSame(2, $tester->execute([...$arguments, '-u' => true], ['decorated' => true]));
             self::assertSame(2, substr_count($tester->getDisplay(), "\033[32;1mUPDATED"));
             self::assertStringContainsString('2/2 snapshots ready (2 updated).', $tester->getDisplay());
             self::assertStringNotContainsString('To accept these changes', $tester->getDisplay());
@@ -336,7 +336,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame($baseline, file_get_contents($paths[0]));
 
             unlink($paths[0]);
-            self::assertSame(0, $tester->execute([...$arguments, '--update' => true]));
+            self::assertSame(2, $tester->execute([...$arguments, '--update' => true]));
             self::assertStringContainsString('2/2 snapshots ready (1 updated).', $tester->getDisplay());
             self::assertSame($baseline, file_get_contents($paths[0]));
         } finally {

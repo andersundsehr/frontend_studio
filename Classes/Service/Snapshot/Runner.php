@@ -127,8 +127,8 @@ final readonly class Runner
         $code = $results === [] ? 1 : 0;
         foreach ($results as $result) {
             $code |= match ($result['status']) {
-                'passed', 'updated' => 0,
-                'missing' => 2,
+                'passed' => 0,
+                'missing', 'updated' => 2,
                 default => 1,
             };
         }

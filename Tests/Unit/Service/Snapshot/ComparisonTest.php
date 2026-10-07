@@ -8,6 +8,7 @@ use Andersundsehr\FrontendStudio\Service\Snapshot\Comparison;
 use Andersundsehr\FrontendStudio\Service\Snapshot\HtmlFormatter;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 
 final class ComparisonTest extends TestCase
@@ -124,13 +125,27 @@ final class ComparisonTest extends TestCase
         self::assertSame('<script' . "\n  " . 'data-long="' . $value . '"' . "\n  defer\n>" . $body . "</script>\n", new HtmlFormatter()->format('<script data-long="' . $value . '" defer>' . $body . '</script>'));
     }
 
-    public function testExitCodesDistinguishMissingAndErrors(): void
+    /** @param list<array{status: string}> $results */
+    #[DataProvider('exitCodes')]
+    public function testExitCodesDistinguishFileChangesAndErrors(array $results, int $expected): void
     {
-        self::assertSame(0, Runner::exitCode([['status' => 'passed']]));
-        self::assertSame(0, Runner::exitCode([['status' => 'updated']]));
-        self::assertSame(1, Runner::exitCode([]));
-        self::assertSame(1, Runner::exitCode([['status' => 'error']]));
-        self::assertSame(2, Runner::exitCode([['status' => 'missing']]));
-        self::assertSame(3, Runner::exitCode([['status' => 'failed'], ['status' => 'missing']]));
+        self::assertSame($expected, Runner::exitCode($results));
+    }
+
+    /** @return iterable<string, array{list<array{status: string}>, int}> */
+    public static function exitCodes(): iterable
+    {
+        yield 'unchanged snapshots' => [[['status' => 'passed']], 0];
+        yield 'empty scope' => [[], 1];
+        yield 'render error' => [[['status' => 'error']], 1];
+        yield 'mismatch' => [[['status' => 'failed']], 1];
+        yield 'missing snapshot' => [[['status' => 'missing']], 2];
+        yield 'updated snapshot' => [[['status' => 'updated']], 2];
+        yield 'updated and unchanged' => [[['status' => 'updated'], ['status' => 'passed']], 2];
+        yield 'updated and missing' => [[['status' => 'updated'], ['status' => 'missing']], 2];
+        yield 'updated and render error' => [[['status' => 'updated'], ['status' => 'error']], 3];
+        yield 'updated and mismatch' => [[['status' => 'updated'], ['status' => 'failed']], 3];
+        yield 'missing and mismatch' => [[['status' => 'missing'], ['status' => 'failed']], 3];
+        yield 'updated missing and error' => [[['status' => 'updated'], ['status' => 'missing'], ['status' => 'error']], 3];
     }
 }

@@ -76,6 +76,9 @@ vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text -u
 ```
 
 Updating recalculates markers and can replace your manual edits.
+If any snapshot file is created or changed, the command returns exit code `2`,
+so a CI job using `--update` or `-u` still fails when snapshots need committing.
+An unchanged update run returns `0`; file changes combined with errors return `3`.
 Review the resulting Git diff before committing. Production and its subcontexts
 reject updates. Legacy whole-line markers are rejected;
 use `--update` to regenerate them.
