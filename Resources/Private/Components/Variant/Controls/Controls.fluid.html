@@ -101,15 +101,7 @@
                         <f:for each="{selectedComponentMetadata.arguments}" as="argument">
                           <f:if condition="{argument.name} == {parentName}">
                             <span class="frontend-studio-control-label">
-                              <f:if condition="{argument.description}">
-                                <f:then>
-                                  <span data-control-description data-control-popover>
-                                    <button type="button" class="frontend-studio-control-name" aria-describedby="frontend-studio-argument-description-{argument.name}"><strong>{argument.name}</strong></button>
-                                    <span id="frontend-studio-argument-description-{argument.name}" class="frontend-studio-control-popover" role="tooltip" popover="auto">{argument.description}</span>
-                                  </span>
-                                </f:then>
-                                <f:else><strong>{argument.name}</strong></f:else>
-                              </f:if>
+                              <strong>{argument.name}</strong>
                               <f:if condition="{argument.required} == false"><span class="text-body-secondary">?</span></f:if>
                               <f:if condition="{argument.shortType} != {argument.type}">
                                 <f:then>
@@ -126,6 +118,11 @@
                         <span data-transformer-summary></span>
                       </summary>
                       <div class="frontend-studio-variant-argument-group-content">
+                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                          <f:if condition="{argument.name} == {parentName} && {argument.description}">
+                            <p class="frontend-studio-control-description" data-control-description>{argument.description}</p>
+                          </f:if>
+                        </f:for>
                         <div class="panel-group mb-0">
                           <f:for each="{groupValues}" as="variantValue">
                             <frontend.studio:variant.valueField variantValue="{variantValue}"/>

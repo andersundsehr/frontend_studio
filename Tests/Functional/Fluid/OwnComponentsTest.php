@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 
+use DOMDocument;
+use DOMXPath;
 use Psr\Http\Message\ServerRequestInterface;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
@@ -80,7 +82,7 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertSame(RichTextProvider::class . '::unsafeHtml', $registry->get('string|' . UnsafeHTML::class)->from);
     }
 
-    public function testDescriptionPopoversKeepTextEscapedAndOmitEmptyDescriptions(): void
+    public function testControlDetailsKeepInputsInSummaryAndDescriptionsEscaped(): void
     {
         foreach (["First line\n<script>Literal text</script>", ''] as $description) {
             $context = $this->get(RenderingContextFactory::class)->create();
@@ -88,14 +90,24 @@ final class OwnComponentsTest extends FunctionalTestCase
             $view = new TemplateView($context);
             $view->assign('value', new ComponentVariantValueMetadata('title', 'string', $description, 'Text', 'Text', false, true, false, fixtureName: 'title'));
             $html = $view->render();
+            $document = new DOMDocument();
+            @$document->loadHTML($html);
+            $xpath = new DOMXPath($document);
+            $inputs = $xpath->query('//details/summary//input');
+            $descriptions = $xpath->query('//details/p[@data-control-description]');
+            self::assertNotFalse($inputs);
+            self::assertNotFalse($descriptions);
+            self::assertSame(1, $inputs->length);
+            self::assertSame($description === '' ? 0 : 1, $descriptions->length);
+
             if ($description === '') {
                 self::assertStringNotContainsString('data-control-description', $html);
                 self::assertStringContainsString('<strong>title</strong>', $html);
             } else {
-                self::assertStringContainsString('aria-describedby="frontend-studio-value-description-title"', $html);
+                self::assertStringContainsString('id="frontend-studio-value-description-title"', $html);
                 self::assertStringContainsString("First line\n&lt;script&gt;Literal text&lt;/script&gt;", $html);
                 self::assertStringNotContainsString('<script>', $html);
-                self::assertStringContainsString('role="tooltip" popover="auto"', $html);
+                self::assertStringNotContainsString('popover="auto"', $html);
             }
         }
     }

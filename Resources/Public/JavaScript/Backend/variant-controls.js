@@ -58,6 +58,18 @@ class VariantControls extends VariantValues {
       }, { capture: true });
       this.abortController.signal.addEventListener('abort', hide, { once: true });
     });
+    this.root.querySelectorAll('.frontend-studio-control-details > summary').forEach((summary) => {
+      this.listen(summary, 'click', (event) => {
+        // Native form controls already suppress summary activation. Custom
+        // editors and their non-interactive surfaces need the same protection.
+        const editing = summary.querySelector('.frontend-studio-control-input').contains(document.activeElement);
+        if ((event.detail === 0 && event.target === summary && editing)
+          || (event.target.closest('.frontend-studio-control-input')
+            && !event.target.closest('input, select, textarea, button, a'))) {
+          event.preventDefault();
+        }
+      });
+    });
     this.saving = false;
     this.copying = false;
     view.controls = this;

@@ -531,3 +531,31 @@
   grid-column: 1;
   grid-row: 2;
 }
+
+.frontend-studio-control-details {
+  min-width: 0;
+  border-bottom: 1px solid var(--typo3-component-border-color, #ddd);
+}
+
+.frontend-studio-control-details > summary {
+  border-bottom: 0;
+}
+
+.frontend-studio-control-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.frontend-studio-control-details[open]:dir(rtl) > summary::before {
+  transform: rotate(-90deg);
+}
+
+.frontend-studio-control-description {
+  margin: 0 0 .5rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.frontend-studio-control-details > .frontend-studio-control-description {
+  padding: .5rem 0 .5rem 1rem;
+}

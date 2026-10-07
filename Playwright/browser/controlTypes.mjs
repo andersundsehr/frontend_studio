@@ -25,18 +25,18 @@ try {
       <main><div data-controls><div class="frontend-studio-control-row" data-control-row>
         <details class="frontend-studio-transformer-inputs" data-transformer-group>
           <summary class="frontend-studio-transformer-summary">
-        <span class="frontend-studio-control-label"><span data-control-description data-control-popover><button class="frontend-studio-control-name" aria-describedby="description">Argument</button><span id="description" class="frontend-studio-control-popover" role="tooltip" popover="auto">${description}</span></span> <span class="frontend-studio-control-type" data-control-type data-control-popover>
+        <span class="frontend-studio-control-label"><strong>Argument</strong> <span class="frontend-studio-control-type" data-control-type data-control-popover>
           <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="full-type"><code>VeryLongArgumentType|AnotherType</code></button>
           <span id="full-type" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>${type}</code></span>
         </span></span><span data-transformer-summary></span></summary>
-          <div class="frontend-studio-variant-argument-group-content"><div class="frontend-studio-control-row"><label>Nested input</label><input value="Nested value" data-frontend-studio-variant-value data-fixture-name="argument.value" data-fixture-type="string"></div></div>
+          <div class="frontend-studio-variant-argument-group-content"><p data-control-description class="frontend-studio-control-description">${description}</p><div class="frontend-studio-control-row"><label>Nested input</label><input value="Nested value" data-frontend-studio-variant-value data-fixture-name="argument.value" data-fixture-type="string"></div></div>
         </details>
-      </div><p id="neighbor">Following content</p></div></main>
+      </div><details class="frontend-studio-control-details" id="custom"><summary class="frontend-studio-control-row frontend-studio-transformer-summary"><strong>Custom</strong><div class="frontend-studio-control-input"><div contenteditable="true" tabindex="0" role="textbox">Editor</div><input type="checkbox" aria-label="Custom enabled"></div></summary><p>Description</p></details><p id="neighbor">Following content</p></div></main>
       <script type="module">import Controls from '/modules/variant-controls.js';const root=document.querySelector('[data-controls]');window.controls=new Controls(root,{root,changed(){}});await controls.ready;window.ready=true;</script>` });
   });
   await page.goto('https://studio.test/');
   await page.waitForFunction(() => window.ready);
-  for (const [selector, text] of [['[data-control-type]', type], ['[data-control-description]', description]]) {
+  for (const [selector, text] of [['[data-control-type]', type]]) {
     await page.setViewportSize({ width: 700, height: 600 });
     const label = page.locator(selector);
     const button = label.locator('button');
@@ -63,7 +63,7 @@ try {
     });
     assert.equal(selected.text, text);
     assert.equal(selected.selectable, 'text');
-    assert.equal(await page.locator('details').evaluate(element => element.open), false, 'selecting popup text must not toggle the group');
+    assert.equal(await page.locator('[data-transformer-group]').evaluate(element => element.open), false, 'selecting popup text must not toggle the group');
     await page.keyboard.press('Escape');
     await popover.waitFor({ state: 'hidden' });
     await page.mouse.move(690, 590);
@@ -80,29 +80,29 @@ try {
     await page.setViewportSize({ width: 320, height: 480 });
     await button.click();
     await popover.waitFor({ state: 'visible' });
-    assert.equal(await page.locator('details').evaluate(element => element.open), false, 'popup buttons keep their own action');
+    assert.equal(await page.locator('[data-transformer-group]').evaluate(element => element.open), false, 'popup buttons keep their own action');
     const bounds = await popover.boundingBox();
     assert.ok(bounds.x >= 8 && bounds.x + bounds.width <= 312);
     assert.ok(bounds.y >= 8 && bounds.y + bounds.height <= 472);
     await page.mouse.click(1, 1);
     await popover.waitFor({ state: 'hidden' });
   }
-  const button = page.locator('[data-control-description] button');
-  const popover = page.locator('[data-control-description] [popover]');
-  const summary = page.locator('summary');
+  const button = page.locator('[data-control-type] button');
+  const popover = page.locator('[data-control-type] [popover]');
+  const summary = page.locator('[data-transformer-group] > summary');
   const preview = page.locator('[data-transformer-summary]');
   assert.equal(await preview.isVisible(), true);
   const header = await summary.boundingBox();
   await summary.click({ position: { x: header.width - 4, y: header.height - 4 } });
   assert.equal(await preview.isVisible(), false);
-  assert.equal(await page.locator('input').isVisible(), true);
+  assert.equal(await page.locator('[data-transformer-group] input').isVisible(), true);
   await summary.focus();
   await page.keyboard.press('Space');
   assert.equal(await preview.isVisible(), true);
-  assert.equal(await page.locator('input').isVisible(), false);
+  assert.equal(await page.locator('[data-transformer-group] input').isVisible(), false);
   await page.keyboard.press('Enter');
   assert.equal(await preview.isVisible(), false);
-  const group = await page.locator('details').evaluate(element => { const content = element.querySelector('.frontend-studio-variant-argument-group-content');return {open:element.open,border:getComputedStyle(content).borderInlineStartWidth,padding:getComputedStyle(content).paddingInlineStart,background:getComputedStyle(content).backgroundColor}; });
+  const group = await page.locator('[data-transformer-group]').evaluate(element => { const content = element.querySelector('.frontend-studio-variant-argument-group-content');return {open:element.open,border:getComputedStyle(content).borderInlineStartWidth,padding:getComputedStyle(content).paddingInlineStart,background:getComputedStyle(content).backgroundColor}; });
   assert.equal(group.open, true);
   assert.equal(group.border, '3px');
   assert.notEqual(group.padding, '0px');
@@ -122,7 +122,46 @@ try {
   await page.mouse.move(1, 479);
   await button.hover();
   await popover.waitFor({ state: 'visible' });
+  const editor = page.locator('#custom [contenteditable]');
+  await editor.click();
+  assert.equal(await page.locator('#custom').evaluate(element => element.open), false, 'click must not toggle');
+  await editor.press('End');
+  await editor.press('Space');
+  await editor.press('x');
+  assert.equal(await page.locator('#custom').evaluate(element => element.open), false, 'custom editor interaction must not toggle the description');
+  assert.equal(await editor.textContent(), 'Editor x');
+  const customCheckbox = page.locator('#custom').getByRole('checkbox');
+  await customCheckbox.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await customCheckbox.isChecked(), true, 'keyboard checkbox activation is preserved');
+  assert.equal(await page.locator('#custom').evaluate(element => element.open), false);
   await page.evaluate(() => controls.destroy());
   await popover.waitFor({ state: 'hidden' });
+
+  await page.locator('[data-controls]').evaluate((root, description) => {
+    root.insertAdjacentHTML('beforeend', `<details class="frontend-studio-control-details" id="normal"><summary class="frontend-studio-control-row frontend-studio-transformer-summary"><span class="frontend-studio-control-label"><strong>Title</strong><code>string</code></span><div class="frontend-studio-control-input"><input aria-label="Title" value="Initial"><input type="checkbox" aria-label="Enabled"></div></summary><p class="frontend-studio-control-description">${description}</p></details>`);
+  }, description);
+  const normal = page.locator('#normal');
+  const input = normal.getByRole('textbox');
+  const normalDescription = normal.locator('p');
+  assert.equal(await input.isVisible(), true);
+  assert.equal(await normalDescription.isVisible(), false);
+  const inputBox = await input.boundingBox();
+  await input.fill('Edited while collapsed');
+  await normal.getByRole('checkbox').check();
+  assert.equal(await normal.evaluate(element => element.open), false, 'editing header inputs must not toggle details');
+  await normal.locator('strong').click();
+  assert.equal(await normalDescription.isVisible(), true);
+  assert.deepEqual(await input.boundingBox(), inputBox, 'expanding keeps the input in place');
+  assert.equal(await normalDescription.textContent(), description);
+  assert.equal(await normalDescription.evaluate(element => getComputedStyle(element).userSelect), 'text');
+  await input.fill('Edited while expanded');
+  assert.equal(await normal.evaluate(element => element.open), true);
+  await normal.locator('summary').focus();
+  await page.keyboard.press('Space');
+  assert.equal(await normalDescription.isVisible(), false);
+  assert.equal(await input.inputValue(), 'Edited while expanded');
+  assert.equal(await input.isVisible(), true);
+  await page.screenshot({ path: process.env.CONTROL_SCREENSHOT ?? '/tmp/normal-control-details.png', fullPage: true });
   assert.deepEqual(errors, []);
 } finally { await browser.close(); }
