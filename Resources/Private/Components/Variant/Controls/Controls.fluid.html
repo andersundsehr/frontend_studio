@@ -138,18 +138,12 @@
             <h2 class="h6 mt-3 mb-2">Slots</h2>
             <div class="panel-group mb-0">
               <f:for each="{selectedComponentMetadata.fixture.selectedVariant.slots}" as="slotContent" key="slotName">
-                <details class="frontend-studio-variant-argument-group panel panel-default" open>
-                  <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                    <strong>{slotName}</strong>
-                    <code class="frontend-studio-variant-value-type">HTML</code>
-                    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                      <core:icon identifier="actions-chevron-end"/>
-                    </span>
-                    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                      <core:icon identifier="actions-chevron-down"/>
-                    </span>
-                  </summary>
-                  <div class="frontend-studio-variant-argument-group-content panel-body">
+                <div class="frontend-studio-control-row" data-control-row>
+                  <div class="frontend-studio-control-label">
+                    <label class="frontend-studio-control-name" for="frontend-studio-variant-slot-{slotName}"><strong>{slotName}</strong></label>
+                    <code>HTML</code>
+                  </div>
+                  <div class="frontend-studio-control-input">
                     <textarea
                       id="frontend-studio-variant-slot-{slotName}"
                       name="{slotName}"
@@ -159,7 +153,7 @@
                       rows="5"
                     >{slotContent}</textarea>
                   </div>
-                </details>
+                </div>
               </f:for>
             </div>
           </f:if>
