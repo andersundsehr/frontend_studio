@@ -92,6 +92,12 @@ try {
     element.style.height = '80px';element.style.overflow = 'auto';element.scrollTop = 30;
   });
   await popover.waitFor({ state: 'hidden' });
+  // Restore the fixture before the independent teardown check. Playwright's
+  // auto-scroll otherwise races with the intentional scroll-to-close handler.
+  await page.locator('main').evaluate(async element => {
+    element.style.height = 'auto';element.style.overflow = 'hidden';element.scrollTop = 0;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
   await page.mouse.move(1, 479);
   await button.hover();
   await popover.waitFor({ state: 'visible' });
