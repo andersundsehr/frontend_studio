@@ -419,7 +419,8 @@ through the preview renderer and site TypoScript, including fixture wrappers but
 excluding the preview document and collected assets.
 
 Each variant renders twice without waiting. Creating or updating snapshots advances
-TYPO3's Context clock by one second for the second render;
+each part of TYPO3's Context date clock independently for the second render
+(year, month, day, hour, minute, second and microsecond);
 normal comparisons use the same clock for both samples.
 Custom code should use the Context date aspect (`date.full` or `date.timestamp`)
 instead of `time()` or constructing a date object from the real current time.

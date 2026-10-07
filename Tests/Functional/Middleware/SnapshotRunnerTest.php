@@ -21,6 +21,7 @@ use Andersundsehr\FrontendStudio\Service\Snapshot\FrontendRenderer;
 use DateTimeImmutable;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Cache\CacheManager;
+use Andersundsehr\FrontendStudio\Service\Snapshot\SamplingClock;
 
 final class SnapshotRunnerTest extends FunctionalTestCase
 {
@@ -96,14 +97,15 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
     }
 
-    public function testDateViewHelperCreatesOneInlineMarkerWithStableSurroundingText(): void
+    #[DataProvider('dynamicDateFormats')]
+    public function testDateViewHelperCreatesOneInlineMarkerWithStableSurroundingText(string $format): void
     {
         $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default.html';
         try {
-            $this->replaceTemplate($template, $original . '<p>A<f:format.date date="now" format="Y-M-D H:m:s.u" />B</p>');
+            $this->replaceTemplate($template, $original . '<p>A<f:format.date date="now" format="' . $format . '" />B</p>');
             $runner = $this->get(Runner::class);
             $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
             self::assertSame('missing', $result['status'], $result['message']);
@@ -121,6 +123,15 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function dynamicDateFormats(): iterable
+    {
+        yield 'named date and time' => ['Y-M-D H:m:s.u'];
+        yield 'date without time' => ['Y-m-d'];
+        yield 'time without seconds' => ['H:i'];
+        yield 'year alone' => ['Y'];
+    }
+
     #[DataProvider('dateClockFormats')]
     public function testDateViewHelperUsesExplicitClockAndRestoresContext(string $format, string $firstDate, string $secondDate): void
     {
@@ -135,7 +146,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $date = new DateTimeImmutable('2026-10-07T14:10:01');
             self::assertStringContainsString('<p>A' . $firstDate . 'B</p>', $renderer->render('site:wrappedCard:Default', 'preview', 'en', $date));
             self::assertSame($oldDate, $context->getAspect('date'));
-            self::assertStringContainsString('<p>A' . $secondDate . 'B</p>', $renderer->render('site:wrappedCard:Default', 'preview', 'en', $date->modify('+1 second')));
+            self::assertStringContainsString('<p>A' . $secondDate . 'B</p>', $renderer->render('site:wrappedCard:Default', 'preview', 'en', SamplingClock::advance($date)));
             self::assertSame($oldDate, $context->getAspect('date'));
         } finally {
             $this->replaceTemplate($template, $original);
@@ -145,10 +156,11 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     /** @return iterable<string, array{string, string, string}> */
     public static function dateClockFormats(): iterable
     {
-        yield 'named date and time' => ['Y-M-D H:m:s.u', '2026-Oct-Wed 14:10:01.000000', '2026-Oct-Wed 14:10:02.000000'];
-        yield 'ISO date and time' => ['Y-m-d\\TH:i:s', '2026-10-07T14:10:01', '2026-10-07T14:10:02'];
-        yield 'seconds' => ['H:i:s', '14:10:01', '14:10:02'];
-        yield 'date without seconds stays literal' => ['Y-m-d', '2026-10-07', '2026-10-07'];
+        yield 'named date and time' => ['Y-M-D H:m:s.u', '2026-Oct-Wed 14:10:01.000000', '2027-Nov-Mon 15:11:02.000000'];
+        yield 'ISO date and time' => ['Y-m-d\\TH:i:s', '2026-10-07T14:10:01', '2027-11-08T15:11:02'];
+        yield 'seconds' => ['H:i:s', '14:10:01', '15:11:02'];
+        yield 'date without seconds changes' => ['Y-m-d', '2026-10-07', '2027-11-08'];
+        yield 'minutes without seconds change' => ['H:i', '14:10', '15:11'];
     }
 
     public function testDateContextIsRestoredAfterRenderingException(): void

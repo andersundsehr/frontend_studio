@@ -6,7 +6,8 @@ Component Snapshots compare rendered fixture HTML with reviewed snapshot files.
 Templates need no changes. When creating or updating a snapshot,
 Frontend Studio renders each variant twice without waiting.
 For snapshot creation and `--update`, the second render uses TYPO3's Context
-clock advanced by one second. Normal comparisons use the same clock for both samples.
+clock with its year, month, day, hour, minute, second and microsecond advanced
+independently. Normal comparisons use the same clock for both samples.
 It compares HTML structure separately from attribute values and text nodes,
 then replaces changing values with `{{frontend-studio:dynamic}}`.
 
@@ -123,8 +124,25 @@ which snapshot sampling cannot advance. Such values may stay identical between
 samples and require manually added dynamic markers.
 Creating objects for explicit fixture dates remains supported.
 
-The sampling clock advances by one second, so formats without seconds,
-such as `Y-m-d` or `H:i`, usually stay unchanged and need manual markers if dynamic.
+For the second creation/update sample, each date part increases by one:
+
+```text
+2026-12-07 10:00:00.000000
+2027-01-08 11:01:01.000001
+```
+
+Parts wrap independently: December becomes January without incrementing the year
+again, and `23:59:59.999999` becomes `00:00:00.000000` without carrying into the day.
+If the increased day does not exist in the target month, it wraps to day 1;
+for example, `2026-01-31` becomes `2027-02-01`.
+The timezone is preserved, with PHP normalizing nonexistent local times during
+spring daylight-saving transitions.
+
+This detects common date-only, minute-only and year-only output without waiting.
+Sampling can also change date-dependent conditional content;
+if its HTML structure changes, snapshot creation reports an alignment error.
+Formats that still produce identical output, fixed fixture dates and values
+computed from PHP's real clock still need manual markers when dynamic.
 The previous Context date aspect is restored after every render,
 including when rendering throws an exception.
 
