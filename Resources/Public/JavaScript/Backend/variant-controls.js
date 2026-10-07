@@ -48,6 +48,8 @@ class VariantControls extends VariantValues {
       this.listen(label, 'focusin', show);
       this.listen(label, 'focusout', scheduleHide);
       this.listen(button, 'click', show);
+      // Popup text inside a summary must not toggle its transformer group.
+      this.listen(popover, 'click', (event) => event.preventDefault());
       this.listen(window, 'resize', hide);
       this.listen(window, 'scroll', (event) => {
         if (!popover.contains(event.target)) {

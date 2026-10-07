@@ -23,13 +23,13 @@ try {
       main{width:100%;overflow:hidden}button{font:inherit}
       </style><script type="importmap">{"imports":{"@andersundsehr/frontend-studio/backend/":"/modules/","@typo3/core/ajax/ajax-request.js":"/ajax.js","@typo3/backend/notification.js":"/notification.js","@typo3/core/document-service.js":"/document.js"}}</script>
       <main><div data-controls><div class="frontend-studio-control-row" data-control-row>
-        <div class="frontend-studio-control-label"><span data-control-description data-control-popover><button class="frontend-studio-control-name" aria-describedby="description">Argument</button><span id="description" class="frontend-studio-control-popover" role="tooltip" popover="auto">${description}</span></span> <span class="frontend-studio-control-type" data-control-type data-control-popover>
+        <details class="frontend-studio-transformer-inputs" data-transformer-group>
+          <summary class="frontend-studio-transformer-summary">
+        <span class="frontend-studio-control-label"><span data-control-description data-control-popover><button class="frontend-studio-control-name" aria-describedby="description">Argument</button><span id="description" class="frontend-studio-control-popover" role="tooltip" popover="auto">${description}</span></span> <span class="frontend-studio-control-type" data-control-type data-control-popover>
           <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="full-type"><code>VeryLongArgumentType|AnotherType</code></button>
           <span id="full-type" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>${type}</code></span>
-        </span></div>
-        <details class="frontend-studio-transformer-inputs" data-transformer-group>
-          <summary class="frontend-studio-transformer-summary"><span data-transformer-summary></span></summary>
-          <div class="frontend-studio-control-row"><label>Nested input</label><input value="Nested value" data-frontend-studio-variant-value data-fixture-name="argument.value" data-fixture-type="string"></div>
+        </span></span><span data-transformer-summary></span></summary>
+          <div class="frontend-studio-variant-argument-group-content"><div class="frontend-studio-control-row"><label>Nested input</label><input value="Nested value" data-frontend-studio-variant-value data-fixture-name="argument.value" data-fixture-type="string"></div></div>
         </details>
       </div><p id="neighbor">Following content</p></div></main>
       <script type="module">import Controls from '/modules/variant-controls.js';const root=document.querySelector('[data-controls]');window.controls=new Controls(root,{root,changed(){}});await controls.ready;window.ready=true;</script>` });
@@ -63,6 +63,7 @@ try {
     });
     assert.equal(selected.text, text);
     assert.equal(selected.selectable, 'text');
+    assert.equal(await page.locator('details').evaluate(element => element.open), false, 'selecting popup text must not toggle the group');
     await page.keyboard.press('Escape');
     await popover.waitFor({ state: 'hidden' });
     await page.mouse.move(690, 590);
@@ -79,6 +80,7 @@ try {
     await page.setViewportSize({ width: 320, height: 480 });
     await button.click();
     await popover.waitFor({ state: 'visible' });
+    assert.equal(await page.locator('details').evaluate(element => element.open), false, 'popup buttons keep their own action');
     const bounds = await popover.boundingBox();
     assert.ok(bounds.x >= 8 && bounds.x + bounds.width <= 312);
     assert.ok(bounds.y >= 8 && bounds.y + bounds.height <= 472);
@@ -87,8 +89,20 @@ try {
   }
   const button = page.locator('[data-control-description] button');
   const popover = page.locator('[data-control-description] [popover]');
-  await page.locator('summary').click();
-  const group = await page.locator('details').evaluate(element => ({ open: element.open, border: getComputedStyle(element).borderInlineStartWidth, padding: getComputedStyle(element).paddingInlineStart, background: getComputedStyle(element).backgroundColor }));
+  const summary = page.locator('summary');
+  const preview = page.locator('[data-transformer-summary]');
+  assert.equal(await preview.isVisible(), true);
+  const header = await summary.boundingBox();
+  await summary.click({ position: { x: header.width - 4, y: header.height - 4 } });
+  assert.equal(await preview.isVisible(), false);
+  assert.equal(await page.locator('input').isVisible(), true);
+  await summary.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await preview.isVisible(), true);
+  assert.equal(await page.locator('input').isVisible(), false);
+  await page.keyboard.press('Enter');
+  assert.equal(await preview.isVisible(), false);
+  const group = await page.locator('details').evaluate(element => { const content = element.querySelector('.frontend-studio-variant-argument-group-content');return {open:element.open,border:getComputedStyle(content).borderInlineStartWidth,padding:getComputedStyle(content).paddingInlineStart,background:getComputedStyle(content).backgroundColor}; });
   assert.equal(group.open, true);
   assert.equal(group.border, '3px');
   assert.notEqual(group.padding, '0px');

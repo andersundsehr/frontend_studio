@@ -420,8 +420,7 @@
   outline-offset: 2px;
 }
 
-.frontend-studio-control-input,
-.frontend-studio-transformer-inputs {
+.frontend-studio-control-input {
   min-width: 0;
   grid-column: 2;
   grid-row: 1;
@@ -431,17 +430,67 @@
   margin: .2rem 0;
 }
 
+.frontend-studio-transformer-row {
+  padding: 0;
+}
+
 .frontend-studio-transformer-summary {
+  display: grid;
+  grid-template-columns: minmax(7rem, 2fr) minmax(0, 3fr);
+  gap: .4rem .6rem;
+  align-items: center;
+  position: relative;
   cursor: pointer;
-  padding: .2rem 0;
+  padding: .45rem 0 .45rem 1rem;
+}
+
+.frontend-studio-transformer-summary::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: .15rem;
+  top: .85rem;
+  border-inline-start: .35rem solid currentColor;
+  border-block: .25rem solid transparent;
+}
+
+.frontend-studio-transformer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.frontend-studio-transformer-summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.frontend-studio-transformer-summary [data-transformer-summary] {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.frontend-studio-transformer-inputs[open] {
+.frontend-studio-transformer-inputs {
+  min-width: 0;
   grid-column: 1 / -1;
-  grid-row: 2;
+}
+
+.frontend-studio-transformer-inputs[open] > summary {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.frontend-studio-transformer-inputs[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.frontend-studio-transformer-inputs[open]:dir(rtl) > summary::before {
+  transform: rotate(-90deg);
+}
+
+.frontend-studio-transformer-inputs[open] > summary [data-transformer-summary] {
+  display: none;
+}
+
+.frontend-studio-transformer-inputs[open] > .frontend-studio-variant-argument-group-content {
   padding: .5rem .75rem;
   border-inline-start: 3px solid var(--typo3-component-border-color);
   border-radius: .25rem;
@@ -449,6 +498,7 @@
 }
 
 .frontend-studio-control-popover {
+  cursor: text;
   position: fixed;
   inset: auto;
   margin: 0;

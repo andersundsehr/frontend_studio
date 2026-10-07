@@ -96,33 +96,35 @@
               <f:if condition="{parentName}">
                 <f:then>
                   <div class="frontend-studio-control-row frontend-studio-transformer-row" data-control-row>
-                    <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                      <f:if condition="{argument.name} == {parentName}">
-                        <div class="frontend-studio-control-label">
-                          <f:if condition="{argument.description}">
-                            <f:then>
-                              <span data-control-description data-control-popover>
-                                <button type="button" class="frontend-studio-control-name" aria-describedby="frontend-studio-argument-description-{argument.name}"><strong>{argument.name}</strong></button>
-                                <span id="frontend-studio-argument-description-{argument.name}" class="frontend-studio-control-popover" role="tooltip" popover="auto">{argument.description}</span>
-                              </span>
-                            </f:then>
-                            <f:else><strong>{argument.name}</strong></f:else>
-                          </f:if>
-                          <f:if condition="{argument.required} == false"><span class="text-body-secondary">?</span></f:if>
-                          <f:if condition="{argument.shortType} != {argument.type}">
-                            <f:then>
-                              <span class="frontend-studio-control-type" data-control-type data-control-popover>
-                                <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="frontend-studio-argument-type-{argument.name}" aria-label="Full type for {argument.name}"><code>{argument.shortType}</code></button>
-                                <span id="frontend-studio-argument-type-{argument.name}" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>{argument.type}</code></span>
-                              </span>
-                            </f:then>
-                            <f:else><code>{argument.shortType}</code></f:else>
-                          </f:if>
-                        </div>
-                      </f:if>
-                    </f:for>
                     <details class="frontend-studio-transformer-inputs" data-transformer-group>
-                      <summary class="frontend-studio-transformer-summary" title="Show transformer inputs"><span data-transformer-summary></span></summary>
+                      <summary class="frontend-studio-transformer-summary">
+                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                          <f:if condition="{argument.name} == {parentName}">
+                            <span class="frontend-studio-control-label">
+                              <f:if condition="{argument.description}">
+                                <f:then>
+                                  <span data-control-description data-control-popover>
+                                    <button type="button" class="frontend-studio-control-name" aria-describedby="frontend-studio-argument-description-{argument.name}"><strong>{argument.name}</strong></button>
+                                    <span id="frontend-studio-argument-description-{argument.name}" class="frontend-studio-control-popover" role="tooltip" popover="auto">{argument.description}</span>
+                                  </span>
+                                </f:then>
+                                <f:else><strong>{argument.name}</strong></f:else>
+                              </f:if>
+                              <f:if condition="{argument.required} == false"><span class="text-body-secondary">?</span></f:if>
+                              <f:if condition="{argument.shortType} != {argument.type}">
+                                <f:then>
+                                  <span class="frontend-studio-control-type" data-control-type data-control-popover>
+                                    <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="frontend-studio-argument-type-{argument.name}" aria-label="Full type for {argument.name}"><code>{argument.shortType}</code></button>
+                                    <span id="frontend-studio-argument-type-{argument.name}" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>{argument.type}</code></span>
+                                  </span>
+                                </f:then>
+                                <f:else><code>{argument.shortType}</code></f:else>
+                              </f:if>
+                            </span>
+                          </f:if>
+                        </f:for>
+                        <span data-transformer-summary></span>
+                      </summary>
                       <div class="frontend-studio-variant-argument-group-content">
                         <div class="panel-group mb-0">
                           <f:for each="{groupValues}" as="variantValue">
