@@ -163,21 +163,23 @@ export default class VariantValues extends VariantFeature {
 
   readFieldValue(field) {
     const adapter = this.adapters.get(field);
-    if (adapter) {
-      return adapter.getValue();
-    }
+    const value = adapter ? adapter.getValue() : field.value;
     const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
 
-    if (fixtureType === 'bool' || fixtureType === 'boolean') {
+    if (!adapter && (fixtureType === 'bool' || fixtureType === 'boolean')) {
       return field.checked === true;
     }
 
     if (field.dataset.fixtureValueNull === 'true') {
-      if (field.value === '') {
+      if (value === '' || value === null) {
         return null;
       }
 
       field.dataset.fixtureValueNull = 'false';
+    }
+
+    if (adapter) {
+      return value;
     }
 
     if (fixtureType === 'int' || fixtureType === 'integer') {
@@ -214,12 +216,12 @@ export default class VariantValues extends VariantFeature {
   }
 
   writeFieldValue(field, value) {
+    field.dataset.fixtureValueNull = value === null ? 'true' : 'false';
     const adapter = this.adapters.get(field);
     if (adapter) {
       adapter.setValue(value);
       return;
     }
-    field.dataset.fixtureValueNull = value === null ? 'true' : 'false';
     const fixtureType = (field.dataset.fixtureType || '').toLowerCase();
 
     if (fixtureType === 'bool' || fixtureType === 'boolean') {
