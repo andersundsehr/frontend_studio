@@ -144,6 +144,19 @@ variants:
 
 Use `Save as new` to create another variant.
 
+## Component documentation
+
+Keep a Markdown file next to the component template:
+`Components/Card/Card.md` documents `Card.html` or `Card.fluid.html`.
+It appears in the **Doc** inspector tab and is shared by all variants.
+
+Document what another frontend developer needs to use the component:
+
+- Its purpose and when to use it.
+- Usage examples, including how arguments and slots affect the result.
+- Available variants and when to choose each one.
+- Accessibility requirements, expected interactions, and usage limitations.
+
 ## Component Fixtures
 
 Frontend Studio creates and updates fixture files next to component templates.
@@ -441,24 +454,3 @@ In every context, `componentVariantValues` and `componentVariantSlots` require a
 Anonymous requests containing either parameter return HTTP 403,
 even for empty or invalid values and for fragments or Fluid Usage.
 Site and language selection and stored variant previews do not require overrides.
-
-## Component documentation
-
-The **Doc** inspector tab edits Markdown shared by every variant of a component.
-`Card.html` and `Card.fluid.html` use the adjacent `Card.md` file.
-Opening a missing document does not create a file; **Save** creates it explicitly.
-Production and Production subcontexts permit reading only.
-
-The rich text editor supports paragraphs, headings, emphasis, lists, links, and code blocks.
-Writable documentation opens in the rich text editor, whose **Markdown** toolbar button lets you edit the source directly.
-The editor itself is the preview; there is no separate preview below it.
-A small hint below the editor shows the documentation file path.
-Production shows rendered Markdown inline without an editor or action buttons.
-The Doc tab is hidden in Production when the Markdown file does not exist.
-Saving empty documentation removes the Markdown file.
-**Reset** restores the last loaded or saved document locally.
-Documentation has its own Save button and unsaved-change warning, independent of fixture controls.
-In Development, changes to adjacent Markdown files refresh the editor automatically when documentation has no unsaved edits.
-Documentation-only changes keep the view and fixture controls in place.
-If someone else changes the document, saving shows a conflict and keeps your unsaved text.
-Copy your pending text before reloading a conflicting document.
