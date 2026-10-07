@@ -34,6 +34,33 @@ final class InlineDiff extends Renderer
     /** @var list<array{expected: int|null, actual: int|null, expectedText: string, actualText: string, expectedDiff: string, actualDiff: string, unchanged: bool, changed: bool}> */
     private array $rows = [];
 
+    /** @var array<int, array<string, list<array{text: string, changed: bool}>>> */
+    private array $segments = [];
+
+    /**
+     * @return list<array{expected: int|null, actual: int|null, expectedSegments: list<array{text: string, changed: bool}>, actualSegments: list<array{text: string, changed: bool}>, changed: bool}>
+     */
+    public function compare(string $expected, string $actual): array
+    {
+        $actual = new Comparison()->maskForDiff($expected, $actual);
+        [$expected, $this->expectedLines] = $this->source($expected);
+        [$actual, $this->actualLines] = $this->source($actual);
+        $this->collect($expected, $actual);
+
+        $rows = [];
+        foreach ($this->rows as $index => $row) {
+            $rows[] = [
+                'expected' => $row['expected'],
+                'actual' => $row['actual'],
+                'expectedSegments' => $this->segments[$index]['expected'] ?? [],
+                'actualSegments' => $this->segments[$index]['actual'] ?? [],
+                'changed' => $row['changed'],
+            ];
+        }
+
+        return $rows;
+    }
+
     public function render(string $expected, string $actual): string
     {
         $actual = new Comparison()->maskForDiff($expected, $actual);
@@ -102,6 +129,14 @@ final class InlineDiff extends Renderer
             $row = $this->rows[$index];
             $row['expected'] ??= $expected;
             $row['actual'] ??= $actual;
+            if ($opcode !== 'i') {
+                $this->appendSegment($index, 'expected', $character, $opcode === 'd');
+            }
+
+            if ($opcode !== 'd') {
+                $this->appendSegment($index, 'actual', $character, $opcode === 'i');
+            }
+
             $escaped = OutputFormatter::escape($character);
             if ($opcode !== 'i' && ($row['expectedText'] !== '' || trim($character) !== '')) {
                 $row['expectedText'] .= $escaped;
@@ -121,6 +156,19 @@ final class InlineDiff extends Renderer
         return '';
     }
 
+    private function appendSegment(int $row, string $side, string $text, bool $changed): void
+    {
+        $segments = $this->segments[$row][$side] ?? [];
+        $last = count($segments) - 1;
+        if ($last >= 0 && $segments[$last]['changed'] === $changed) {
+            $segments[$last]['text'] .= $text;
+        } else {
+            $segments[] = ['text' => $text, 'changed' => $changed];
+        }
+
+        $this->segments[$row][$side] = $segments;
+    }
+
     private function mergeHighlights(string $text): string
     {
         return str_replace([
@@ -134,6 +182,7 @@ final class InlineDiff extends Renderer
         $this->expectedOffset = 0;
         $this->actualOffset = 0;
         $this->rows = [];
+        $this->segments = [];
         new Diff(granularity: new Word(), renderer: $this)->render($expected, $actual);
     }
 

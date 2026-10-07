@@ -6,6 +6,7 @@ namespace Andersundsehr\FrontendStudio\Controller;
 
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
+use Andersundsehr\FrontendStudio\Service\Snapshot\InlineDiff;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Throwable;
@@ -55,7 +56,12 @@ final readonly class SnapshotController
                 return new JsonResponse(['success' => false, 'message' => 'Run one catalog variant per request.'], 400);
             }
 
-            return new JsonResponse(['success' => true, 'result' => $this->runner->run($body['scope'], $body['site'], $body['language'])], 200, ['Cache-Control' => 'no-store']);
+            $result = $this->runner->run($body['scope'], $body['site'], $body['language']);
+            $result['diff'] = $result['status'] === 'failed' ? new InlineDiff()->compare($result['expected'], $result['actual']) : [];
+            $result['trace'] = $result['exception']?->getTraceAsString() ?? '';
+            $result['exception'] = null;
+
+            return new JsonResponse(['success' => true, 'result' => $result], 200, ['Cache-Control' => 'no-store']);
         } catch (Throwable $throwable) {
             return new JsonResponse(['success' => false, 'message' => $throwable->getMessage()], 400, ['Cache-Control' => 'no-store']);
         }

@@ -122,6 +122,43 @@ test('diff content escapes scripts, attributes, paths and error messages', async
   assert.ok(!output.includes('<iframe'));
   assert.ok(!output.includes('<svg'));
   assert.ok(output.includes('&lt;script&gt;'));
-  assert.ok(output.includes('- '));
-  assert.ok(output.includes('+ '));
+  assert.ok(output.includes('Snapshot mismatch'));
+  assert.ok(output.includes('Show full output'));
+});
+
+
+test('focused diffs show only nearby changes and retain separate source line numbers', async () => {
+  const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+  const { focusedRows, renderDiffRows } = await modules.import('snapshot-diff.js');
+  const rows = Array.from({ length: 20 }, (_, index) => ({
+    expected: index + 1, actual: index + 2, changed: index === 10,
+    expectedSegments: [{ text: '<p>same old word</p>', changed: false }],
+    actualSegments: [{ text: '<p>same ', changed: false }, { text: 'new ', changed: true }, { text: 'word</p>', changed: false }],
+  }));
+  const focused = focusedRows(rows);
+  assert.equal(focused.filter(Boolean).length, 5);
+  assert.equal(focused.filter((row: any) => row === null).length, 2);
+  const output = renderDiffRows(focused);
+  assert.ok(output.includes('<td>11</td><td>—</td>'));
+  assert.ok(output.includes('<td>—</td><td>12</td>'));
+  assert.ok(output.includes('<mark class="fs-snapshot-added">new </mark>'));
+  assert.ok(!output.includes('<p>same'));
+});
+
+test('missing snapshots and errors offer the appropriate next step without a fake diff', async () => {
+  const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+  const { failureSummary, renderSnapshotDiff, copyDetails } = await modules.import('snapshot-diff.js');
+  assert.match(failureSummary({ status: 'missing', message: 'Created baseline. Review it.' }).next, /commit the new snapshot/);
+  assert.match(failureSummary({ status: 'missing', message: 'Creation blocked in Production.' }).next, /outside Production/);
+  const failure = { identifier: a, status: 'error', message: '<script>bad</script>', trace: '<img onerror=bad>', path: '/snapshot.html' };
+  const output = renderSnapshotDiff([failure]);
+  assert.ok(output.includes('Test error'));
+  assert.ok(output.includes('Technical details'));
+  assert.ok(!output.includes('<table>'));
+  assert.ok(!output.includes('<script>'));
+  assert.ok(!output.includes('<img'));
+  const copy = copyDetails(failure, { site: 'preview', language: 'de' });
+  assert.ok(copy.includes('Site: preview · Language: de'));
+  assert.ok(copy.includes('/snapshot.html'));
+  assert.ok(copy.includes(failure.trace));
 });

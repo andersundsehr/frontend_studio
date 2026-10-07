@@ -7,8 +7,9 @@ export function belongsToScope(identifier, scope = '', type = '') {
 }
 
 export default class SnapshotTests {
-  constructor(changed, request = null) {
+  constructor(changed, request = null, openComponent = null) {
     this.changed = changed;
+    this.openComponent = openComponent;
     this.request = request ?? (async (body, signal) => {
       try {
         const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_snapshot).post(body, { signal });
@@ -115,6 +116,6 @@ export default class SnapshotTests {
 
   async showFailures(scope = '', type = '') {
     const { showSnapshotDiff } = await import('./snapshot-diff.js');
-    showSnapshotDiff(this.failures(scope, type));
+    return showSnapshotDiff(this.failures(scope, type), { openComponent: this.openComponent, variantIdentifiers: this.catalog, context: { ...this.context } });
   }
 }

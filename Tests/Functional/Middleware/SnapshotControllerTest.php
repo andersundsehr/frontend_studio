@@ -68,6 +68,14 @@ final class SnapshotControllerTest extends FunctionalTestCase
             $response = $this->dispatch(['operation' => 'run']);
             $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
             self::assertSame('passed', $result['status'], $result['message']);
+            file_put_contents($path, '<p>Reviewed old content</p>');
+            $response = $this->dispatch(['operation' => 'run']);
+            $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
+            self::assertSame('failed', $result['status'], $result['message']);
+            self::assertNotEmpty($result['diff']);
+            self::assertTrue(array_any($result['diff'], static fn(array $row): bool => $row['changed']));
+            self::assertSame('', $result['trace']);
+            self::assertNull($result['exception']);
         } finally {
             $property->setValue(null, $original);
             if (is_file($path)) {
@@ -75,6 +83,19 @@ final class SnapshotControllerTest extends FunctionalTestCase
                 rmdir(dirname($path));
             }
         }
+    }
+
+    public function testTestErrorsExposeReadableTechnicalDetailsWithoutExceptionObjects(): void
+    {
+        $this->login();
+        $response = $this->dispatch(['operation' => 'run', 'scope' => 'site:missingTransformer:Default']);
+        self::assertSame(200, $response->getStatusCode());
+        $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
+        self::assertSame('error', $result['status']);
+        self::assertNotEmpty($result['message']);
+        self::assertNotEmpty($result['trace']);
+        self::assertSame([], $result['diff']);
+        self::assertNull($result['exception']);
     }
 
     public function testBackendLoginIsRequiredAndGetCannotRun(): void

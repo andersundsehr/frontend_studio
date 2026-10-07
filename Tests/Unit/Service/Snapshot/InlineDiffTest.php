@@ -104,6 +104,31 @@ final class InlineDiffTest extends TestCase
         self::assertTrue(new Comparison()->matches($expected, $formatter->format("<div>\n <p>Hello old world</p>\n\n</div>\n")));
     }
 
+    public function testStructuredDiffRetainsRawWordsAndAlignedSourceLines(): void
+    {
+        $rows = new InlineDiff()->compare("<p>one</p>\n<p>two</p>\n", "<p>one</p>\n<p>added</p>\n<p>two</p>\n");
+        $added = array_values(array_filter($rows, static fn(array $row): bool => $row['expected'] === null));
+        self::assertSame(2, $added[0]['actual']);
+        self::assertSame('<p>added</p> ', implode('', array_column($added[0]['actualSegments'], 'text')));
+        self::assertTrue($added[0]['changed']);
+        $last = array_pop($rows);
+        self::assertNotNull($last);
+        self::assertSame(2, $last['expected']);
+        self::assertSame(3, $last['actual']);
+        self::assertFalse($last['changed']);
+        $words = new InlineDiff()->compare('<p>Hello old world</p>', '<p>Hello new world</p>');
+        self::assertContains(['text' => 'new ', 'changed' => true], $words[0]['actualSegments']);
+        self::assertContains(['text' => '<p>Hello ', 'changed' => false], $words[0]['actualSegments']);
+    }
+
+    public function testStructuredDiffUsesTheSameDynamicMaskingAsTheCli(): void
+    {
+        $expected = '<p id="' . Comparison::MARKER . '">Hello</p>';
+        $rows = new InlineDiff()->compare($expected, '<p id="random">Hello</p>');
+        self::assertFalse($rows[0]['changed']);
+        self::assertSame($expected, implode('', array_column($rows[0]['actualSegments'], 'text')));
+    }
+
     public function testInlineDiffShowsColoredEditsAndEscapesConsoleMarkup(): void
     {
         $diff = new InlineDiff()->render('<p>Café: old word</p><error>text</error>', '<p>Café: new word</p><error>text</error>');

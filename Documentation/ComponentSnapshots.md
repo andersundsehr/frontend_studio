@@ -73,8 +73,25 @@ fixtures or **Test all** to test the complete catalog, including filtered or
 collapsed rows. Unsaved form edits are not used. Requests run one variant at a time;
 the toolbar separates progress from the passed/total count. A scope receives a
 checkmark only after every descendant has passed. Missing/new baselines, errors
-and mismatches show a clickable red X with escaped expected/actual HTML details.
+and mismatches show a clickable red X that opens the failure details.
+The popup identifies a snapshot mismatch, missing snapshot or test error
+and explains the next step.
+When several variants fail, select one in the list to inspect its result.
+
+For mismatches, the popup uses the CLI's word diff and dynamic-value masking,
+showing changed sections with surrounding lines and separate snapshot/actual
+line numbers. Removed words are struck through; added words are underlined.
+Expand **Show full output** to inspect the complete saved snapshot and current HTML.
+HTML is displayed as escaped text.
+
+Use **Open component** to open the failed variant with the current preview site
+and language, or **Copy details** to copy its message, context and output.
+**Technical details** contains the snapshot path and, for rendering errors,
+the stack trace. Newly created snapshots still require review and a commit
+before another test run; Production never creates them.
 The same baseline creation and Production restrictions apply as in the CLI.
+
+![Snapshot mismatch details](html-snapshot-diff.png)
 
 Changing site/language or component files clears results and cancels the current
 browser run. Responses from an earlier run are ignored. Manually reviewing or

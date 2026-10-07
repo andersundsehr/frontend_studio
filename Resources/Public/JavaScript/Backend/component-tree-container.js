@@ -56,6 +56,9 @@ class FrontendStudioComponentTree extends Tree {
     this.snapshots = new SnapshotTests(() => {
       this.requestUpdate();
       this.closest('andersundsehr-frontend-studio-component-tree-container')?.querySelector('andersundsehr-frontend-studio-component-tree-toolbar')?.requestUpdate();
+    }, null, (identifier, context) => {
+      const module = ModuleUtility.getFromName(frontendStudioModuleName);
+      Viewport.ContentContainer.setUrl(createUrl(module.link, { componentVariant: identifier, ...context }));
     });
   }
 
