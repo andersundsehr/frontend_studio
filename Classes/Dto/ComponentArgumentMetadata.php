@@ -22,6 +22,6 @@ final readonly class ComponentArgumentMetadata
 
     public function getShortType(): string
     {
-        return preg_replace('/(?:[A-Za-z_][A-Za-z0-9_]*\\\\)+([A-Za-z_][A-Za-z0-9_]*)/', '$1', $this->type) ?? $this->type;
+        return preg_replace('/(?:\\\\)?(?:[A-Za-z_][A-Za-z0-9_]*\\\\)+([A-Za-z_][A-Za-z0-9_]*)/', '$1', $this->type) ?? $this->type;
     }
 }
