@@ -18,8 +18,8 @@ A{{frontend-studio:dynamic}}B
 ```
 
 If no suitable pattern explains a changing attribute,
-its entire value becomes one marker. Unrecognized text changes use smaller
-changed regions, preserving common surrounding text.
+its entire value becomes one marker. Unrecognized text changes mask complete changing words or tokens,
+preserving surrounding labels and punctuation.
 Markers stay within their attribute value or text node;
 they never replace neighboring elements or attributes.
 
@@ -277,17 +277,20 @@ HTML whitespace and closing syntax still delimit the value.
 
 ### Fallback for changing text
 
-Unrecognized text uses character differences between the two samples.
-Changing regions become markers; common surrounding text stays literal.
+Unrecognized text uses character differences to locate changes,
+then expands them to complete words or tokens. Letters, Unicode combining marks,
+digits, underscores and hyphens belong to a word; surrounding whitespace and
+punctuation remain checked. Several changes inside one word share one marker.
 For `Token: abcXdef; status ready` and `Token: abcYdef; status ready`:
 
 ```html
-<p>Token: abc{{frontend-studio:dynamic}}def; status ready</p>
+<p>Token: {{frontend-studio:dynamic}}; status ready</p>
 ```
 
-Several changing regions can produce several markers.
-Coincidentally common characters may remain fixed for unrecognized values;
-manual editing can widen the marker when needed.
+Several changing words can produce several markers. Shared characters inside a
+changing word are ignored, avoiding fixed accidental prefixes or suffixes.
+Unchanged neighboring words remain literal. Tokens containing other punctuation
+can be split into several words; manual editing can widen the marker when needed.
 Fallback changes spanning inserted, removed or moved lines fail for review.
 Markers cannot absorb another element or comment,
 because text nodes are matched separately from HTML structure.

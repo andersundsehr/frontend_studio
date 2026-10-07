@@ -483,7 +483,8 @@ can produce this snapshot:
 
 Known patterns recognize changing dates, times, UUIDs, numeric IDs, ULIDs,
 hexadecimal tokens and URL parameter values. Unrecognized changing attributes
-mask the full value; unrecognized text masks changed regions between stable text.
+mask the full value; unrecognized text masks complete changing words while keeping surrounding labels
+and punctuation.
 Elements, attribute names and neighboring content remain checked.
 No template changes are required. Review generated markers,
 or manually edit the snapshot to mark a dynamic value missed by the two samples.

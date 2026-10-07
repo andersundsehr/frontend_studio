@@ -101,8 +101,8 @@ final class HtmlSourceHighlighterTest extends TestCase
             [['tag', 'div'], ['fluid-expression', 'enabled'], ['tag', 'f:if'], ['attribute', 'then'], ['attribute', 'id'], ['string', "'hidden'"], ['string', '"content"']],
         ];
         yield 'multiline and unicode' => [
-            "{ui:Card(\n  title: 'Äpfel',\n  data: {key: value}\n)}",
-            [['tag', 'ui:Card'], ['attribute', 'title'], ['string', "'Äpfel'"], ['attribute', 'key'], ['fluid-expression', 'value']],
+            "{ui:Card(\n  title: 'Café',\n  data: {key: value}\n)}",
+            [['tag', 'ui:Card'], ['attribute', 'title'], ['string', "'Café'"], ['attribute', 'key'], ['fluid-expression', 'value']],
         ];
     }
 

@@ -145,24 +145,22 @@ final readonly class DynamicValueMatcher
         $positionB = 0;
         $startA = null;
         $startB = 0;
-        $output = '';
+        $ranges = [];
         foreach ([...new Diff()->getOpcodes($a, $b)->getOpcodes(), 'c0'] as $opcode) {
             $type = $opcode[0];
             $length = preg_match('/^[cdi](\d+)/', $opcode, $match) === 1 ? (int)$match[1] : 1;
             if ($type === 'c') {
                 if ($startA !== null) {
-                    if (
-                        str_contains(substr($first, $offsetsA[$startA], $offsetsA[$positionA] - $offsetsA[$startA]), "\n")
-                        || str_contains(substr($second, $offsetsB[$startB], $offsetsB[$positionB] - $offsetsB[$startB]), "\n")
-                    ) {
+                    $changedA = substr($first, $offsetsA[$startA], $offsetsA[$positionA] - $offsetsA[$startA]);
+                    $changedB = substr($second, $offsetsB[$startB], $offsetsB[$positionB] - $offsetsB[$startB]);
+                    if (str_contains($changedA, "\n") || str_contains($changedB, "\n")) {
                         throw new RuntimeException('Dynamic text inserted, removed or moved lines; review the component before updating the snapshot.', 1791270200);
                     }
 
-                    $output .= Comparison::MARKER;
+                    $ranges[] = ['start' => $offsetsA[$startA], 'end' => $offsetsA[$positionA], 'insertedWord' => preg_match('/^[\p{L}\p{N}\p{M}_-]+$/u', $changedB) === 1];
                     $startA = null;
                 }
 
-                $output .= substr($first, $offsetsA[$positionA], $offsetsA[$positionA + $length] - $offsetsA[$positionA]);
                 $positionA += $length;
                 $positionB += $length;
             } else {
@@ -178,6 +176,36 @@ final readonly class DynamicValueMatcher
                 }
             }
         }
+
+        preg_match_all('/[\p{L}\p{N}\p{M}_-]+/u', $first, $words, PREG_OFFSET_CAPTURE);
+        foreach ($ranges as &$range) {
+            foreach ($words[0] as [$word, $start]) {
+                $end = $start + strlen($word);
+                $overlap = $range['start'] < $end && $range['end'] > $start;
+                $insertion = $range['start'] === $range['end'] && $range['start'] >= $start && $range['start'] <= $end && $range['insertedWord'];
+                if ($overlap || $insertion) {
+                    $range['start'] = min($range['start'], $start);
+                    $range['end'] = max($range['end'], $end);
+                }
+            }
+        }
+
+        unset($range);
+
+        $output = '';
+        $offset = 0;
+        foreach ($ranges as $range) {
+            if ($range['start'] < $offset) {
+                // Several character changes inside one word share a single marker.
+                $offset = max($offset, $range['end']);
+                continue;
+            }
+
+            $output .= substr($first, $offset, $range['start'] - $offset) . Comparison::MARKER;
+            $offset = $range['end'];
+        }
+
+        $output .= substr($first, $offset);
 
         return $output;
     }

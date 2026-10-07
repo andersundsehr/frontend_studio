@@ -81,13 +81,20 @@ final class PatternMatchingTest extends TestCase
         yield 'unquoted attribute' => ['<input value=abc/>', '<input value=xyz/>', '<input value=@/>', '<input value=other/>'];
         yield 'mixed known and unknown attribute falls back whole' => ['<div data-token="id-123-alpha"></div>', '<div data-token="id-456-omega"></div>', '<div data-token="@"></div>', '<div data-token="other"></div>'];
         yield 'two values in text' => ['<p>At 14:10:01; request 123; status ready</p>', '<p>At 14:10:02; request 456; status ready</p>', '<p>At @; request @; status ready</p>', '<p>At 23:59:59; request 999999; status ready</p>'];
-        yield 'unknown text preserves surrounding label' => ['<p>Token: abcXdef; status ready</p>', '<p>Token: abcYdef; status ready</p>', '<p>Token: abc@def; status ready</p>', '<p>Token: abcANYdef; status ready</p>'];
-        yield 'Unicode text fallback' => ['<p>Grüße: Käse, fertig</p>', '<p>Grüße: Küse, fertig</p>', '<p>Grüße: K@se, fertig</p>', '<p>Grüße: KÖse, fertig</p>'];
+        yield 'unknown text preserves surrounding label' => ['<p>Token: abcXdef; status ready</p>', '<p>Token: abcYdef; status ready</p>', '<p>Token: @; status ready</p>', '<p>Token: ANY; status ready</p>'];
+        yield 'Unicode text fallback' => ['<p>Dessert: café, ready</p>', '<p>Dessert: cafe, ready</p>', '<p>Dessert: @, ready</p>', '<p>Dessert: ANY, ready</p>'];
+        yield 'multiple differences inside one word share one marker' => ['<p>Token: abcXdefYghi; ready</p>', '<p>Token: abcZdefWghi; ready</p>', '<p>Token: @; ready</p>', '<p>Token: ANY; ready</p>'];
+        yield 'hyphenated unknown token' => ['<p>Token: abc-Xq-def; ready</p>', '<p>Token: abc-Yz-def; ready</p>', '<p>Token: @; ready</p>', '<p>Token: ANY; ready</p>'];
+        yield 'underscored unknown token' => ['<p>Token: abc_Xq_def; ready</p>', '<p>Token: abc_Yz_def; ready</p>', '<p>Token: @; ready</p>', '<p>Token: ANY; ready</p>'];
+        yield 'multiple unknown words retain middle label' => ['<p>First: abcXdef; second: ghiYjkl; ready</p>', '<p>First: abcZdef; second: ghiWjkl; ready</p>', '<p>First: @; second: @; ready</p>', '<p>First: ANY; second: OTHER; ready</p>'];
+        yield 'word suffix insertion' => ['<p>Token: abc; ready</p>', '<p>Token: abcxyz; ready</p>', '<p>Token: @; ready</p>', '<p>Token: ANY; ready</p>'];
+        yield 'word prefix insertion' => ['<p>Token: abc; ready</p>', '<p>Token: xyzabc; ready</p>', '<p>Token: @; ready</p>', '<p>Token: ANY; ready</p>'];
+        yield 'punctuation around changing word stays fixed' => ['<p>Token: (abcXdef), ready!</p>', '<p>Token: (abcYdef), ready!</p>', '<p>Token: (@), ready!</p>', '<p>Token: (ANY), ready!</p>'];
         yield 'unchanged recognized patterns stay literal' => ['<p>2026-10-06 id=123</p>', '<p>2026-10-06 id=123</p>', '<p>2026-10-06 id=123</p>', '<p>2026-10-06 id=123</p>'];
         yield 'unchanged date beside changing ID stays literal' => ['<p>2026-10-06 id=123</p>', '<p>2026-10-06 id=456</p>', '<p>2026-10-06 id=@</p>', '<p>2026-10-06 id=999</p>'];
         yield 'lowercase named months' => ['<p>A06 oct 2026 14:10:01B</p>', '<p>A06 oct 2026 14:10:02B</p>', '<p>A@B</p>', '<p>A01 jan 2027 23:59:59B</p>'];
-        yield 'text insertion preserves surrounding words' => ['<p>AfooB</p>', '<p>AfooxyzB</p>', '<p>Afoo@B</p>', '<p>AfooanythingB</p>'];
-        yield 'text deletion preserves surrounding words' => ['<p>AfooxyzB</p>', '<p>AfooB</p>', '<p>Afoo@B</p>', '<p>AfooanythingB</p>'];
+        yield 'text insertion masks complete word' => ['<p>AfooB</p>', '<p>AfooxyzB</p>', '<p>@</p>', '<p>anything</p>'];
+        yield 'text deletion masks complete word' => ['<p>AfooxyzB</p>', '<p>AfooB</p>', '<p>@</p>', '<p>anything</p>'];
         yield 'empty text becomes nonempty' => ['<p></p>', '<p>xyz</p>', '<p>@</p>', '<p></p>'];
         yield 'nonempty text becomes empty' => ['<p>xyz</p>', '<p></p>', '<p>@</p>', '<p>anything</p>'];
         yield 'namespaced attribute' => ['<svg xlink:href="/path?token=abc"></svg>', '<svg xlink:href="/path?token=xyz"></svg>', '<svg xlink:href="/path?token=@"></svg>', '<svg xlink:href="/path?token=new"></svg>'];
@@ -137,7 +144,7 @@ final class PatternMatchingTest extends TestCase
         yield 'different quote syntax fixed' => ['<p title="@">Hi</p>', "<p title='one'>Hi</p>", false];
         yield 'unchanged date beside dynamic value checked' => ['<p>2026-10-06 id=@</p>', '<p>2026-10-07 id=999</p>', false];
         yield 'marker across text whitespace' => ['<p>A@B</p>', "<p>Aone\ntwoB</p>", true];
-        yield 'Unicode anchor is fixed' => ['<p>Grüße: @ fertig</p>', '<p>Grusse: value fertig</p>', false];
+        yield 'Unicode anchor is fixed' => ['<p>Café: @ ready</p>', '<p>Cafe: value ready</p>', false];
     }
 
     #[DataProvider('structuralChanges')]

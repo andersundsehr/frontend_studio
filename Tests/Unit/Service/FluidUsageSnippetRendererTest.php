@@ -223,7 +223,7 @@ final class FluidUsageSnippetRendererTest extends TestCase
     {
         foreach ([false, true] as $inline) {
             foreach ([80, 81] as $length) {
-                foreach (['x', 'ä'] as $character) {
+                foreach (['x', 'é'] as $character) {
                     yield [$inline, $length, $character];
                 }
             }

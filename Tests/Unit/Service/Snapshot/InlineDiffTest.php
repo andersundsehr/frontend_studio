@@ -13,12 +13,12 @@ final class InlineDiffTest extends TestCase
 {
     public function testInlineDiffShowsColoredEditsAndEscapesConsoleMarkup(): void
     {
-        $diff = new InlineDiff()->render('<p>Grüße: old</p><error>text</error>', '<p>Grüße: new</p><error>text</error>');
+        $diff = new InlineDiff()->render('<p>Café: old</p><error>text</error>', '<p>Café: new</p><error>text</error>');
         self::assertStringContainsString('<fg=red>[-old-]</>', $diff);
         self::assertStringContainsString('<fg=green>{+new+}</>', $diff);
         $plain = new OutputFormatter()->format($diff);
         self::assertNotNull($plain);
-        self::assertStringContainsString('Grüße: [-old-]{+new+}', $plain);
+        self::assertStringContainsString('Café: [-old-]{+new+}', $plain);
         self::assertStringContainsString('<error>text', $plain);
         self::assertStringNotContainsString("\033[", $plain);
         $colored = new OutputFormatter(true)->format($diff);
