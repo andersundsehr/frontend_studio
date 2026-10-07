@@ -15,14 +15,14 @@ final class InlineDiffTest extends TestCase
     public function testInlineDiffShowsColoredEditsAndEscapesConsoleMarkup(): void
     {
         $diff = new InlineDiff()->render('<p>Café: old word</p><error>text</error>', '<p>Café: new word</p><error>text</error>');
-        self::assertStringContainsString('<fg=red>(-old -)</>', $diff);
-        self::assertStringContainsString('<fg=green>(+new +)</>', $diff);
+        self::assertStringContainsString('<fg=red>old </>', $diff);
+        self::assertStringContainsString('<fg=green>new </>', $diff);
         $plain = new OutputFormatter()->format($diff);
         self::assertNotNull($plain);
-        self::assertStringContainsString('- 1 | -  <p>Café: (-old -)word</p><error>text</error>', $plain);
-        self::assertStringContainsString('+ - | 1  <p>Café: (+new +)word</p><error>text</error>', $plain);
-        self::assertStringContainsString('Café: <fg=red>(-old -)</>word', $diff);
-        self::assertStringContainsString('Café: <fg=green>(+new +)</>word', $diff);
+        self::assertStringContainsString('- 1 | -  <p>Café: old word</p><error>text</error>', $plain);
+        self::assertStringContainsString('+ - | 1  <p>Café: new word</p><error>text</error>', $plain);
+        self::assertStringContainsString('Café: <fg=red>old </>word', $diff);
+        self::assertStringContainsString('Café: <fg=green>new </>word', $diff);
         self::assertStringContainsString('<error>text', $plain);
         self::assertStringNotContainsString("\033[", $plain);
         $colored = new OutputFormatter(true)->format($diff);
@@ -39,25 +39,28 @@ final class InlineDiffTest extends TestCase
         self::assertStringContainsString('+ - | 1  <p>onetwo</p>', $plain);
         self::assertStringNotContainsString('␠', $plain);
         $attribute = $diff->render('<div class="card">', '<div data-component-identifier="" class="card">');
-        self::assertStringContainsString('(+data-component-identifier="" +)', $attribute);
+        self::assertStringContainsString('data-component-identifier="" ', $attribute);
         self::assertStringNotContainsString('␠', $attribute);
         self::assertSame($diff->render('<p>one two</p>', '<p>one two</p>'), $diff->render("<p>one \t\n two</p>", '<p>one two</p>'));
     }
 
     public function testHighlightsCompleteWordsWithSharedPrefixesAndSuffixes(): void
     {
-        $plain = new OutputFormatter()->format(new InlineDiff()->render('<p>Token abcXdef ready</p>', '<p>Token abcYdef ready</p>'));
+        $diff = new InlineDiff()->render('<p>Token abcXdef ready</p>', '<p>Token abcYdef ready</p>');
+        $plain = new OutputFormatter()->format($diff);
+        self::assertStringContainsString('<fg=red>abcXdef </>', $diff);
+        self::assertStringContainsString('<fg=green>abcYdef </>', $diff);
         self::assertNotNull($plain);
-        self::assertStringContainsString('- 1 | -  <p>Token (-abcXdef -)ready</p>', $plain);
-        self::assertStringContainsString('+ - | 1  <p>Token (+abcYdef +)ready</p>', $plain);
-        self::assertStringNotContainsString('abc(-X-)(+Y+)def', $plain);
+        self::assertStringContainsString('- 1 | -  <p>Token abcXdef ready</p>', $plain);
+        self::assertStringContainsString('+ - | 1  <p>Token abcYdef ready</p>', $plain);
+        self::assertStringNotContainsString('<fg=red>X</>', $diff);
     }
 
     public function testInlineDynamicValuesAreExcludedFromStableDiffs(): void
     {
         $diff = new InlineDiff()->render('<p id="' . Comparison::MARKER . '">Status old value</p>', '<p id="random">Status new value</p>');
-        self::assertStringContainsString('(-old -)', $diff);
-        self::assertStringContainsString('(+new +)', $diff);
+        self::assertStringContainsString('old ', $diff);
+        self::assertStringContainsString('new ', $diff);
         self::assertStringNotContainsString('random', $diff);
     }
 
@@ -71,17 +74,18 @@ final class InlineDiffTest extends TestCase
         self::assertStringContainsString('+ - | 1  ' . $added, $plain);
         self::assertStringNotContainsString('<fg=red>\\<p', $diff);
         self::assertStringNotContainsString('<fg=green>\\<p', $diff);
-        self::assertStringNotContainsString('(-removed-)', substr($plain, strpos($plain, "\n") + 1));
+        self::assertStringNotContainsString('(-removed-)', $plain);
+        self::assertStringNotContainsString('(+added+)', $plain);
     }
 
     /** @return iterable<string, array{string, string, string, string}> */
     public static function wordChanges(): iterable
     {
-        yield 'word replacement' => ['<p>Hello old world</p>', '<p>Hello new world</p>', '<p>Hello (-old -)world</p>', '<p>Hello (+new +)world</p>'];
-        yield 'word insertion' => ['<p>Hello world</p>', '<p>Hello new world</p>', '<p>Hello world</p>', '<p>Hello (+new +)world</p>'];
-        yield 'word deletion' => ['<p>Hello old world</p>', '<p>Hello world</p>', '<p>Hello (-old -)world</p>', '<p>Hello world</p>'];
-        yield 'multiple changed words' => ['<p>Hello old world old end</p>', '<p>Hello new world new end</p>', '<p>Hello (-old -)world (-old -)end</p>', '<p>Hello (+new +)world (+new +)end</p>'];
-        yield 'literal delimiters stay unchanged' => ['<p>Hello (-keep-) old end</p>', '<p>Hello (-keep-) new end</p>', '<p>Hello (-keep-) (-old -)end</p>', '<p>Hello (-keep-) (+new +)end</p>'];
+        yield 'word replacement' => ['<p>Hello old world</p>', '<p>Hello new world</p>', '<p>Hello old world</p>', '<p>Hello new world</p>'];
+        yield 'word insertion' => ['<p>Hello world</p>', '<p>Hello new world</p>', '<p>Hello world</p>', '<p>Hello new world</p>'];
+        yield 'word deletion' => ['<p>Hello old world</p>', '<p>Hello world</p>', '<p>Hello old world</p>', '<p>Hello world</p>'];
+        yield 'multiple changed words' => ['<p>Hello old world old end</p>', '<p>Hello new world new end</p>', '<p>Hello old world old end</p>', '<p>Hello new world new end</p>'];
+        yield 'literal delimiters stay unchanged' => ['<p>Hello (-keep-) old end</p>', '<p>Hello (-keep-) new end</p>', '<p>Hello (-keep-) old end</p>', '<p>Hello (-keep-) new end</p>'];
     }
 
     public function testLongUnchangedSectionsAreCollapsed(): void
@@ -91,6 +95,34 @@ final class InlineDiffTest extends TestCase
         self::assertStringContainsString('…', $diff);
         self::assertLessThan(6, substr_count($diff, 'unchanged'));
         self::assertStringContainsString('<fg=red>-</>', $diff);
+    }
+
+    #[DataProvider('alignedLineContexts')]
+    public function testContextAndChangedLinesKeepCodeAligned(string $expected, string $actual): void
+    {
+        $plain = new OutputFormatter()->format(new InlineDiff()->render($expected, $actual));
+        self::assertNotNull($plain);
+        $offsets = [];
+        foreach (explode("\n", $plain) as $line) {
+            $offset = strpos($line, '<p>');
+            if ($offset !== false) {
+                $offsets[] = $offset;
+            }
+        }
+
+        self::assertGreaterThanOrEqual(4, count($offsets));
+        self::assertCount(1, array_unique($offsets));
+        self::assertMatchesRegularExpression('/^  [ 0-9]+ \| [ 0-9]+  <p>/m', $plain);
+        self::assertMatchesRegularExpression('/^- [ 0-9]+ \| [ -]+  <p>/m', $plain);
+        self::assertMatchesRegularExpression('/^\+ [ -]+ \| [ 0-9]+  <p>/m', $plain);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function alignedLineContexts(): iterable
+    {
+        yield 'single digit line numbers' => ["<p>same</p>\n<p>Hello old end</p>\n<p>after</p>", "<p>same</p>\n<p>Hello new end</p>\n<p>after</p>"];
+        $context = str_repeat("<p>same</p>\n", 10);
+        yield 'double digit line numbers' => [$context . "<p>Hello old end</p>\n<p>after</p>", $context . "<p>Hello new end</p>\n<p>after</p>"];
     }
 
     public function testLineNumbersReferToEachOriginalSource(): void

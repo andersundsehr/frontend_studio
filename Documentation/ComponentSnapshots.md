@@ -42,6 +42,29 @@ Snapshots contain the saved fixture values, slot content and fixture wrapper.
 They check HTML rather than browser layout or JavaScript behavior;
 use [Playwright browser tests](../Playwright/README.md) for those checks.
 
+## Use snapshots in CI
+
+Commit reviewed snapshots and run the same test command in CI:
+
+```bash
+vendor/bin/typo3 frontend-studio:test main en-us
+```
+
+Use the same intended site and language locally and in CI.
+Each component variant has one snapshot shared by site and language selections;
+there are no separate language-specific snapshot files.
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | All comparisons pass, or an update changes no files |
+| `1` | A mismatch or configuration, discovery, rendering or file error |
+| `2` | Snapshots are missing, newly created or updated |
+| `3` | Both errors/mismatches and missing/changed snapshots occurred |
+
+Giving CI `-u` does not hide snapshot changes: created or updated files still fail
+the job until reviewed and committed. Production and its subcontexts only compare;
+they do not create missing snapshots and reject updates.
+
 ## Test one component or variant
 
 Use `--scope` with an identifier from the Frontend Studio tree:
@@ -69,15 +92,16 @@ with line numbers for the saved snapshot and current output:
 
 ```text
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
-(-removed-) (+added+)  snapshot | actual
-- 1 | -  <p>Hello (-world -)
-+ - | 1  <p>Hello (+TYPO3 +)
-2 | 2  </p>
+  snapshot | actual
+- 1 | -  <p>Hello world
++ - | 1  <p>Hello TYPO3
+  2 | 2  </p>
 ```
 
 Each changed line appears twice: `-` shows the snapshot and `+` shows the current output.
 Only changed words are colored; surrounding text remains uncolored.
-Word edits use `(-removed-)` and `(+added+)`, readable without colors.
+Only the leading signs identify changes; no extra delimiters surround words.
+Without colors, compare the before and after lines to see the changed words.
 Entire added or removed lines use only a leading `+` or `-` and keep their line numbers:
 
 ```text
@@ -87,6 +111,7 @@ Entire added or removed lines use only a leading `+` or `-` and keep their line 
 
 Spaces are displayed normally, including spaces inside changed text.
 A `-` in a line-number column means that side has no content on that row.
+Unchanged lines reserve the same space as the leading signs so the code stays aligned.
 Unchanged sections are shortened so you can focus on the differences.
 
 If the change is unintended, fix your template or fixture and rerun the test.
@@ -251,29 +276,6 @@ Avoid `time()`, `date()` without a timestamp, or `new DateTime()` and
 `new DateTimeImmutable()` without an explicit date for current-time output.
 These can leave dynamic values unmarked; add manual markers if needed.
 Explicit fixture dates remain supported.
-
-## Use snapshots in CI
-
-Commit reviewed snapshots and run the same test command in CI:
-
-```bash
-vendor/bin/typo3 frontend-studio:test main en-us
-```
-
-Use the same intended site and language locally and in CI.
-Each component variant has one snapshot shared by site and language selections;
-there are no separate language-specific snapshot files.
-
-| Exit code | Meaning |
-| --- | --- |
-| `0` | All comparisons pass, or an update changes no files |
-| `1` | A mismatch or configuration, discovery, rendering or file error |
-| `2` | Snapshots are missing, newly created or updated |
-| `3` | Both errors/mismatches and missing/changed snapshots occurred |
-
-Giving CI `-u` does not hide snapshot changes: created or updated files still fail
-the job until reviewed and committed. Production and its subcontexts only compare;
-they do not create missing snapshots and reject updates.
 
 ## Limitations and troubleshooting
 

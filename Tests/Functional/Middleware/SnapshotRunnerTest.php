@@ -444,7 +444,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             file_put_contents($result['path'], "changed\n");
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
-            self::assertStringContainsString('(-removed-) (+added+)', $tester->getDisplay());
+            self::assertStringContainsString('snapshot | actual', $tester->getDisplay());
             self::assertStringContainsString('To accept these changes, rerun this command with --update outside Production.', $tester->getDisplay());
             self::assertStringContainsString('Review and commit the updated snapshot files, then rerun without --update to verify.', $tester->getDisplay());
             self::assertStringNotContainsString('html-Default.html', $tester->getDisplay());

@@ -11,13 +11,9 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final class InlineDiff extends Renderer
 {
-    private const string REMOVED_OPEN = '(-';
+    private const string REMOVED_PREFIX = '-';
 
-    private const string REMOVED_CLOSE = '-)';
-
-    private const string ADDED_OPEN = '(+';
-
-    private const string ADDED_CLOSE = '+)';
+    private const string ADDED_PREFIX = '+';
 
     /** @var list<int> */
     private array $expectedLines = [];
@@ -48,8 +44,7 @@ final class InlineDiff extends Renderer
         }
 
         $width = strlen((string)max([...$this->expectedLines, ...$this->actualLines, 1]));
-        $output = ['<fg=red>' . self::REMOVED_OPEN . 'removed' . self::REMOVED_CLOSE . '</> <fg=green>'
-            . self::ADDED_OPEN . 'added' . self::ADDED_CLOSE . '</>  <fg=gray>snapshot | actual</>'];
+        $output = ['<fg=gray>  snapshot | actual</>'];
         $previous = -1;
         foreach (array_keys($visible) as $index) {
             if ($index > $previous + 1) {
@@ -60,13 +55,13 @@ final class InlineDiff extends Renderer
             if ($row['changed']) {
                 if ($row['expected'] !== null) {
                     $text = $row['unchanged'] ? $this->mergeHighlights($row['expectedDiff']) : '<fg=red>' . $row['expectedText'] . '</>';
-                    $output[] = '<fg=red>-</> <fg=gray>' . str_pad((string)$row['expected'], $width, ' ', STR_PAD_LEFT)
+                    $output[] = '<fg=red>' . self::REMOVED_PREFIX . '</> <fg=gray>' . str_pad((string)$row['expected'], $width, ' ', STR_PAD_LEFT)
                         . ' | ' . str_pad('-', $width, ' ', STR_PAD_LEFT) . '</>  ' . $text;
                 }
 
                 if ($row['actual'] !== null) {
                     $text = $row['unchanged'] ? $this->mergeHighlights($row['actualDiff']) : '<fg=green>' . $row['actualText'] . '</>';
-                    $output[] = '<fg=green>+</> <fg=gray>' . str_pad('-', $width, ' ', STR_PAD_LEFT)
+                    $output[] = '<fg=green>' . self::ADDED_PREFIX . '</> <fg=gray>' . str_pad('-', $width, ' ', STR_PAD_LEFT)
                         . ' | ' . str_pad((string)$row['actual'], $width, ' ', STR_PAD_LEFT) . '</>  ' . $text;
                 }
 
@@ -76,7 +71,7 @@ final class InlineDiff extends Renderer
 
             $numbers = str_pad((string)($row['expected'] ?? '-'), $width, ' ', STR_PAD_LEFT) . ' | '
                 . str_pad((string)($row['actual'] ?? '-'), $width, ' ', STR_PAD_LEFT);
-            $output[] = '<fg=gray>' . $numbers . '</>  ' . $row['expectedText'];
+            $output[] = '  <fg=gray>' . $numbers . '</>  ' . $row['expectedText'];
             $previous = $index;
         }
 
@@ -104,12 +99,12 @@ final class InlineDiff extends Renderer
             $escaped = OutputFormatter::escape($character);
             if ($opcode !== 'i') {
                 $row['expectedText'] .= $escaped;
-                $row['expectedDiff'] .= $opcode === 'd' ? '<fg=red>' . self::REMOVED_OPEN . $escaped . self::REMOVED_CLOSE . '</>' : $escaped;
+                $row['expectedDiff'] .= $opcode === 'd' ? '<fg=red>' . $escaped . '</>' : $escaped;
             }
 
             if ($opcode !== 'd') {
                 $row['actualText'] .= $escaped;
-                $row['actualDiff'] .= $opcode === 'i' ? '<fg=green>' . self::ADDED_OPEN . $escaped . self::ADDED_CLOSE . '</>' : $escaped;
+                $row['actualDiff'] .= $opcode === 'i' ? '<fg=green>' . $escaped . '</>' : $escaped;
             }
 
             $row['unchanged'] = $row['unchanged'] || ($opcode === 'c' && trim($character) !== '');
@@ -123,8 +118,8 @@ final class InlineDiff extends Renderer
     private function mergeHighlights(string $text): string
     {
         return str_replace([
-            self::REMOVED_CLOSE . '</><fg=red>' . self::REMOVED_OPEN,
-            self::ADDED_CLOSE . '</><fg=green>' . self::ADDED_OPEN,
+            '</><fg=red>',
+            '</><fg=green>',
         ], '', $text);
     }
 
