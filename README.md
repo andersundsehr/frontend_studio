@@ -146,9 +146,9 @@ Use `Save as new` to create another variant.
 
 ## Component documentation
 
-Keep a Markdown file next to the component template:
+Use the **Doc** inspector tab to write and edit component documentation, then click **Save**.
+Documentation is shared by all variants and saved as Markdown next to the component template:
 `Components/Card/Card.md` documents `Card.html` or `Card.fluid.html`.
-It appears in the **Doc** inspector tab and is shared by all variants.
 
 Document what another frontend developer needs to use the component:
 
