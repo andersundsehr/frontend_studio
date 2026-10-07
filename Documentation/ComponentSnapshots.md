@@ -36,6 +36,9 @@ fallback instead. Review generated snapshots before committing them.
 
 Snapshot files live beside the component template. For `Text.fluid.html` and
 variant `Default`, the file is `Text.fluid.html-snapshots/html-Default.html`.
+Frontend Studio excludes templates inside `*-snapshots/` directories from component
+discovery, including previews, editing and snapshot tests. The files keep their `.html`
+extension so editors and Git tools can display them as HTML.
 Run the test command with `-v` to see project-relative paths:
 
 ```bash

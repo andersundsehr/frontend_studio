@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service;
 
 use TYPO3Fluid\Fluid\Core\Component\ComponentListProviderInterface;
+use TYPO3Fluid\Fluid\Core\Component\ComponentTemplateResolverInterface;
 
 final readonly class ComponentDiscoveryProvider
 {
@@ -14,7 +15,15 @@ final readonly class ComponentDiscoveryProvider
     public function getAvailableComponents(object $resolverDelegate): array
     {
         if ($resolverDelegate instanceof ComponentListProviderInterface) {
-            return $this->normalizeComponentNames($resolverDelegate->getAvailableComponents());
+            $components = $this->normalizeComponentNames($resolverDelegate->getAvailableComponents());
+            if ($resolverDelegate instanceof ComponentTemplateResolverInterface) {
+                return array_values(array_filter(
+                    $components,
+                    fn(string $component): bool => !$this->isSnapshotTemplate($resolverDelegate, $component),
+                ));
+            }
+
+            return $components;
         }
 
         return [];
@@ -23,6 +32,14 @@ final readonly class ComponentDiscoveryProvider
     public function hasComponent(object $resolverDelegate, string $componentName): bool
     {
         return in_array($componentName, $this->getAvailableComponents($resolverDelegate), true);
+    }
+
+    private function isSnapshotTemplate(ComponentTemplateResolverInterface $resolverDelegate, string $component): bool
+    {
+        $templateName = $resolverDelegate->resolveTemplateName($component);
+        $templatePath = $resolverDelegate->getTemplatePaths()->resolveTemplateFileForControllerAndActionAndFormat('Default', $templateName);
+
+        return preg_match('~(?:^|/)[^/]*-snapshots/~', str_replace('\\', '/', $templatePath ?? $templateName)) === 1;
     }
 
     /**
