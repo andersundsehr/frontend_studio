@@ -162,8 +162,11 @@ fails snapshot creation rather than becoming a wildcard.
 
 Attribute values and text nodes are considered separately.
 Patterns are checked in priority order: URL parameter values first,
-then complete dates with optional times, standalone times,
-UUIDs, ULIDs, timestamp attributes, hexadecimal tokens and numeric runs.
+then UUIDs and ULIDs, complete dates with optional times, partial dates,
+duration-shaped output, fractional Unix timestamps, standalone times,
+named date parts, timezone values, timestamp attributes, hexadecimal tokens
+and numeric runs. UUIDs and ULIDs are protected before date inference,
+so date-like digit groups inside those IDs do not split their masks.
 Overlapping smaller patterns are ignored. For example,
 a timestamp becomes one marker rather than separate markers for its digits,
 and a query parameter containing a UUID is treated as one parameter value.
@@ -205,14 +208,20 @@ review which values you intend to ignore.
 ### ISO dates and timestamps
 
 Recognizes year-first numeric dates such as `2026-10-06`,
-`2026/10/06` and `2026.10.06`. Dates may include a time separated by whitespace
-or `T`, with optional seconds, fractions and timezone suffixes:
+`2026/10/06`, `2026.10.06`, `2026:10:06` and `2026_10_06`.
+Dates may include an hour-only, colon-separated, hyphen-separated or compact time,
+joined with whitespace, `T`, a comma, `/`, `_`, `-` or `@`.
+Seconds, fractions and timezone suffixes are optional:
 
 ```text
 2026-10-06T14:10:01
 2026-10-06T14:10:01.123456Z
 2026-10-06T14:10:01+02:00
 2026-10-06 14:10:01-0500
+2026-10-06_141001_123
+2026-10-06-14-10-01
+2026-10-06 14:00:00
+2026-10-06 14
 ```
 
 A change anywhere in the recognized timestamp masks the complete timestamp:
@@ -226,21 +235,54 @@ These patterns recognize syntax; they do not validate calendar dates.
 ### European and US numeric dates
 
 Recognizes day/month/year and month/day/year shapes with dots,
-slashes or hyphens, and an optional time. Examples include:
+slashes or hyphens, two- or four-digit years, and an optional time. Examples include:
 
 ```text
 06.10.2026
 06/10/2026
 10/06/2026
 06-10-2026 14:10:01
+06/10/26
 ```
 
 Day and month order is not inferred; both forms mask the full recognized date.
 
+### Partial, compact and reordered dates
+
+Recognizes year/month and month/year output such as `2026-10`, `2026/10`
+and `10/2026`. Compact numeric dates use two- or four-digit years,
+two-digit months and two-digit days, optionally followed by a compact time:
+
+```text
+20261006
+261006
+20261006T141001Z
+20261006141001
+261006_141001
+20261006-141001
+```
+
+A trailing delimiter such as `|` or `-` stays literal.
+The unusual time-first slash format and space-separated numeric format are also covered:
+
+```text
+14/10/01/06/10/2026
+2026 10 6 14 10 1
+```
+
+Compact dates, compact times and numeric IDs can have identical digit shapes.
+Pure digit regions therefore share the numeric matching category,
+so a sample that happens to resemble a date does not force a whole-attribute fallback.
+This is syntax inference, not validation of the meaning of those digits.
+
 ### Times
 
 Recognizes hours and minutes, optional seconds, dot or comma fractions,
-AM/PM, and optional `Z` or numeric timezone offsets. Examples:
+AM/PM, and optional `Z`, numeric timezone offsets, common timezone abbreviations
+or IANA timezone identifiers. Minute/second output such as `59:58` is also recognized.
+Standalone compact `Hi` and `His` values use numeric matching;
+compact or hyphen-separated times within a complete date are part of its date mask.
+Examples:
 
 ```text
 14:10
@@ -248,6 +290,8 @@ AM/PM, and optional `Z` or numeric timezone offsets. Examples:
 14:10:01,123
 02:10:01 PM
 14:10:01+02:00
+14:10 Europe/Berlin
+59:58
 ```
 
 For changing times beside a fixed label:
@@ -269,11 +313,48 @@ October 6th, 2026
 2026-Oct-06
 2026-Oct-Tue
 2026-October-Tuesday 14:10:01.123456
+Tue, 6 Oct 2026 14:10:01 GMT
+Tue,6 Oct 2026 14:10:01
+Tue Oct 6 14:10:01 2026
+Oct 6 2026 14:10:01
+October 6
+Oct 6, 2026 @ 2:10:01 pm
+6th Oct 2026
 ```
 
 The year-first form also recognizes English abbreviated or full weekday names.
 This covers the `Y-M-D H:m:s.u` example without changing its Fluid template.
 Other languages and arbitrary arrangements use the fallback.
+
+### Named date parts and timezone values
+
+Standalone English month and weekday names, abbreviated or full,
+and ordinal days such as `6th` are recognized. For example,
+`Month: December; ready` and `Month: January; ready` produce:
+
+```html
+<p>Month: {{frontend-studio:dynamic}}; ready</p>
+```
+
+Timezone values include `+02:00`, `-0500`, `UTC`, `GMT`, common European,
+North American, Asian and Australasian abbreviations, and identifiers returned by
+PHP's `DateTimeZone::listIdentifiers()`, such as `Europe/Berlin` or
+`America/Argentina/Buenos_Aires`. The complete identifier is recognized,
+so a neighboring suffix is not included in the mask.
+The sign is part of a numeric offset's mask.
+
+The sampling clock preserves the configured timezone. Standalone `e`, `P` or `Z`
+output often stays unchanged, as can leap-year flags (`L`) and month lengths (`t`).
+Such output stays literal unless the two samples differ;
+recognizing a pattern never forces unchanged content to become dynamic.
+
+### Duration-shaped output
+
+Recognizes `PT10H00M00S`-shaped values as one region.
+The PHP format `\P\TH\Hi\Ms\S` produces that shape,
+but it formats clock fields rather than calculating an elapsed duration.
+Only the hour/minute/second shape is recognized;
+arbitrary ISO 8601 duration arithmetic is outside snapshot matching.
 
 ### Unix timestamps
 
@@ -285,7 +366,11 @@ contain `time` or `timestamp`, case-insensitively:
 <div data-time="prefix-{{frontend-studio:dynamic}}"></div>
 ```
 
-Elsewhere, changing decimal digits are handled by the numeric-run pattern.
+Fractional Unix timestamps with 9–11 digits before the decimal point and
+1–6 fractional digits are recognized as one region in any attribute or text node.
+This covers `U.u` and `U.v`, including the equivalent escaped-dot `U\.v` format.
+Integer `U`, concatenated `Uu`, and other changing decimal runs are already
+handled by numeric matching.
 The matcher does not check whether the value represents a plausible date.
 
 ### ULIDs
@@ -364,3 +449,15 @@ can be split into several words; manual editing can widen the marker when needed
 Fallback changes spanning inserted, removed or moved lines fail for review.
 Markers cannot absorb another element or comment,
 because text nodes are matched separately from HTML structure.
+
+### PHP format escaping and coverage
+
+Patterns inspect rendered strings, not Fluid format arguments.
+`Tests/Unit/Service/Snapshot/PhpDateFormatsTest.php` covers the complete submitted
+format list with duplicates removed, plus a correctly escaped UTC example.
+Tests exercise text and attribute values and retain surrounding content.
+`Y-m-d\TH:i:s\Z` renders literal `T` and `Z`, while doubled backslashes render
+backslashes and let the following format letters expand.
+Bare `UTC` expands `U` into a Unix timestamp and `T` into a timezone abbreviation;
+use `\U\T\C` for literal UTC. Those unusual cases can contain several dynamic
+regions separated by literal content, and are tested as written.

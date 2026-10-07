@@ -496,8 +496,10 @@ can produce this snapshot:
 <div id="{{frontend-studio:dynamic}}" class="stable">Hello</div>
 ```
 
-Known patterns recognize changing dates, times, UUIDs, numeric IDs, ULIDs,
-hexadecimal tokens and URL parameter values. Unrecognized changing attributes
+Known patterns recognize changing numeric, named-month, RFC and compact dates,
+partial dates, times, fractional Unix timestamps, English month/weekday names,
+ordinal days, timezone values and duration-shaped clock output,
+plus UUIDs, numeric IDs, ULIDs, hexadecimal tokens and URL parameter values. Unrecognized changing attributes
 mask the full value; unrecognized text masks complete changing words while keeping surrounding labels
 and punctuation.
 Elements, attribute names and neighboring content remain checked.

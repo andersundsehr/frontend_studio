@@ -50,6 +50,16 @@ final class PatternMatchingTest extends TestCase
         yield 'AM PM' => ['02:10:01 PM', '02:10:02 PM', '11:59:59 AM'];
         yield 'UUID' => ['550e8400-e29b-41d4-a716-446655440000', '7f468241-3e02-4a20-bb29-321b81ed0951', '12345678-1234-1234-1234-123456789012'];
         yield 'numeric ID' => ['123', '124', '999999'];
+        yield 'compact date' => ['20261207', '20270108', '20280419'];
+        yield 'compact timestamp' => ['20261207100000', '20270108110101', '20280419214857'];
+        yield 'partial year and month' => ['2026-12', '2027-01', '2028-04'];
+        yield 'ordinal day alone' => ['7th', '8th', '21st'];
+        yield 'month alone' => ['December', 'January', 'April'];
+        yield 'weekday alone' => ['Monday', 'Friday', 'Wednesday'];
+        yield 'offset sign belongs to value' => ['+01:00', '+02:00', '-05:00'];
+        yield 'IANA timezone alone' => ['Europe/Berlin', 'Asia/Tokyo', 'America/Argentina/Buenos_Aires'];
+        yield 'fractional Unix timestamp' => ['1796634000.123456', '1799402461.123457', '1840304937.654321'];
+        yield 'duration-shaped date output' => ['PT10H00M00S', 'PT11H01M01S', 'PT21H48M57S'];
     }
 
     #[DataProvider('snapshotCases')]

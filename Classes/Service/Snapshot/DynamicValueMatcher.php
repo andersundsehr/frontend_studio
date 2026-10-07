@@ -90,13 +90,7 @@ final readonly class DynamicValueMatcher
     /** @return list<array{kind: string, start: int, end: int}> */
     private function patterns(string $value, string $name): array
     {
-        $month = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)';
-        $weekday = '(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)';
-        $time = '(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:[.,]\d+)?)?(?:\s*[AP]M)?(?:\s*(?:Z|[+-]\d{2}:?\d{2}))?';
-        $date = '(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4}|\d{4}[- /]' . $month . '[- /](?:\d{1,2}|' . $weekday . ')|\d{1,2}\s+' . $month . '\s+\d{4}|' . $month . '\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})';
         $patterns = [
-            'date' => ['~(?<!\d)' . $date . '(?:[T\s]+' . $time . ')?(?!\d)~iu', 0],
-            'time' => ['~(?<!\d)' . $time . '(?!\d)~iu', 0],
             'uuid' => ['~[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}|(?<![a-f0-9])[a-f0-9]{32}(?![a-f0-9])~iu', 0],
             'ulid' => ['~(?<![0-9A-HJKMNP-TV-Z])[0-7][0-9A-HJKMNP-TV-Z]{25}(?![0-9A-HJKMNP-TV-Z])~iu', 0],
             'url' => ['~(?:[?&]|&amp;)([\w.-]+)=([^&#\s"\'<>]*)~u', 2],
@@ -104,6 +98,8 @@ final readonly class DynamicValueMatcher
             'hex' => ['~(?<![a-f0-9])[a-f0-9]{16,}(?![a-f0-9])~iu', 0],
             'number' => ['~\d+~u', 0],
         ];
+        $protected = array_intersect_key($patterns, array_flip(['uuid', 'ulid']));
+        $patterns = $protected + array_map(static fn(string $pattern): array => [$pattern, 0], DatePatterns::expressions()) + $patterns;
         // A URL parameter is one value, even if it contains a date, UUID or number.
         $patterns = ['url' => $patterns['url']] + $patterns;
 
@@ -125,7 +121,10 @@ final readonly class DynamicValueMatcher
                     continue;
                 }
 
-                $ranges[] = ['kind' => $kind === 'url' ? 'url:' . ($match[1][0] ?? '') : $kind, 'start' => $start, 'end' => $end];
+                // Compact dates, times and numeric IDs can share the same digit shape.
+                $numeric = ctype_digit($text) && in_array($kind, ['date', 'hex', 'unix', 'number'], true);
+                $rangeKind = $kind === 'url' ? 'url:' . ($match[1][0] ?? '') : ($numeric ? 'number' : $kind);
+                $ranges[] = ['kind' => $rangeKind, 'start' => $start, 'end' => $end];
             }
         }
 
