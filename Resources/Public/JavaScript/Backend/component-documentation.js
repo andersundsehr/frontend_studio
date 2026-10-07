@@ -1,6 +1,6 @@
 import Notification from '@typo3/backend/notification.js';
 import VariantFeature from '@andersundsehr/frontend-studio/backend/variant-lifecycle.js';
-import { renderMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
+import { renderMarkdown } from '@andersundsehr/frontend-studio/vendor/markdown-converter';
 import { createEditor } from '@andersundsehr/frontend-studio/backend/markdown-editor.js';
 
 export default class ComponentDocumentation extends VariantFeature {

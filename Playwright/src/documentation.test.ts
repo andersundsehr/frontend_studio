@@ -7,7 +7,7 @@ const { DOMParser } = createRequire(import.meta.url)('linkedom');
 
 Object.assign(globalThis, { window: { document: new DOMParser().parseFromString('<html></html>', 'text/html'), DOMParser } });
 
-const source = await readFile(new URL('../../Resources/Public/JavaScript/Backend/markdown-editor.bundle.js', import.meta.url), 'utf8');
+const source = await readFile(new URL('../../Resources/Public/Contrib/markdown-converter.js', import.meta.url), 'utf8');
 const editor = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
 test('Markdown rendering escapes raw HTML and rejects executable URLs', () => {
