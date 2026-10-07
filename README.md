@@ -403,6 +403,11 @@ Auto reload is intentionally disabled outside development contexts.
 
 ## Component Snapshots
 
+CLI rendering supplies TYPO3's normalized frontend request parameters for image,
+icon and system resource URLs. Relative site and language bases work with
+`config.absRefPrefix = auto`. With an absolute site URL,
+`config.forceAbsoluteUrls` also uses the configured host.
+
 Run `vendor/bin/typo3 frontend-studio:test <site-identifier> <language-hreflang>`
 against an installed project. Relative site and language bases such as `/` and
 `/en/` are supported, along with absolute HTTP(S) URLs.

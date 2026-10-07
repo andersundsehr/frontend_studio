@@ -16,6 +16,8 @@ use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\DateTimeAspect;
 use TYPO3\CMS\Core\Context\LanguageAspectFactory;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Http\NormalizedParams;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\Locales;
 use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Routing\SiteRouteResult;
@@ -79,7 +81,21 @@ final readonly class FrontendRenderer
             $this->context->setAspect('language', LanguageAspectFactory::createFromSiteLanguage($language));
             $this->context->setAspect('date', new DateTimeAspect(new DateTimeImmutable()));
             Locales::setSystemLocaleFromSiteLanguage($language);
-            $request = new ServerRequest($uri)
+            $serverParams = [
+                // NormalizedParams needs a host to calculate a nonempty site path.
+                // Relative bases still render relative resource URLs with absRefPrefix=auto.
+                'HTTP_HOST' => $uri->getAuthority() ?: 'localhost',
+                'HTTPS' => $uri->getScheme() === 'https' ? 'on' : 'off',
+                'SCRIPT_NAME' => rtrim($site->getBase()->getPath(), '/') . '/index.php',
+                'REQUEST_URI' => $uri->getPath() ?: '/',
+            ];
+            $request = new ServerRequest($uri, 'GET', null, [], $serverParams)
+                ->withAttribute('normalizedParams', new NormalizedParams(
+                    $serverParams,
+                    $GLOBALS['TYPO3_CONF_VARS']['SYS'],
+                    Environment::getPublicPath() . '/index.php',
+                    Environment::getPublicPath(),
+                ))
                 ->withAttribute('applicationType', 1)
                 ->withAttribute('site', $site)
                 ->withAttribute('language', $language)

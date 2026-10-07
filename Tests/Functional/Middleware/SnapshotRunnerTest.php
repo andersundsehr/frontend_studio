@@ -16,6 +16,8 @@ use Andersundsehr\FrontendStudio\Command\SnapshotCommand;
 use Symfony\Component\Console\Tester\CommandTester;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Site\Set\SetError;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Andersundsehr\FrontendStudio\Service\Snapshot\FrontendRenderer;
 
 final class SnapshotRunnerTest extends FunctionalTestCase
 {
@@ -27,6 +29,44 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     protected array $pathsToLinkInTestInstance = [
         'typo3conf/ext/frontend_studio/Tests/Functional/Fixtures/Sites' => 'typo3conf/sites',
     ];
+
+    #[DataProvider('resourceUrlContexts')]
+    public function testRendersImagesAndIconsWithNormalizedFrontendRequest(string $site, string $language, bool $absolute, string $prefix): void
+    {
+        $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $setup = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Configuration/Sets/PreviewTest/setup.typoscript';
+        $originalTemplate = file_get_contents($template);
+        $originalSetup = file_get_contents($setup);
+        self::assertNotFalse($originalTemplate);
+        self::assertNotFalse($originalSetup);
+        $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;
+        try {
+            file_put_contents($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" />'
+                . '<core:icon identifier="actions-chevron-down" />');
+            file_put_contents($setup, $originalSetup . "\nconfig.absRefPrefix = auto\nconfig.forceAbsoluteUrls = " . (int)$absolute . "\n");
+            $html = $this->get(FrontendRenderer::class)->render('site:wrappedCard:Default', $site, $language);
+            self::assertStringContainsString('src="' . $prefix, $html);
+            self::assertStringContainsString('alt="Developer"', $html);
+            self::assertStringContainsString('href="' . $prefix, $html);
+            self::assertStringContainsString('<svg', $html);
+            $valueField = $this->get(FrontendRenderer::class)->render('frontend.studio:variant.valueField:Fallback', $site, $language);
+            self::assertStringContainsString('href="' . $prefix, $valueField);
+            self::assertStringContainsString('<svg', $valueField);
+            self::assertSame($oldRequest, $GLOBALS['TYPO3_REQUEST'] ?? null);
+        } finally {
+            file_put_contents($template, $originalTemplate);
+            file_put_contents($setup, $originalSetup);
+        }
+    }
+
+    /** @return iterable<string, array{string, string, bool, string}> */
+    public static function resourceUrlContexts(): iterable
+    {
+        yield 'absolute site with automatic relative prefix' => ['preview', 'en', false, '/'];
+        yield 'relative site and language with automatic relative prefix' => ['relative', 'en-us', false, '/'];
+        yield 'absolute site with forced absolute URLs' => ['preview', 'en', true, 'https://preview.test/'];
+    }
 
     public function testCreatesThenComparesRealFixtureAndWrapperWithoutReplacingBaseline(): void
     {
