@@ -5,9 +5,10 @@
 Component Snapshots compare rendered fixture HTML with reviewed snapshot files.
 Templates need no changes. When creating or updating a snapshot,
 Frontend Studio renders each variant twice without waiting.
-For snapshot creation and `--update`, the second render uses TYPO3's Context
+On every run, the second render uses TYPO3's Context
 clock with its year, month, day, hour, minute, second and microsecond advanced
-independently. Normal comparisons use the same clock for both samples.
+independently. Normal comparisons check both the current and changed datetime
+against the saved snapshot. Both must match; comparisons never expand saved markers.
 It compares HTML structure separately from attribute values and text nodes,
 then replaces changing values with `{{frontend-studio:dynamic}}`.
 
@@ -124,7 +125,7 @@ which snapshot sampling cannot advance. Such values may stay identical between
 samples and require manually added dynamic markers.
 Creating objects for explicit fixture dates remains supported.
 
-For the second creation/update sample, each date part increases by one:
+For the second sample on every run, each date part increases by one:
 
 ```text
 2026-12-07 10:00:00.000000

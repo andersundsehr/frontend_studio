@@ -22,6 +22,7 @@ use DateTimeImmutable;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use Andersundsehr\FrontendStudio\Service\Snapshot\SamplingClock;
+use Andersundsehr\FrontendStudio\Service\Snapshot\HtmlFormatter;
 
 final class SnapshotRunnerTest extends FunctionalTestCase
 {
@@ -130,6 +131,48 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         yield 'date without time' => ['Y-m-d'];
         yield 'time without seconds' => ['H:i'];
         yield 'year alone' => ['Y'];
+    }
+
+    #[DataProvider('savedDateSnapshots')]
+    public function testNormalChecksCompareBothClockSamplesWithoutChangingBaseline(bool $dynamic): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $path = $template . '-snapshots/html-Default.html';
+        try {
+            $this->replaceTemplate($template, $original . '<p>Year: <f:format.date date="now" format="Y" /></p>');
+            $date = new DateTimeImmutable();
+            $renderer = $this->get(FrontendRenderer::class);
+            $formatter = new HtmlFormatter();
+            $first = $formatter->format($renderer->render('site:wrappedCard:Default', 'preview', 'en', $date));
+            $second = $formatter->format($renderer->render('site:wrappedCard:Default', 'preview', 'en', SamplingClock::advance($date)));
+            $baseline = $dynamic ? new Comparison()->create($first, $second) : $first;
+            mkdir(dirname($path));
+            file_put_contents($path, $baseline);
+            $result = $this->get(Runner::class)->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame($dynamic ? 'passed' : 'failed', $result['status'], $result['message']);
+            self::assertSame($baseline, $result['expected']);
+            self::assertSame($baseline, file_get_contents($path));
+            self::assertNull($result['exception']);
+            if (!$dynamic) {
+                self::assertStringContainsString('Year: ' . SamplingClock::advance($date)->format('Y'), $result['actual']);
+                self::assertNotSame($first, $result['actual']);
+            }
+        } finally {
+            $this->replaceTemplate($template, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function savedDateSnapshots(): iterable
+    {
+        yield 'current datetime matches but changed datetime fails' => [false];
+        yield 'reviewed marker matches both datetime samples' => [true];
     }
 
     #[DataProvider('dateClockFormats')]

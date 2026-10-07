@@ -83,7 +83,7 @@ final readonly class Runner
             $expected = $baseline ?? '';
             $date = new DateTimeImmutable();
             $actual = $this->formatter->format($this->renderer->render($identifier, $site, $language, $date));
-            $secondDate = $update || $baseline === null ? SamplingClock::advance($date) : $date;
+            $secondDate = SamplingClock::advance($date);
             $second = $this->formatter->format($this->renderer->render($identifier, $site, $language, $secondDate));
             if ($update) {
                 $expected = $this->comparison->create($actual, $second);
