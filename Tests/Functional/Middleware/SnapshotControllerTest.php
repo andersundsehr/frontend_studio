@@ -19,6 +19,8 @@ use Psr\Http\Message\ResponseInterface;
 
 final class SnapshotControllerTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [__DIR__ . '/../../..', __DIR__ . '/../Fixtures/Extensions/preview_site_set'];
 
     protected array $pathsToLinkInTestInstance = [
@@ -58,6 +60,7 @@ final class SnapshotControllerTest extends FunctionalTestCase
             $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
             self::assertSame('missing', $result['status'], $result['message']);
             $path = $result['path'];
+            self::assertStringEndsWith('.snapshot.html', $path);
             self::assertFileDoesNotExist($path);
             $property->setValue(null, $original);
             $response = $this->dispatch(['operation' => 'run']);

@@ -56,10 +56,10 @@ final class ComponentTemplateRootWatcherTest extends TestCase
         $directory = $this->templateRoot . '/Card/Card.html-snapshots';
         mkdir($directory);
         try {
-            file_put_contents($directory . '/baseline.html', '<p>Baseline</p>');
+            file_put_contents($directory . '/html-Default.snapshot.html', '<p>Baseline</p>');
             self::assertSame($before, $watcher->createSnapshot());
         } finally {
-            unlink($directory . '/baseline.html');
+            unlink($directory . '/html-Default.snapshot.html');
             rmdir($directory);
         }
     }

@@ -37,7 +37,7 @@ const server=createServer(async(req,res)=>{
  let data;if(req.headers['content-type']?.startsWith('multipart/')){data=Object.fromEntries(await new Response(body,{headers:{'Content-Type':req.headers['content-type']}}).formData());}else{try{data=JSON.parse(body);}catch{data=Object.fromEntries(new URLSearchParams(body));}}
  requests.push(data);res.setHeader('Content-Type','application/json');
  if(data.operation==='discover'){res.end(JSON.stringify({success:true,catalog:ids,identifiers:ids.filter(id=>!data.scope||id===data.scope||id.startsWith(data.scope+(data.scope==='site:nested.card'?':':'')))}));return;}
- await new Promise(r=>setTimeout(r,80));res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:data.scope.endsWith('Default')?'passed':'failed',message:'Rendered HTML differs from the saved baseline.',path:'Card.html-snapshots/html-Second.html',diff:[{expected:1,actual:1,expectedSegments:[{text:'<article>',changed:false}],actualSegments:[{text:'<article>',changed:false}],changed:false},{expected:2,actual:2,expectedSegments:[{text:'Old title',changed:true}],actualSegments:[{text:'<img src=x onerror="window.injected=true">',changed:true}],changed:true},{expected:3,actual:3,expectedSegments:[{text:'</article>',changed:false}],actualSegments:[{text:'</article>',changed:false}],changed:false}],expected:'<article>\nOld title\n</article>',actual:'<article>\n<img src=x onerror="window.injected=true">\n</article>'}}));return;
+ await new Promise(r=>setTimeout(r,80));res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:data.scope.endsWith('Default')?'passed':'failed',message:'Rendered HTML differs from the saved baseline.',path:'Card.html-snapshots/html-Second.snapshot.html',diff:[{expected:1,actual:1,expectedSegments:[{text:'<article>',changed:false}],actualSegments:[{text:'<article>',changed:false}],changed:false},{expected:2,actual:2,expectedSegments:[{text:'Old title',changed:true}],actualSegments:[{text:'<img src=x onerror="window.injected=true">',changed:true}],changed:true},{expected:3,actual:3,expectedSegments:[{text:'</article>',changed:false}],actualSegments:[{text:'</article>',changed:false}],changed:false}],expected:'<article>\nOld title\n</article>',actual:'<article>\n<img src=x onerror="window.injected=true">\n</article>'}}));return;
  }
  if(url.pathname==='/'||url.pathname==='/module'){
  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/vendor/typo3/cms-backend/Resources/Public/Css/backend.css"><script type="importmap">${JSON.stringify({imports})}</script><style>body{padding:20px;background:#f4f4f4}.demo-tree{width:min(440px,100%);height:620px;background:white;border:1px solid #aaa}h1{font-size:24px}.node-action{visibility:visible!important;opacity:1!important}</style></head><body><h1>Frontend Studio · HTML tests</h1><div data-frontend-studio-variant-header data-selected-site-identifier="preview" data-selected-language-hreflang="de">Preview / German</div><div class="demo-tree"><andersundsehr-frontend-studio-component-tree-container></andersundsehr-frontend-studio-component-tree-container></div><script>window.selections=0;window.TYPO3={settings:{ajaxUrls:{frontend_studio_component_tree_data:'/tree',frontend_studio_component_tree_filter:'/tree',frontend_studio_snapshot:'/snapshots'},ContextHelp:{},formEngine:{}},lang:{},ModuleMenu:{App:{getCurrentModule:()=> 'admin_frontendstudio'}},Backend:{NavigationContainer:{}}};</script><script type="module">await import('@andersundsehr/frontend-studio/backend/component-tree-container.js');window.ready=true;</script></body></html>`);return;
@@ -76,7 +76,7 @@ try{
  assert.equal(await page.locator('.fs-snapshot-added').count(),1);
  assert.equal(await page.locator('details[open]').count(),0);
  await page.getByText('Technical details',{exact:true}).click();
- await page.getByText('Card.html-snapshots/html-Second.html',{exact:true}).waitFor();
+ await page.getByText('Card.html-snapshots/html-Second.snapshot.html',{exact:true}).waitFor();
  await page.getByText('Technical details',{exact:true}).click();
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
  await page.getByRole('button',{name:'Copy details',exact:true}).click();
@@ -103,7 +103,7 @@ try{
  // Exercise mixed failures and result navigation without issuing more AJAX runs.
  await page.evaluate(()=>{
   const tests=document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots;
-  tests.results.set('site:nested.card:Default',{identifier:'site:nested.card:Default',status:'missing',message:'Created baseline. Review and commit it before rerunning.',path:'Card.html-snapshots/html-Default.html',expected:'<p>New</p>',actual:'<p>New</p>'});
+  tests.results.set('site:nested.card:Default',{identifier:'site:nested.card:Default',status:'missing',message:'Created baseline. Review and commit it before rerunning.',path:'Card.html-snapshots/html-Default.snapshot.html',expected:'<p>New</p>',actual:'<p>New</p>'});
   const identifier='site:nested.card:Broken';
   tests.catalog.push(identifier);
   tests.results.set(identifier,{identifier,status:'error',message:'Transformer failed: <script>bad()</script>',trace:'#0 <img src=x onerror=bad()>',expected:'',actual:''});
