@@ -7,8 +7,23 @@
 <f:argument name="variantValue" type="Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata"/>
 <f:asset.css identifier="frontend-studio-variant-view" href="EXT:frontend_studio/Resources/Public/Css/Backend/variant-view.css"/>
 
-<details class="frontend-studio-control-details" data-control-row>
-  <summary class="frontend-studio-control-row frontend-studio-transformer-summary">
+<f:if condition="{variantValue.description}">
+  <f:then>
+    <details class="frontend-studio-control-details" data-control-row>
+      <summary class="frontend-studio-control-row frontend-studio-transformer-summary">
+        <f:render section="Header" arguments="{variantValue: variantValue}"/>
+      </summary>
+      <p id="frontend-studio-value-description-{variantValue.fixtureName}" class="frontend-studio-control-description" data-control-description>{variantValue.description}</p>
+    </details>
+  </f:then>
+  <f:else>
+    <div class="frontend-studio-control-row" data-control-row>
+      <f:render section="Header" arguments="{variantValue: variantValue}"/>
+    </div>
+  </f:else>
+</f:if>
+
+<f:section name="Header">
     <div class="frontend-studio-control-label">
       <strong>{variantValue.name}</strong>
       <f:if condition="{variantValue.required} == false"><span class="text-body-secondary">?</span></f:if>
@@ -247,9 +262,5 @@
         </f:else>
       </f:if>
     </div>
-  </summary>
-  <f:if condition="{variantValue.description}">
-    <p id="frontend-studio-value-description-{variantValue.fixtureName}" class="frontend-studio-control-description" data-control-description>{variantValue.description}</p>
-  </f:if>
-</details>
+</f:section>
 </html>

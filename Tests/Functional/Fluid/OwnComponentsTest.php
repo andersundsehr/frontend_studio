@@ -93,7 +93,7 @@ final class OwnComponentsTest extends FunctionalTestCase
             $document = new DOMDocument();
             @$document->loadHTML($html);
             $xpath = new DOMXPath($document);
-            $inputs = $xpath->query('//details/summary//input');
+            $inputs = $xpath->query($description === '' ? '//div[@data-control-row]//input' : '//details/summary//input');
             $descriptions = $xpath->query('//details/p[@data-control-description]');
             self::assertNotFalse($inputs);
             self::assertNotFalse($descriptions);
@@ -101,6 +101,9 @@ final class OwnComponentsTest extends FunctionalTestCase
             self::assertSame($description === '' ? 0 : 1, $descriptions->length);
 
             if ($description === '') {
+                self::assertStringNotContainsString('<details', $html);
+                self::assertStringNotContainsString('<summary', $html);
+                self::assertStringNotContainsString('frontend-studio-transformer-summary', $html);
                 self::assertStringNotContainsString('data-control-description', $html);
                 self::assertStringContainsString('<strong>title</strong>', $html);
             } else {
