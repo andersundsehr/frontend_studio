@@ -11,6 +11,13 @@ It helps frontend developers:
 - inspect the rendered output
 - and keep useful examples close to the component templates.
 
+## Component Snapshots
+
+Catch unintended HTML changes before they reach a page: test your saved component
+variants, review readable diffs, and commit the snapshots alongside your templates.
+
+**[Start snapshot testing →](Documentation/ComponentSnapshots.md)**
+
 ## Why Components?
 
 Small, explicit components are easier to reuse, review, and test in isolation.
@@ -25,6 +32,7 @@ so frontend developers can inspect and adjust a component without rebuilding a c
 
 - Browse discovered Fluid component namespaces, folders, components, and fixture variants in a TYPO3 backend module.
 - Preview selected variants in an isolated render area.
+- [Test component HTML with Component Snapshots](Documentation/ComponentSnapshots.md).
 - Edit fixture values through generated controls based on component argument metadata.
 - Inspect rendered HTML, Fluid template source, and generated Fluid usage snippets.
 - Create, rename, delete, and save component variants where the component collection and fixture file support it.
@@ -400,118 +408,6 @@ The `variants` value must also be a map.
 
 Confirm that TYPO3 runs in `Development` context or a Development subcontext.
 Auto reload is intentionally disabled outside development contexts.
-
-## Component Snapshots
-
-CLI rendering supplies TYPO3's normalized frontend request parameters for image,
-icon and system resource URLs. Relative site and language bases work with
-`config.absRefPrefix = auto`. With an absolute site URL,
-`config.forceAbsoluteUrls` also uses the configured host.
-
-Run `vendor/bin/typo3 frontend-studio:test <site-identifier> <language-hreflang>`
-against an installed project. Relative site and language bases such as `/` and
-`/en/` are supported, along with absolute HTTP(S) URLs.
-Rendering uses the resolved language base directly, preserving its path;
-CLI snapshots do not invent a hostname for relative bases.
-Use `--scope=site:card:Default`, a component identifier, or a folder/namespace
-identifier from the tree to narrow the run. Saved fixture values and slots render
-through the preview renderer and site TypoScript, including fixture wrappers but
-excluding the preview document and collected assets.
-
-Each variant renders twice without waiting. Every run advances
-each part of TYPO3's Context date clock independently for the second render
-(year, month, day, hour, minute, second and microsecond);
-normal comparisons require both samples to match the saved snapshot.
-Custom code should use the Context date aspect (`date.full` or `date.timestamp`)
-instead of `time()` or constructing a date object from the real current time.
-`f:format.date date="now"` already uses this API.
-See [current time in custom PHP code](Documentation/ComponentSnapshots.md#current-time-in-custom-php-code)
-for examples and sampling limitations.
-Inline debug content is kept, while TYPO3's shared debugger stylesheet is omitted.
-Missing baselines are created with a
-warning outside Production; review and commit them, then rerun. Production and
-its subcontexts only compare and never create files. Exit codes are `0` for all
-passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or newly
-created or updated baselines, and `3` when both failure categories occur. Invalid fixtures and
-empty/unknown scopes fail; a newly created baseline is never counted as a pass.
-Mismatches and missing snapshots print warnings without stack traces.
-Mismatches show an inline diff with red `[-removed-]` and green `{+added+}` text,
-plus surrounding context. The delimiters remain visible without ANSI colors.
-Two line-number columns show the original snapshot and rendered-output lines;
-`-` means that side has no content on the displayed diff row.
-After all mismatches, one note explains how to update snapshots with `--update`.
-
-```text
-WARNING (MISMATCH) site:card:Default: Rendered HTML differs from the saved baseline.
-[-removed-] {+added+}  snapshot | actual
-1 | 1  <p>Hello [-world-]{+TYPO3+}
-2 | 2  </p>
-```
-
-Comparison treats each consecutive whitespace run (spaces, tabs or newlines)
-as one space; whitespace presence still matters, so `a b` differs from `ab`.
-This rule also applies inside attributes, scripts and whitespace-sensitive blocks;
-review changes to those components with this limitation in mind.
-Whitespace-only length changes do not create dynamic markers or rewrite snapshots.
-Discovery, configuration, rendering and storage errors print the exception,
-with chained exceptions, file locations and stack traces available with `-v`.
-Configuration errors identify missing sites, available enabled language hreflangs,
-invalid set names and reasons, or the configured base URL.
-
-Baselines live in a directory named after the resolved template, including its
-full extension: `Text.fluid.html-snapshots/html-Default.html` for variant `Default`.
-Variant names use the same filename normalization as slot HTML files;
-colliding variant names fail before a baseline is read or created, including
-components without slots. Each template and variant has one baseline shared by
-site and language selections; use the intended rendering context when creating
-and comparing it. Snapshot paths are project-relative and shown only with `-v` (or higher verbosity).
-States are green for passes, yellow for warnings and red for errors;
-component identifiers are cyan and variant names are magenta.
-Dynamic markers are mentioned only when the baseline contains them.
-To accept intentional changes, rerun the same command with `--update` (or `-u`):
-
-```bash
-vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text --update
-```
-
-This regenerates snapshots only in the selected scope from two fresh samples,
-including their dynamic markers. New and changed files print green `UPDATED`
-labels; unchanged files stay untouched. Updates that create or change files return
-exit code `2`, so CI fails even when `--update` is given.
-An update run with no file changes returns `0`; updates combined with errors return `3`.
-Review and commit the updated files, then rerun without `--update` to verify.
-Production and its subcontexts reject `--update`. Rendering or alignment errors
-leave the affected snapshot unchanged. Normal runs never overwrite baselines.
-Updates replace complete files atomically; concurrent normal creation never
-replaces an existing baseline.
-
-Tags start on separate lines, and start tags longer than 80 characters split
-attributes onto separate lines. Comments and raw/whitespace-sensitive blocks
-(`script`, `style`, `pre`, `textarea`) retain their contents. These are comparison
-representations, not HTML intended for serving. Dynamic values use inline
-`{{frontend-studio:dynamic}}` markers. For example, two renders with changing IDs
-can produce this snapshot:
-
-```html
-<div id="{{frontend-studio:dynamic}}" class="stable">Hello</div>
-```
-
-Known patterns recognize changing numeric, named-month, RFC and compact dates,
-partial dates, times, fractional Unix timestamps, English month/weekday names,
-ordinal days, timezone values and duration-shaped clock output,
-plus UUIDs, numeric IDs, ULIDs, hexadecimal tokens and URL parameter values. Unrecognized changing attributes
-mask the full value; unrecognized text masks complete changing words while keeping surrounding labels
-and punctuation.
-Elements, attribute names and neighboring content remain checked.
-No template changes are required. Review generated markers,
-or manually edit the snapshot to mark a dynamic value missed by the two samples.
-See [dynamic pattern matching](Documentation/ComponentSnapshots.md) for an overview,
-manual editing instructions, and detailed patterns and examples.
-Legacy `<!-- frontend-studio:dynamic-line -->` markers are rejected;
-regenerate those snapshots with `--update` or `-u`.
-
-These HTML baselines are separate from the Playwright screenshot, ARIA and
-accessibility checks, which remain useful for browser layout and behavior.
 
 ## Further Reading
 
