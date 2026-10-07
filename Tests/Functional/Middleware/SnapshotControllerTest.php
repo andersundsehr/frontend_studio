@@ -6,6 +6,7 @@ namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
 use Andersundsehr\FrontendStudio\Controller\SnapshotController;
 use ReflectionProperty;
+use Symfony\Component\Filesystem\Path;
 use TYPO3\CMS\Backend\Http\RouteDispatcher;
 use TYPO3\CMS\Backend\Routing\Exception\InvalidRequestTokenException;
 use TYPO3\CMS\Backend\Routing\Exception\MissingRequestTokenException;
@@ -59,7 +60,9 @@ final class SnapshotControllerTest extends FunctionalTestCase
             self::assertSame(200, $response->getStatusCode());
             $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
             self::assertSame('missing', $result['status'], $result['message']);
-            $path = $result['path'];
+            self::assertFalse(Path::isAbsolute($result['path']));
+            self::assertStringNotContainsString(Environment::getProjectPath(), $result['path']);
+            $path = Environment::getProjectPath() . '/' . $result['path'];
             self::assertStringEndsWith('.snapshot.html', $path);
             self::assertFileDoesNotExist($path);
             $property->setValue(null, $original);

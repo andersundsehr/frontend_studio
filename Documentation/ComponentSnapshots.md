@@ -86,9 +86,10 @@ HTML is displayed as escaped text.
 
 Use **Open component** to open the failed variant with the current preview site
 and language, or **Copy details** to copy its message, context and output.
-**Technical details** contains the snapshot path and, for rendering errors,
-the stack trace. Newly created snapshots still require review and a commit
-before another test run; Production never creates them.
+The project-relative snapshot file path and any error stack trace are always
+visible below the output controls.
+Newly created snapshots still require review and a commit before another test run.
+Production never creates them.
 The same baseline creation and Production restrictions apply as in the CLI.
 
 ![Snapshot mismatch details](html-snapshot-diff.png)

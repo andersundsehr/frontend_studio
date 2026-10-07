@@ -13,7 +13,7 @@ export function failureSummary(result) {
         ? 'Review and commit the new snapshot, then rerun the test.'
         : 'Create and review the snapshot outside Production, commit it, then rerun the test.' };
     default:
-      return { title: 'Test error', next: 'Fix the reported error, then rerun the test. Technical details may help identify the cause.' };
+      return { title: 'Test error', next: 'Fix the reported error, then rerun the test. The error details below may help identify the cause.' };
   }
 }
 
@@ -61,7 +61,7 @@ export function renderSnapshotDiff(results) {
     const fullOutput = result.expected || result.actual
       ? `<details class="mt-3"><summary>Show full output</summary><h4 class="mt-3">Snapshot</h4><pre>${escapeHtml(result.expected)}</pre><h4>Current output</h4><pre>${escapeHtml(result.actual)}</pre></details>` : '';
     const technical = result.path || result.trace
-      ? `<details class="mt-3"><summary>Technical details</summary>${result.path ? `<p class="mt-2">Snapshot file: <code class="text-break">${escapeHtml(result.path)}</code></p>` : ''}${result.trace ? `<h4>Stack trace</h4><pre>${escapeHtml(result.trace)}</pre>` : ''}</details>` : '';
+      ? `<div class="mt-3">${result.path ? `<p class="mt-2">Snapshot file: <code class="text-break">${escapeHtml(result.path)}</code></p>` : ''}${result.trace ? `<h4>Stack trace</h4><pre>${escapeHtml(result.trace)}</pre>` : ''}</div>` : '';
     return `<h3>${escapeHtml(summary.title)}</h3><p class="text-break"><strong>${escapeHtml(result.identifier)}</strong></p><p class="text-break">${escapeHtml(result.message)}</p><p>${escapeHtml(summary.next)}</p>${diff}${fullOutput}${technical}`;
   }).join('<hr>');
 }

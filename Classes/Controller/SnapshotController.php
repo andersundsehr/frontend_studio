@@ -8,6 +8,8 @@ use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
 use Andersundsehr\FrontendStudio\Service\Snapshot\InlineDiff;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Filesystem\Path;
+use TYPO3\CMS\Core\Core\Environment;
 use Psr\Http\Message\ServerRequestInterface;
 use Throwable;
 use TYPO3\CMS\Backend\Attribute\AsController;
@@ -60,6 +62,9 @@ final readonly class SnapshotController
             $result['diff'] = $result['status'] === 'failed' ? new InlineDiff()->compare($result['expected'], $result['actual']) : [];
             $result['trace'] = $result['exception']?->getTraceAsString() ?? '';
             $result['exception'] = null;
+            if ($result['path'] !== '') {
+                $result['path'] = Path::makeRelative($result['path'], Environment::getProjectPath());
+            }
 
             return new JsonResponse(['success' => true, 'result' => $result], 200, ['Cache-Control' => 'no-store']);
         } catch (Throwable $throwable) {

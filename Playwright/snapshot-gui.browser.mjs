@@ -75,9 +75,8 @@ try{
  assert.equal(await page.evaluate(()=>window.injected),undefined);
  assert.equal(await page.locator('.fs-snapshot-added').count(),1);
  assert.equal(await page.locator('details[open]').count(),0);
- await page.getByText('Technical details',{exact:true}).click();
  await page.getByText('Card.html-snapshots/html-Second.snapshot.html',{exact:true}).waitFor();
- await page.getByText('Technical details',{exact:true}).click();
+ assert.equal(await page.getByText('Technical details',{exact:true}).count(),0);
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
  await page.getByRole('button',{name:'Copy details',exact:true}).click();
  await page.getByText('Details copied.',{exact:true}).waitFor();
@@ -117,7 +116,6 @@ try{
  assert.equal(await page.locator('.fs-snapshot-diff').count(),0);
  await navigation.getByRole('button',{name:/site:nested.card:Broken/}).click();
  await page.getByRole('heading',{name:'Test error',exact:true}).waitFor();
- await page.getByText('Technical details',{exact:true}).click();
  await page.getByText('#0 <img src=x onerror=bad()>',{exact:true}).waitFor();
  assert.equal(await page.locator('.fs-snapshot-view img,.fs-snapshot-view script').count(),0);
  await navigation.getByRole('button',{name:/site:nested.card:Second/}).click();

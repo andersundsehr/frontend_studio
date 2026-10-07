@@ -153,7 +153,9 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   const failure = { identifier: a, status: 'error', message: '<script>bad</script>', trace: '<img onerror=bad>', path: '/html-Default.snapshot.html' };
   const output = renderSnapshotDiff([failure]);
   assert.ok(output.includes('Test error'));
-  assert.ok(output.includes('Technical details'));
+  assert.ok(output.includes('Snapshot file:'));
+  assert.ok(output.includes('Stack trace'));
+  assert.ok(!output.includes('<summary>Technical details</summary>'));
   assert.ok(!output.includes('<table>'));
   assert.ok(!output.includes('<script>'));
   assert.ok(!output.includes('<img'));

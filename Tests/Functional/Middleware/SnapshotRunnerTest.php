@@ -6,6 +6,9 @@ namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
 use ReflectionProperty;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
+use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
+use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
+use TYPO3\CMS\Core\Page\AssetCollector;
 use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Site\Entity\Site;
@@ -25,6 +28,9 @@ use Andersundsehr\FrontendStudio\Service\Snapshot\FrontendRenderer;
 use DateTimeImmutable;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Cache\CacheManager;
+use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
+use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
+use TYPO3\CMS\Backend\Resource\PublicUrlPrefixer as BackendPublicUrlPrefixer;
 use Andersundsehr\FrontendStudio\Service\Snapshot\SamplingClock;
 use Andersundsehr\FrontendStudio\Service\Snapshot\HtmlFormatter;
 
@@ -53,12 +59,18 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         self::assertNotFalse($originalSetup);
         $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;
         try {
-            $this->replaceTemplate($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" />'
+            $this->replaceTemplate($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" width="100" />'
                 . '<core:icon identifier="actions-chevron-down" />');
             file_put_contents($setup, $originalSetup . "\nconfig.absRefPrefix = auto\nconfig.forceAbsoluteUrls = " . (int)$absolute . "\n");
             $html = $this->get(FrontendRenderer::class)->render('site:wrappedCard:Default', $site, $language);
-            self::assertStringContainsString('src="' . $prefix, $html);
+            self::assertStringContainsString('src="' . $prefix . 'typo3temp/assets/_processed_/', $html);
             self::assertStringContainsString('alt="Developer"', $html);
+            $listeners = $this->get(ListenerProvider::class);
+            $listeners->addListener(GeneratePublicUrlForResourceEvent::class, BackendPublicUrlPrefixer::class, 'prefixWithSitePath');
+            $backendDefinition = $listeners->getAllListenerDefinitions()[GeneratePublicUrlForResourceEvent::class][BackendPublicUrlPrefixer::class];
+            $backendHtml = $this->get(FrontendRenderer::class)->render('site:wrappedCard:Default', $site, $language);
+            self::assertSame($html, $backendHtml, 'Backend snapshots must use the same resource URLs as CLI snapshots.');
+            self::assertSame($backendDefinition, $listeners->getAllListenerDefinitions()[GeneratePublicUrlForResourceEvent::class][BackendPublicUrlPrefixer::class]);
             self::assertStringContainsString('href="' . $prefix, $html);
             self::assertStringContainsString('<svg', $html);
             $valueField = $this->get(FrontendRenderer::class)->render('frontend.studio:variant.valueField:Fallback', $site, $language);
@@ -69,6 +81,32 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $this->replaceTemplate($template, $originalTemplate);
             file_put_contents($setup, $originalSetup);
         }
+    }
+
+    public function testBackendResourceUrlListenerIsRestoredAfterRenderingFailure(): void
+    {
+        $listeners = $this->get(ListenerProvider::class);
+        $listeners->addListener(GeneratePublicUrlForResourceEvent::class, BackendPublicUrlPrefixer::class, 'prefixWithSitePath');
+
+        $definitions = $listeners->getAllListenerDefinitions();
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->method('renderVariant')->willThrowException(new RuntimeException('Rendering failed.'));
+        $frontend = new FrontendRenderer(
+            $this->get(SiteFinder::class),
+            $this->get(PreviewTypoScriptContextBuilderInterface::class),
+            $renderer,
+            $this->get(AssetCollector::class),
+            $this->get(Context::class),
+            $listeners,
+        );
+        try {
+            $frontend->render('site:wrappedCard:Default', 'preview', 'en');
+            self::fail('The rendering failure must propagate.');
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame('Rendering failed.', $runtimeException->getMessage());
+        }
+
+        self::assertSame($definitions, $listeners->getAllListenerDefinitions());
     }
 
     /** @return iterable<string, array{string, string, bool, string}> */
