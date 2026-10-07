@@ -95,44 +95,47 @@
             <f:groupedFor each="{selectedComponentMetadata.fixture.selectedVariant.values}" as="groupValues" groupBy="parentName" groupKey="parentName">
               <f:if condition="{parentName}">
                 <f:then>
-                  <details class="frontend-studio-variant-argument-group panel panel-default" open>
-                    <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                      <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                        <f:if condition="{argument.name} == {parentName}">
-                          <strong>{argument.name}</strong>
-                          <f:if condition="{argument.required} == false">
-                            <span class="text-body-secondary">?</span>
+                  <div class="frontend-studio-control-row frontend-studio-transformer-row" data-control-row>
+                    <details class="frontend-studio-transformer-inputs" data-transformer-group>
+                      <summary class="frontend-studio-transformer-summary">
+                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                          <f:if condition="{argument.name} == {parentName}">
+                            <span class="frontend-studio-control-label">
+                              <strong>{argument.name}</strong>
+                              <f:if condition="{argument.required} == false"><span class="text-body-secondary">?</span></f:if>
+                              <f:if condition="{argument.shortType} != {argument.type}">
+                                <f:then>
+                                  <span class="frontend-studio-control-type" data-control-type data-control-popover>
+                                    <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="frontend-studio-argument-type-{argument.name}" aria-label="Full type for {argument.name}"><code>{argument.shortType}</code></button>
+                                    <span id="frontend-studio-argument-type-{argument.name}" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>{argument.type}</code></span>
+                                  </span>
+                                </f:then>
+                                <f:else><code>{argument.shortType}</code></f:else>
+                              </f:if>
+                            </span>
                           </f:if>
-                          <code class="frontend-studio-variant-value-type">{argument.type}</code>
-                        </f:if>
-                      </f:for>
-                      <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                        <core:icon identifier="actions-chevron-end"/>
-                      </span>
-                      <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                        <core:icon identifier="actions-chevron-down"/>
-                      </span>
-                    </summary>
-                    <div class="frontend-studio-variant-argument-group-content panel-body">
-                      <f:for each="{selectedComponentMetadata.arguments}" as="argument">
-                        <f:if condition="{argument.name} == {parentName}">
-                          <f:if condition="{argument.description}">
-                            <div class="form-text mb-0">{argument.description}</div>
+                        </f:for>
+                        <span data-transformer-summary></span>
+                      </summary>
+                      <div class="frontend-studio-variant-argument-group-content">
+                        <f:for each="{selectedComponentMetadata.arguments}" as="argument">
+                          <f:if condition="{argument.name} == {parentName} && {argument.description}">
+                            <p class="frontend-studio-control-description" data-control-description>{argument.description}</p>
                           </f:if>
-                        </f:if>
-                      </f:for>
-                      <div class="panel-group mb-0">
-                        <f:for each="{groupValues}" as="variantValue">
-                          <frontend.studio:variant.valueField variantValue="{variantValue}"/>
+                        </f:for>
+                        <div class="panel-group mb-0">
+                          <f:for each="{groupValues}" as="variantValue">
+                            <frontend.studio:variant.valueField variantValue="{variantValue}"/>
+                          </f:for>
+                        </div>
+                        <f:for each="{groupValues}" as="variantValue" iteration="iterator">
+                          <f:if condition="{iterator.isLast}">
+                            <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
+                          </f:if>
                         </f:for>
                       </div>
-                      <f:for each="{groupValues}" as="variantValue" iteration="iterator">
-                        <f:if condition="{iterator.isLast}">
-                          <div class="form-text mb-0">transformed via: <code>{variantValue.transformerSource}</code></div>
-                        </f:if>
-                      </f:for>
-                    </div>
-                  </details>
+                    </details>
+                  </div>
                 </f:then>
                 <f:else>
                   <f:for each="{groupValues}" as="variantValue">
@@ -149,18 +152,12 @@
             <h2 class="h6 mt-3 mb-2">Slots</h2>
             <div class="panel-group mb-0">
               <f:for each="{selectedComponentMetadata.fixture.selectedVariant.slots}" as="slotContent" key="slotName">
-                <details class="frontend-studio-variant-argument-group panel panel-default" open>
-                  <summary class="form-label frontend-studio-variant-argument-group-summary panel-heading">
-                    <strong>{slotName}</strong>
-                    <code class="frontend-studio-variant-value-type">HTML</code>
-                    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-closed" aria-hidden="true">
-                      <core:icon identifier="actions-chevron-end"/>
-                    </span>
-                    <span class="frontend-studio-variant-argument-group-icon frontend-studio-variant-argument-group-icon-open" aria-hidden="true">
-                      <core:icon identifier="actions-chevron-down"/>
-                    </span>
-                  </summary>
-                  <div class="frontend-studio-variant-argument-group-content panel-body">
+                <div class="frontend-studio-control-row" data-control-row>
+                  <div class="frontend-studio-control-label">
+                    <label class="frontend-studio-control-name" for="frontend-studio-variant-slot-{slotName}"><strong>{slotName}</strong></label>
+                    <code>HTML</code>
+                  </div>
+                  <div class="frontend-studio-control-input">
                     <textarea
                       id="frontend-studio-variant-slot-{slotName}"
                       name="{slotName}"
@@ -170,7 +167,7 @@
                       rows="5"
                     >{slotContent}</textarea>
                   </div>
-                </details>
+                </div>
               </f:for>
             </div>
           </f:if>

@@ -386,3 +386,176 @@
 .frontend-studio-template-line code {
   white-space: pre;
 }
+
+.frontend-studio-control-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 2fr) minmax(0, 3fr);
+  gap: .4rem .6rem;
+  align-items: start;
+  padding: .45rem 0;
+  border-bottom: 1px solid var(--typo3-component-border-color, #ddd);
+}
+
+.frontend-studio-control-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .2rem;
+  min-width: 0;
+}
+
+.frontend-studio-control-name,
+.frontend-studio-control-type-trigger {
+  background: none;
+  border: 0;
+  padding: .15rem 0;
+  text-align: start;
+  overflow-wrap: anywhere;
+  color: inherit;
+}
+
+.frontend-studio-control-name:focus-visible,
+.frontend-studio-control-type-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.frontend-studio-control-input {
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.frontend-studio-control-input .form-check {
+  margin: .2rem 0;
+}
+
+.frontend-studio-transformer-row {
+  padding: 0;
+}
+
+.frontend-studio-transformer-summary {
+  display: grid;
+  grid-template-columns: minmax(7rem, 2fr) minmax(0, 3fr);
+  gap: .4rem .6rem;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  padding: .45rem 0 .45rem 1rem;
+}
+
+.frontend-studio-transformer-summary::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: .15rem;
+  top: .85rem;
+  border-inline-start: .35rem solid currentColor;
+  border-block: .25rem solid transparent;
+}
+
+.frontend-studio-transformer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.frontend-studio-transformer-summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.frontend-studio-transformer-summary [data-transformer-summary] {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.frontend-studio-transformer-inputs {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.frontend-studio-transformer-inputs[open] > summary {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.frontend-studio-transformer-inputs[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.frontend-studio-transformer-inputs[open]:dir(rtl) > summary::before {
+  transform: rotate(-90deg);
+}
+
+.frontend-studio-transformer-inputs[open] > summary [data-transformer-summary] {
+  display: none;
+}
+
+.frontend-studio-transformer-inputs[open] > .frontend-studio-variant-argument-group-content {
+  padding: .5rem .75rem;
+  border-inline-start: 3px solid var(--typo3-component-border-color);
+  border-radius: .25rem;
+  background: var(--typo3-surface-container-low);
+}
+
+.frontend-studio-control-popover {
+  cursor: text;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: .5rem .75rem;
+  width: max-content;
+  max-width: min(32rem, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: text;
+  color: var(--typo3-text-color-base);
+  background: var(--typo3-surface-container-high);
+  border: 1px solid var(--typo3-component-border-color);
+  border-radius: .25rem;
+  box-shadow: 0 .25rem .75rem rgb(0 0 0 / 20%);
+}
+
+.frontend-studio-control-popover code {
+  user-select: text;
+}
+
+.frontend-studio-control-row:has(> .frontend-studio-control-input .ck-editor),
+.frontend-studio-control-row:has(> .frontend-studio-control-input textarea) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.frontend-studio-control-row:has(> .frontend-studio-control-input .ck-editor) > .frontend-studio-control-input,
+.frontend-studio-control-row:has(> .frontend-studio-control-input textarea) > .frontend-studio-control-input {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.frontend-studio-control-details {
+  min-width: 0;
+  border-bottom: 1px solid var(--typo3-component-border-color, #ddd);
+}
+
+.frontend-studio-control-details > summary {
+  border-bottom: 0;
+}
+
+.frontend-studio-control-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.frontend-studio-control-details[open]:dir(rtl) > summary::before {
+  transform: rotate(-90deg);
+}
+
+.frontend-studio-control-description {
+  margin: 0 0 .5rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.frontend-studio-control-details > .frontend-studio-control-description {
+  padding: .5rem 0 .5rem 1rem;
+}

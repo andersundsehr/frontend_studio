@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 
+use DOMDocument;
+use DOMXPath;
 use Psr\Http\Message\ServerRequestInterface;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
@@ -79,6 +82,39 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertSame(RichTextProvider::class . '::unsafeHtml', $registry->get('string|' . UnsafeHTML::class)->from);
     }
 
+    public function testControlDetailsKeepInputsInSummaryAndDescriptionsEscaped(): void
+    {
+        foreach (["First line\n<script>Literal text</script>", ''] as $description) {
+            $context = $this->get(RenderingContextFactory::class)->create();
+            $context->getTemplatePaths()->setTemplateSource('{namespace frontend.studio=Andersundsehr\\FrontendStudio\\Components}<frontend.studio:variant.valueField variantValue="{value}" />');
+            $view = new TemplateView($context);
+            $view->assign('value', new ComponentVariantValueMetadata('title', 'string', $description, 'Text', 'Text', false, true, false, fixtureName: 'title'));
+            $html = $view->render();
+            $document = new DOMDocument();
+            @$document->loadHTML($html);
+            $xpath = new DOMXPath($document);
+            $inputs = $xpath->query($description === '' ? '//div[@data-control-row]//input' : '//details/summary//input');
+            $descriptions = $xpath->query('//details/p[@data-control-description]');
+            self::assertNotFalse($inputs);
+            self::assertNotFalse($descriptions);
+            self::assertSame(1, $inputs->length);
+            self::assertSame($description === '' ? 0 : 1, $descriptions->length);
+
+            if ($description === '') {
+                self::assertStringNotContainsString('<details', $html);
+                self::assertStringNotContainsString('<summary', $html);
+                self::assertStringNotContainsString('frontend-studio-transformer-summary', $html);
+                self::assertStringNotContainsString('data-control-description', $html);
+                self::assertStringContainsString('<strong>title</strong>', $html);
+            } else {
+                self::assertStringContainsString('id="frontend-studio-value-description-title"', $html);
+                self::assertStringContainsString("First line\n&lt;script&gt;Literal text&lt;/script&gt;", $html);
+                self::assertStringNotContainsString('<script>', $html);
+                self::assertStringNotContainsString('popover="auto"', $html);
+            }
+        }
+    }
+
     public function testRichTextControlsKeepLegacyFixtureInputsAndEscapePlainStrings(): void
     {
         $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:richText:Default');
@@ -91,6 +127,11 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertNull($values[2]->control);
         $controls = $this->renderVariantView(['selectedComponentMetadata' => $metadata]);
         self::assertStringContainsString('rich-text-control.js', $controls);
+        self::assertStringContainsString('data-control-type', $controls);
+        self::assertStringContainsString('<code>UnsafeHTML|string</code>', $controls);
+        self::assertStringContainsString('role="tooltip" popover="auto"', $controls);
+        self::assertStringContainsString('data-transformer-summary', $controls);
+        self::assertDoesNotMatchRegularExpression('/<details[^>]*data-transformer-group[^>]* open/', $controls);
         self::assertStringContainsString('&lt;p&gt;&lt;strong&gt;Rich text&lt;/strong&gt;&lt;/p&gt;', $controls);
         $html = $this->get(ComponentPreviewRendererInterface::class)->renderVariant('site:richText:Default', new ServerRequest('https://example.test/'));
         self::assertStringContainsString('<p><strong>Rich text</strong></p>', $html);

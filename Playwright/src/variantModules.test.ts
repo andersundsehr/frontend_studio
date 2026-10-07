@@ -1632,3 +1632,31 @@ test('nullable custom controls preserve null through mounting, edits and Reset',
   assert.equal(field.dataset.fixtureValueNull, 'false');
   assert.equal(controls.readFieldValue(field), '');
 });
+
+test('transformer summaries track changes and Reset as text, with collapsed input validation', async () => {
+  const ui = controlsRoot();
+  const group = Object.assign(element(), { tagName: 'DETAILS', open: false, parentElement: ui.root });
+  const summary = element();
+  group.selectors.set('[data-transformer-summary]', summary);
+  group.selectors.set('[data-frontend-studio-variant-value]', [ui.field]);
+  ui.root.selectors.set('[data-transformer-group]', [group]);
+  Object.assign(ui.field, { parentElement: group });
+  const modules = backendModules(environment([ui.root]));
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const { getVariantState } = await modules.import('variant-state.js');
+  const view = getVariantState(ui.root);
+  const controls = new Controls(ui.root, view);
+  await controls.ready;
+  assert.equal(summary.textContent, 'Saved');
+  ui.field.value = '<script>text only</script>';
+  ui.field.dispatchEvent(new Event('input'));
+  assert.equal(summary.textContent, '<script>text only</script>');
+  assert.equal(summary.innerHTML, '');
+  controls.resetValues();
+  assert.equal(summary.textContent, 'Saved');
+  ui.field.checkValidity = () => false;
+  ui.field.reportValidity = () => { assert.equal(group.open, true); return false; };
+  assert.equal(controls.validateField(ui.field, true), false);
+  controls.destroy();
+  view.destroy();
+});

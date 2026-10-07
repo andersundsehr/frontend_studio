@@ -15,6 +15,61 @@ class VariantControls extends VariantValues {
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
     this.createTransformerButton = root.querySelector('[data-frontend-studio-create-transformer]');
     this.saveState = root.querySelector('[data-frontend-studio-variant-save-state]');
+    this.root.querySelectorAll('[data-control-popover]').forEach((label) => {
+      const button = label.querySelector('button');
+      const popover = label.querySelector('[popover]');
+      let closeTimer;
+      const hide = () => {
+        clearTimeout(closeTimer);
+        popover.hidePopover();
+      };
+      const show = () => {
+        clearTimeout(closeTimer);
+        popover.showPopover();
+        const anchor = button.getBoundingClientRect();
+        const popup = popover.getBoundingClientRect();
+        popover.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - popup.width - 8))}px`;
+        const below = anchor.bottom + 4;
+        popover.style.top = `${Math.max(8, below + popup.height <= window.innerHeight - 8 ? below : anchor.top - popup.height - 4)}px`;
+      };
+      const scheduleHide = (event) => {
+        if (label.contains(event.relatedTarget)) {
+          return;
+        }
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => {
+          if (!label.matches(':hover') && !label.contains(document.activeElement)) {
+            hide();
+          }
+        }, 150);
+      };
+      this.listen(label, 'pointerenter', show);
+      this.listen(label, 'pointerleave', scheduleHide);
+      this.listen(label, 'focusin', show);
+      this.listen(label, 'focusout', scheduleHide);
+      this.listen(button, 'click', show);
+      // Popup text inside a summary must not toggle its transformer group.
+      this.listen(popover, 'click', (event) => event.preventDefault());
+      this.listen(window, 'resize', hide);
+      this.listen(window, 'scroll', (event) => {
+        if (!popover.contains(event.target)) {
+          hide();
+        }
+      }, { capture: true });
+      this.abortController.signal.addEventListener('abort', hide, { once: true });
+    });
+    this.root.querySelectorAll('.frontend-studio-control-details > summary').forEach((summary) => {
+      this.listen(summary, 'click', (event) => {
+        // Native form controls already suppress summary activation. Custom
+        // editors and their non-interactive surfaces need the same protection.
+        const editing = summary.querySelector('.frontend-studio-control-input').contains(document.activeElement);
+        if ((event.detail === 0 && event.target === summary && editing)
+          || (event.target.closest('.frontend-studio-control-input')
+            && !event.target.closest('input, select, textarea, button, a'))) {
+          event.preventDefault();
+        }
+      });
+    });
     this.saving = false;
     this.copying = false;
     view.controls = this;
@@ -59,6 +114,15 @@ class VariantControls extends VariantValues {
   }
 
   updateDirtyState() {
+    this.root.querySelectorAll('[data-transformer-group]').forEach((group) => {
+      const summary = group.querySelector('[data-transformer-summary]');
+      const values = [...group.querySelectorAll('[data-frontend-studio-variant-value]')].map((field) => {
+        const value = this.readFieldValue(field);
+        return typeof value === 'string' ? value : JSON.stringify(value);
+      });
+      summary.textContent = values.join(', ') || '(empty)';
+      summary.title = summary.textContent;
+    });
     if (this.copyVariantButton !== null) {
       this.copyVariantButton.disabled = !this.controlsReady || this.copying;
     }

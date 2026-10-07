@@ -23,8 +23,9 @@ export default async function mount({ field, changed, signal }) {
     });
     return template.innerHTML;
   };
-  const editable = editor.ui.getEditableElement();
-  editable.setAttribute('aria-label', field.getAttribute('aria-label') || field.name);
+  editor.editing.view.change((writer) => {
+    writer.setAttribute('aria-label', field.getAttribute('aria-label') || field.name, editor.editing.view.document.getRoot());
+  });
   editor.model.document.on('change:data', () => {
     field.value = getData();
     changed();
