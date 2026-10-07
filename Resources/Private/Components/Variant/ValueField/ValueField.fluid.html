@@ -9,13 +9,21 @@
 
 <div class="frontend-studio-control-row" data-control-row>
   <div class="frontend-studio-control-label">
-  <button type="button" class="frontend-studio-control-name" data-control-description-toggle aria-expanded="false" title="{variantValue.description}"><strong>{variantValue.name}</strong></button>
+  <f:if condition="{variantValue.description}">
+    <f:then>
+      <span data-control-description data-control-popover>
+        <button type="button" class="frontend-studio-control-name" aria-describedby="frontend-studio-value-description-{variantValue.fixtureName}"><strong>{variantValue.name}</strong></button>
+        <span id="frontend-studio-value-description-{variantValue.fixtureName}" class="frontend-studio-control-popover" role="tooltip" popover="auto">{variantValue.description}</span>
+      </span>
+    </f:then>
+    <f:else><strong>{variantValue.name}</strong></f:else>
+  </f:if>
   <f:if condition="{variantValue.required} == false"><span class="text-body-secondary">?</span></f:if>
   <f:if condition="{variantValue.shortType} != {variantValue.type}">
     <f:then>
-      <span class="frontend-studio-control-type" data-control-type>
+      <span class="frontend-studio-control-type" data-control-type data-control-popover>
         <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="frontend-studio-value-type-{variantValue.fixtureName}" aria-label="Full type for {variantValue.name}"><code>{variantValue.shortType}</code></button>
-        <span id="frontend-studio-value-type-{variantValue.fixtureName}" class="frontend-studio-control-type-popover" role="tooltip" popover="auto"><code>{variantValue.type}</code></span>
+        <span id="frontend-studio-value-type-{variantValue.fixtureName}" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>{variantValue.type}</code></span>
       </span>
     </f:then>
     <f:else><code>{variantValue.shortType}</code></f:else>
@@ -246,6 +254,5 @@
       </f:else>
     </f:if>
   </div>
-  <div class="form-text frontend-studio-control-description" data-control-description hidden>{variantValue.description}</div>
 </div>
 </html>

@@ -15,15 +15,7 @@ class VariantControls extends VariantValues {
     this.resetButton = root.querySelector('[data-frontend-studio-variant-reset]');
     this.createTransformerButton = root.querySelector('[data-frontend-studio-create-transformer]');
     this.saveState = root.querySelector('[data-frontend-studio-variant-save-state]');
-    this.root.querySelectorAll('[data-control-description-toggle]').forEach((button) => {
-      const description = button.closest('[data-control-row]').querySelector('[data-control-description]');
-      button.disabled = !description?.textContent.trim();
-      this.listen(button, 'click', () => {
-        description.hidden = !description.hidden;
-        button.setAttribute('aria-expanded', String(!description.hidden));
-      });
-    });
-    this.root.querySelectorAll('[data-control-type]').forEach((label) => {
+    this.root.querySelectorAll('[data-control-popover]').forEach((label) => {
       const button = label.querySelector('button');
       const popover = label.querySelector('[popover]');
       let closeTimer;
@@ -63,14 +55,6 @@ class VariantControls extends VariantValues {
         }
       }, { capture: true });
       this.abortController.signal.addEventListener('abort', hide, { once: true });
-    });
-    this.listen(root, 'keydown', (event) => {
-      if (event.key !== 'Escape') {
-        return;
-      }
-      const row = event.target.closest('[data-control-row]');
-      row?.querySelectorAll('[data-control-description]').forEach((description) => { description.hidden = true; });
-      row?.querySelectorAll('[data-control-description-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
     });
     this.saving = false;
     this.copying = false;

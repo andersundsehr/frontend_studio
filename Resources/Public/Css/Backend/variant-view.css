@@ -414,10 +414,6 @@
   color: inherit;
 }
 
-.frontend-studio-control-name:disabled {
-  opacity: 1;
-}
-
 .frontend-studio-control-name:focus-visible,
 .frontend-studio-control-type-trigger:focus-visible {
   outline: 2px solid currentColor;
@@ -433,11 +429,6 @@
 
 .frontend-studio-control-input .form-check {
   margin: .2rem 0;
-}
-
-.frontend-studio-control-description {
-  grid-column: 1 / -1;
-  overflow-wrap: anywhere;
 }
 
 .frontend-studio-transformer-summary {
@@ -457,7 +448,7 @@
   background: var(--typo3-surface-container-low);
 }
 
-.frontend-studio-control-type-popover {
+.frontend-studio-control-popover {
   position: fixed;
   inset: auto;
   margin: 0;
@@ -467,7 +458,7 @@
   max-height: calc(100dvh - 16px);
   overflow: auto;
   overflow-wrap: anywhere;
-  white-space: normal;
+  white-space: pre-wrap;
   user-select: text;
   color: var(--typo3-text-color-base);
   background: var(--typo3-surface-container-high);
@@ -476,7 +467,7 @@
   box-shadow: 0 .25rem .75rem rgb(0 0 0 / 20%);
 }
 
-.frontend-studio-control-type-popover code {
+.frontend-studio-control-popover code {
   user-select: text;
 }
 

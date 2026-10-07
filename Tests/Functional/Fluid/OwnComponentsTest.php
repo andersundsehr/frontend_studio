@@ -7,6 +7,7 @@ namespace Andersundsehr\FrontendStudio\Tests\Functional\Fluid;
 use Psr\Http\Message\ServerRequestInterface;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
 use Andersundsehr\FrontendStudio\Dto\ComponentMetadata;
+use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewContextMiddleware;
 use Andersundsehr\FrontendStudio\Middleware\ComponentPreviewMiddleware;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
@@ -77,6 +78,26 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertSame('&lt;strong&gt;Plain text&lt;/strong&gt;', $view->render());
         self::assertSame(RichTextProvider::class . '::stringable', $registry->get('Stringable|string')->from);
         self::assertSame(RichTextProvider::class . '::unsafeHtml', $registry->get('string|' . UnsafeHTML::class)->from);
+    }
+
+    public function testDescriptionPopoversKeepTextEscapedAndOmitEmptyDescriptions(): void
+    {
+        foreach (["First line\n<script>Literal text</script>", ''] as $description) {
+            $context = $this->get(RenderingContextFactory::class)->create();
+            $context->getTemplatePaths()->setTemplateSource('{namespace frontend.studio=Andersundsehr\\FrontendStudio\\Components}<frontend.studio:variant.valueField variantValue="{value}" />');
+            $view = new TemplateView($context);
+            $view->assign('value', new ComponentVariantValueMetadata('title', 'string', $description, 'Text', 'Text', false, true, false, fixtureName: 'title'));
+            $html = $view->render();
+            if ($description === '') {
+                self::assertStringNotContainsString('data-control-description', $html);
+                self::assertStringContainsString('<strong>title</strong>', $html);
+            } else {
+                self::assertStringContainsString('aria-describedby="frontend-studio-value-description-title"', $html);
+                self::assertStringContainsString("First line\n&lt;script&gt;Literal text&lt;/script&gt;", $html);
+                self::assertStringNotContainsString('<script>', $html);
+                self::assertStringContainsString('role="tooltip" popover="auto"', $html);
+            }
+        }
     }
 
     public function testRichTextControlsKeepLegacyFixtureInputsAndEscapePlainStrings(): void

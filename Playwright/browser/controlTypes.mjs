@@ -8,6 +8,7 @@ const type = 'Vendor\\Extension\\Domain\\Model\\VeryLongArgumentType|Vendor\\Ext
 const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 try {
   const page = await browser.newPage({ viewport: { width: 700, height: 600 } });
+  const description = 'A detailed description with multiple lines.\nThis floating text can be selected and copied.';
   const errors = [];
   page.on('pageerror', error => { errors.push(error.message); console.error(error.message); });
   await page.route('https://studio.test/**', async route => {
@@ -22,9 +23,9 @@ try {
       main{width:100%;overflow:hidden}button{font:inherit}
       </style><script type="importmap">{"imports":{"@andersundsehr/frontend-studio/backend/":"/modules/","@typo3/core/ajax/ajax-request.js":"/ajax.js","@typo3/backend/notification.js":"/notification.js","@typo3/core/document-service.js":"/document.js"}}</script>
       <main><div data-controls><div class="frontend-studio-control-row" data-control-row>
-        <div class="frontend-studio-control-label">Argument <span class="frontend-studio-control-type" data-control-type>
+        <div class="frontend-studio-control-label"><span data-control-description data-control-popover><button class="frontend-studio-control-name" aria-describedby="description">Argument</button><span id="description" class="frontend-studio-control-popover" role="tooltip" popover="auto">${description}</span></span> <span class="frontend-studio-control-type" data-control-type data-control-popover>
           <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="full-type"><code>VeryLongArgumentType|AnotherType</code></button>
-          <span id="full-type" class="frontend-studio-control-type-popover" role="tooltip" popover="auto"><code>${type}</code></span>
+          <span id="full-type" class="frontend-studio-control-popover" role="tooltip" popover="auto"><code>${type}</code></span>
         </span></div>
         <details class="frontend-studio-transformer-inputs" data-transformer-group>
           <summary class="frontend-studio-transformer-summary"><span data-transformer-summary></span></summary>
@@ -35,51 +36,57 @@ try {
   });
   await page.goto('https://studio.test/');
   await page.waitForFunction(() => window.ready);
-  const button = page.locator('[data-control-type] button');
-  const popover = page.locator('[popover]');
-  const neighbor = page.locator('#neighbor');
-  const before = await neighbor.boundingBox();
-  await button.hover();
-  await popover.waitFor({ state: 'visible' });
-  assert.deepEqual(await neighbor.boundingBox(), before, 'opening must not change layout');
-  assert.equal(await popover.textContent(), type);
-  await popover.hover();
-  await page.waitForTimeout(200);
-  assert.equal(await popover.isVisible(), true, 'pointer can move from trigger into popup');
-  const firstLine = await popover.locator('code').evaluate(element => element.getClientRects()[0].toJSON());
-  await page.mouse.move(firstLine.x + 2, firstLine.y + firstLine.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(firstLine.right - 2, firstLine.y + firstLine.height / 2, { steps: 10 });
-  await page.mouse.up();
-  assert.ok(await page.evaluate(() => window.getSelection().toString().length > 0), 'text can be selected by dragging');
-  const selected = await popover.evaluate(element => {
-    const range = document.createRange();range.selectNodeContents(element);
-    const selection = window.getSelection();selection.removeAllRanges();selection.addRange(range);
-    return { text: selection.toString(), selectable: getComputedStyle(element).userSelect };
-  });
-  assert.equal(selected.text, type);
-  assert.equal(selected.selectable, 'text');
-  await page.keyboard.press('Escape');
-  await popover.waitFor({ state: 'hidden' });
-  await page.mouse.move(690, 590);
-  await button.focus();
-  await popover.waitFor({ state: 'visible' });
-  await page.keyboard.press('Escape');
-  await popover.waitFor({ state: 'hidden' });
-  assert.equal(await button.evaluate(element => element === document.activeElement), true);
-  await page.keyboard.press('Tab');
-  await button.hover();
-  await popover.waitFor({ state: 'visible' });
-  await page.mouse.move(690, 590);
-  await popover.waitFor({ state: 'hidden' });
-  await page.setViewportSize({ width: 320, height: 480 });
-  await button.click();
-  await popover.waitFor({ state: 'visible' });
-  const bounds = await popover.boundingBox();
-  assert.ok(bounds.x >= 8 && bounds.x + bounds.width <= 312);
-  assert.ok(bounds.y >= 8 && bounds.y + bounds.height <= 472);
-  await page.mouse.click(1, 1);
-  await popover.waitFor({ state: 'hidden' });
+  for (const [selector, text] of [['[data-control-type]', type], ['[data-control-description]', description]]) {
+    await page.setViewportSize({ width: 700, height: 600 });
+    const label = page.locator(selector);
+    const button = label.locator('button');
+    const popover = label.locator('[popover]');
+    const neighbor = page.locator('#neighbor');
+    const before = await neighbor.boundingBox();
+    await button.hover();
+    await popover.waitFor({ state: 'visible' });
+    assert.deepEqual(await neighbor.boundingBox(), before, 'opening must not change layout');
+    assert.equal(await popover.textContent(), text);
+    await popover.hover();
+    await page.waitForTimeout(200);
+    assert.equal(await popover.isVisible(), true, 'pointer can move from trigger into popup');
+    const firstLine = await popover.evaluate(element => { const range = document.createRange();range.selectNodeContents(element.querySelector('code') ?? element);return range.getClientRects()[0].toJSON(); });
+    await page.mouse.move(firstLine.x + 2, firstLine.y + firstLine.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(firstLine.right - 2, firstLine.y + firstLine.height / 2, { steps: 10 });
+    await page.mouse.up();
+    assert.ok(await page.evaluate(() => window.getSelection().toString().length > 0), 'text can be selected by dragging');
+    const selected = await popover.evaluate(element => {
+      const range = document.createRange();range.selectNodeContents(element);
+      const selection = window.getSelection();selection.removeAllRanges();selection.addRange(range);
+      return { text: selection.toString(), selectable: getComputedStyle(element).userSelect };
+    });
+    assert.equal(selected.text, text);
+    assert.equal(selected.selectable, 'text');
+    await page.keyboard.press('Escape');
+    await popover.waitFor({ state: 'hidden' });
+    await page.mouse.move(690, 590);
+    await button.focus();
+    await popover.waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+    await popover.waitFor({ state: 'hidden' });
+    assert.equal(await button.evaluate(element => element === document.activeElement), true);
+    await page.keyboard.press('Tab');
+    await button.hover();
+    await popover.waitFor({ state: 'visible' });
+    await page.mouse.move(690, 590);
+    await popover.waitFor({ state: 'hidden' });
+    await page.setViewportSize({ width: 320, height: 480 });
+    await button.click();
+    await popover.waitFor({ state: 'visible' });
+    const bounds = await popover.boundingBox();
+    assert.ok(bounds.x >= 8 && bounds.x + bounds.width <= 312);
+    assert.ok(bounds.y >= 8 && bounds.y + bounds.height <= 472);
+    await page.mouse.click(1, 1);
+    await popover.waitFor({ state: 'hidden' });
+  }
+  const button = page.locator('[data-control-description] button');
+  const popover = page.locator('[data-control-description] [popover]');
   await page.locator('summary').click();
   const group = await page.locator('details').evaluate(element => ({ open: element.open, border: getComputedStyle(element).borderInlineStartWidth, padding: getComputedStyle(element).paddingInlineStart, background: getComputedStyle(element).backgroundColor }));
   assert.equal(group.open, true);
