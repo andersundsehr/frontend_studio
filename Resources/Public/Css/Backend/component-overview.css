@@ -181,10 +181,10 @@
 }
 
 .frontend-studio-overview-frame {
-  padding: clamp(0.75rem, 2vw, 1.5rem);
+  padding: clamp(0.7rem, 1.5vw, 1rem);
   border: 1px solid var(--overview-border);
   border-radius: 8px;
-  background: repeating-conic-gradient(light-dark(#f0f1f3, #343a40) 0% 25%, light-dark(#fff, #292e33) 0% 50%) 0 0 / 10px 10px;
+  background: repeating-conic-gradient(light-dark(#fff, #ddd) 0% 25%, light-dark(#fff, #fff) 0% 50%) 0 0 / 10px 10px;
   overflow: hidden;
 }
 
