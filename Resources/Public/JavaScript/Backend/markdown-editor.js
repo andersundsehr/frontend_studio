@@ -50,6 +50,25 @@ export async function createEditor(root, source, onChange) {
   const sourceEditing = editor.plugins.get(MarkdownSourceEditing);
   let markdown = source;
   let switching = false;
+  let updating = false;
+  const warning = document.createElement('p');
+  warning.setAttribute('role', 'status');
+  warning.textContent = 'This document contains Markdown that the rich text editor cannot preserve. Edit it in Markdown mode.';
+  root.prepend(warning);
+  // Use CKEditor's actual schema and converters, including the Markdown serializer.
+  // Parsing a detached fragment checks compatibility without replacing editor content.
+  const canEditRichText = (value) => renderMarkdown(value) === renderMarkdown(editor.data.stringify(editor.data.parse(value)));
+  const selectMode = () => {
+    warning.hidden = canEditRichText(markdown);
+    if (!warning.hidden) sourceEditing.isSourceEditingMode = true;
+  };
+  sourceEditing.on('set:isSourceEditingMode', (event, _name, value) => {
+    if (!value && !updating && !canEditRichText(markdown)) {
+      warning.hidden = false;
+      event.return = true;
+      event.stop();
+    }
+  }, { priority: 'highest' });
   sourceEditing.on('change:isSourceEditingMode', () => { switching = true; }, { priority: 'highest' });
   sourceEditing.on('change:isSourceEditingMode', () => {
     if (sourceEditing.isSourceEditingMode) {
@@ -60,21 +79,29 @@ export async function createEditor(root, source, onChange) {
       textarea.parentElement.dataset.value = markdown;
       textarea.addEventListener('input', () => {
         markdown = textarea.value;
+        warning.hidden = canEditRichText(markdown);
         onChange(markdown);
       });
     }
     switching = false;
   }, { priority: 'lowest' });
   editor.model.document.on('change:data', () => {
-    if (switching || sourceEditing.isSourceEditingMode) return;
+    if (updating || switching || sourceEditing.isSourceEditingMode) return;
     markdown = editor.getData();
     onChange(markdown);
   });
   const setData = editor.setData.bind(editor);
   editor.setData = (value) => {
-    sourceEditing.isSourceEditingMode = false;
-    setData(value);
-    markdown = value;
+    updating = true;
+    try {
+      sourceEditing.isSourceEditingMode = false;
+      setData(value);
+      markdown = value;
+      selectMode();
+    } finally {
+      updating = false;
+    }
   };
+  selectMode();
   return editor;
 }
