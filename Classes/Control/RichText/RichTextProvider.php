@@ -14,15 +14,15 @@ use TYPO3Fluid\Fluid\Core\Parser\UnsafeHTML;
 final readonly class RichTextProvider
 {
     #[TypeTransformer(priority: 200)]
-    public function stringable(string $string): Stringable
+    public function stringable(string $string): Stringable|string
     {
-        return new RichTextValue($string);
+        return $string === '' ? '' : new RichTextValue($string);
     }
 
     #[TypeTransformer(priority: 200)]
-    public function unsafeHtml(string $string): UnsafeHTML
+    public function unsafeHtml(string $string): UnsafeHTML|string
     {
-        return new RichTextValue($string);
+        return $string === '' ? '' : new RichTextValue($string);
     }
 
     #[TypeControl('frontend-studio.rich-text', 'string|Stringable')]

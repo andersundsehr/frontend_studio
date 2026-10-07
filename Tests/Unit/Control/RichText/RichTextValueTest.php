@@ -14,6 +14,8 @@ final class RichTextValueTest extends TestCase
     public function testPreservesFormattingAndEmptyText(): void
     {
         self::assertSame('', (string)new RichTextValue(''));
+        self::assertSame('', new RichTextProvider()->stringable(''));
+        self::assertSame('', new RichTextProvider()->unsafeHtml(''));
         self::assertSame('<p><strong>Bold</strong> <em>italic</em></p>', (string)new RichTextValue('<p><strong>Bold</strong> <em>italic</em></p>'));
         self::assertInstanceOf(UnsafeHTML::class, new RichTextProvider()->stringable('<p>Text</p>'));
         self::assertInstanceOf(UnsafeHTML::class, new RichTextProvider()->unsafeHtml('<p>Text</p>'));

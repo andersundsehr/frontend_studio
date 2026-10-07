@@ -42,6 +42,10 @@ use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use TYPO3Fluid\Fluid\View\TemplateView;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
+use Andersundsehr\FrontendStudio\Transformer\Defaults\DefaultTransformer;
+use Andersundsehr\FrontendStudio\Control\RichText\RichTextProvider;
+use Stringable;
+use TYPO3Fluid\Fluid\Core\Parser\UnsafeHTML;
 use stdClass;
 use Symfony\Component\Yaml\Yaml;
 
@@ -57,6 +61,23 @@ final class OwnComponentsTest extends FunctionalTestCase
     protected array $pathsToLinkInTestInstance = [
         'typo3conf/ext/frontend_studio/Tests/Functional/Fixtures/Sites' => 'typo3conf/sites',
     ];
+
+    public function testPlainStringableRetainsDefaultTransformerAndEscapedRendering(): void
+    {
+        $registry = $this->get(TypeTransformers::class);
+        $transformer = $registry->get('Stringable');
+        self::assertSame(DefaultTransformer::class . '::stringable', $transformer->from);
+        $value = $transformer->execute(['string' => '<strong>Plain text</strong>']);
+        self::assertInstanceOf(Stringable::class, $value);
+        self::assertNotInstanceOf(UnsafeHTML::class, $value);
+        $context = $this->get(RenderingContextFactory::class)->create();
+        $context->getTemplatePaths()->setTemplateSource('{value}');
+        $view = new TemplateView($context);
+        $view->assign('value', $value);
+        self::assertSame('&lt;strong&gt;Plain text&lt;/strong&gt;', $view->render());
+        self::assertSame(RichTextProvider::class . '::stringable', $registry->get('Stringable|string')->from);
+        self::assertSame(RichTextProvider::class . '::unsafeHtml', $registry->get('string|' . UnsafeHTML::class)->from);
+    }
 
     public function testRichTextControlsKeepLegacyFixtureInputsAndEscapePlainStrings(): void
     {

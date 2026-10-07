@@ -35,3 +35,6 @@ unsafe tags are encoded and unsafe attributes/URI schemes are removed.
 The fixture retains editor HTML; sanitization is performed on every transformation,
 including manually edited fixtures. Plain string arguments retain Fluid escaping.
 This intentionally does not run TYPO3 database RTE transformations or expose record link browsers.
+
+Rich-text transformers target these union types. Plain `Stringable` arguments
+keep the default transformer and escaped output.
