@@ -30,6 +30,22 @@ Do not split at arbitrary words. Keep PHP classes PSR-4 namespaced. Align file n
 Name PHPUnit tests `*Test.php`. Place them under the matching `Tests/Unit/` or `Tests/Functional/` area.
 Prefer the smallest direct solution. Avoid speculative abstractions.
 
+## Documentation Guidelines
+
+Documentation should primarily target frontend developers using Frontend Studio.
+Start each section with an introduction focused on their workflow and practical use.
+Place deeper technical and implementation details after that introduction.
+
+Keep the README footer sections last and in this order:
+
+- `Further Reading`
+- `Development Notes`
+- `Contributor Checks`
+- `License and Author`
+- `with ♥️ from anders und sehr GmbH`
+
+Place all other README sections before this footer.
+
 ## Testing Guidelines
 
 Add unit tests for isolated behavior. Add functional tests for TYPO3 integration.
