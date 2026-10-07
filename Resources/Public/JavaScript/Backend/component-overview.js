@@ -11,7 +11,32 @@ export default class ComponentOverview extends VariantFeature {
     this.frameCleanup = new Map();
     this.expand = root.querySelector('[data-overview-expand]');
     const source = root.querySelector('[data-overview-markdown]');
-    if (source) root.querySelector('[data-overview-description]').innerHTML = renderMarkdown(source.textContent);
+    this.description = root.querySelector('[data-overview-description]');
+    this.descriptionContent = root.querySelector('[data-overview-description-content]');
+    this.descriptionToggle = root.querySelector('[data-overview-description-toggle]');
+    this.descriptionExpanded = false;
+    if (source) this.descriptionContent.innerHTML = renderMarkdown(source.textContent);
+    if (this.descriptionContent && this.descriptionToggle) {
+      this.descriptionResize = new ResizeObserver(() => this.updateDescription());
+      this.descriptionResize.observe(this.descriptionContent);
+      this.updateDescription();
+      this.listen(this.descriptionToggle, 'click', () => {
+        this.descriptionExpanded = !this.descriptionExpanded;
+        this.updateDescription();
+      });
+      // Keyboard navigation must never focus a link hidden beneath the fade.
+      this.listen(this.description, 'focusin', () => {
+        if (this.description.classList.contains('is-collapsed')) {
+          this.descriptionExpanded = true;
+          this.updateDescription();
+        }
+      });
+      this.listen(view, 'suspend', () => this.descriptionResize.disconnect());
+      this.listen(view, 'resume', () => {
+        this.descriptionResize.observe(this.descriptionContent);
+        this.updateDescription();
+      });
+    }
     if (root.querySelector('[data-frontend-studio-variant-frame]')) {
       view.mount('preview', () => new VariantPreview(root, view));
     }
@@ -32,6 +57,17 @@ export default class ComponentOverview extends VariantFeature {
       this.expand.textContent = expanded ? 'Collapse preview' : 'Expand preview';
       this.frames[0]?.closest('[data-overview-frame-container]').classList.toggle('is-expanded', expanded);
     });
+  }
+
+  updateDescription() {
+    if (this.destroyed) return;
+    const limit = parseFloat(getComputedStyle(this.description).getPropertyValue('--overview-description-height'));
+    const long = this.descriptionContent.getBoundingClientRect().height > limit;
+    if (!long) this.descriptionExpanded = false;
+    this.description.classList.toggle('is-collapsed', long && !this.descriptionExpanded);
+    this.descriptionToggle.hidden = !long;
+    this.descriptionToggle.setAttribute('aria-expanded', String(this.descriptionExpanded));
+    this.descriptionToggle.textContent = this.descriptionExpanded ? 'Collapse documentation' : 'Expand documentation';
   }
 
   updateContext() {
@@ -111,6 +147,7 @@ export default class ComponentOverview extends VariantFeature {
   }
 
   destroy() {
+    this.descriptionResize?.disconnect();
     this.clearFrames();
     super.destroy();
   }

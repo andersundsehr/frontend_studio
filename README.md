@@ -163,6 +163,8 @@ Selecting a component in the tree opens its Docs overview; selecting an individu
 The overview shows the shared component Markdown, then the first variant in fixture declaration order with its existing Controls beneath it.
 Other variants appear as separate previews with links to their inspectors.
 Live controls affect only the first preview; the remaining examples keep their stored fixture values.
+Long documentation starts collapsed with a fade and an Expand documentation button.
+Short documentation remains fully visible; expanded documentation can be collapsed again.
 The overview preserves the current site and language context without showing selectors.
 Controls provide temporary live edits; fixture save and reset actions remain in the variant inspector.
 

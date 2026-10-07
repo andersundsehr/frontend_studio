@@ -18,7 +18,13 @@
       </header>
       <f:if condition="{documentationError}"><p role="alert">{documentationError}</p></f:if>
       <f:if condition="{documentationMarkdown}">
-        <f:then><div data-overview-description><pre data-overview-markdown>{documentationMarkdown}</pre></div></f:then>
+        <f:then>
+          <div data-overview-description id="overview-description">
+            <div data-overview-description-content><pre data-overview-markdown>{documentationMarkdown}</pre></div>
+          </div>
+          <button type="button" class="btn btn-default btn-sm frontend-studio-overview-description-toggle"
+            data-overview-description-toggle aria-expanded="false" aria-controls="overview-description" hidden>Expand documentation</button>
+        </f:then>
         <f:else><p class="text-body-secondary">No documentation yet. Use the Doc tab of a variant to add component documentation.</p></f:else>
       </f:if>
       <f:if condition="{overviewComponent.errors}">

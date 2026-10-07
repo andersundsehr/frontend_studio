@@ -1,4 +1,5 @@
 .frontend-studio-overview {
+  --overview-description-height: 320px;
   --overview-border: var(--typo3-component-border-color, #d8dee4);
   --overview-muted-surface: var(--typo3-surface-container-low, #f6f8fa);
   max-width: 1200px;
@@ -156,7 +157,7 @@
   border-top: 1px solid var(--overview-border);
 }
 
-.frontend-studio-overview [data-overview-description] > :first-child {
+.frontend-studio-overview [data-overview-description-content] > :first-child {
   margin-top: 0;
 }
 
@@ -229,4 +230,18 @@
 
 .frontend-studio-overview [hidden] {
   display: none !important;
+}
+
+.frontend-studio-overview [data-overview-description-content] {
+  display: flow-root;
+}
+
+.frontend-studio-overview [data-overview-description].is-collapsed {
+  max-height: var(--overview-description-height);
+  overflow: hidden;
+  mask-image: linear-gradient(#000 calc(100% - 4rem), transparent);
+}
+
+.frontend-studio-overview-description-toggle {
+  margin-top: 0.75rem;
 }
