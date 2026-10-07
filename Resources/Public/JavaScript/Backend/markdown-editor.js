@@ -8,7 +8,7 @@ import { Bold, Italic } from '@ckeditor/ckeditor5-basic-styles';
 import { List } from '@ckeditor/ckeditor5-list';
 import { Link } from '@ckeditor/ckeditor5-link';
 import { CodeBlock } from '@ckeditor/ckeditor5-code-block';
-import { renderMarkdown, toMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
+import { renderMarkdown, toMarkdown } from '@andersundsehr/frontend-studio/vendor/markdown-converter';
 
 // Keep CKEditor's source view in Markdown while its model continues to use HTML.
 class MarkdownData extends Plugin {

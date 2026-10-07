@@ -466,8 +466,9 @@ Documentation-only changes keep the view and fixture controls in place.
 A save uses an optimistic content revision; external edits or another editor's save produce a conflict instead of overwriting stale content.
 Copy your pending text before reloading a conflicting document.
 
-To rebuild the checked-in Markdown conversion/preview bundle, run `npm ci --prefix Build/MarkdownEditor`
-and `npm run build --prefix Build/MarkdownEditor`.
-Dependency versions and third-party licenses are kept in that directory.
+Markdown conversion is shipped as a checked-in browser module in
+`Resources/Public/Contrib/markdown-converter.js`.
+It contains the pinned `markdown-it` 14.3.2 and `turndown` 7.2.2 dependencies.
+Third-party license notices are stored alongside it.
 The editor modules and styling come from the required `typo3/cms-rte-ckeditor` Composer package.
 No separate CKEditor bundle or CDN is used.

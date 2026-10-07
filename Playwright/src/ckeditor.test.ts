@@ -44,7 +44,7 @@ async function setup(normalizedHtml?: string) {
     ui: { getEditableElement: () => editable },
     model: { document: { on: (event: string, callback: () => void) => { assert.equal(event, 'change:data'); changed = callback; } } },
   };
-  const converters = new SourceTextModule(await readFile(new URL('../../Resources/Public/JavaScript/Backend/markdown-editor.bundle.js', import.meta.url), 'utf8'), { context });
+  const converters = new SourceTextModule(await readFile(new URL('../../Resources/Public/Contrib/markdown-converter.js', import.meta.url), 'utf8'), { context });
   await converters.link(() => { throw new Error('The Markdown bundle must be self-contained'); });
   const editor = new SourceTextModule(await readFile(new URL('../../Resources/Public/JavaScript/Backend/markdown-editor.js', import.meta.url), 'utf8'), { context });
   const names: Record<string, string[]> = {
@@ -52,7 +52,7 @@ async function setup(normalizedHtml?: string) {
     core: ['Plugin'], 'source-editing': ['SourceEditing'], 'basic-styles': ['Bold', 'Italic'], list: ['List'], link: ['Link'], 'code-block': ['CodeBlock'],
   };
   await editor.link(async (specifier) => {
-    if (specifier.endsWith('markdown-editor.bundle.js')) return converters;
+    if (specifier === '@andersundsehr/frontend-studio/vendor/markdown-converter') return converters;
     const exports = names[specifier.replace('@ckeditor/ckeditor5-', '')];
     assert.ok(exports, `Unexpected CKEditor dependency ${specifier}`);
     const dependency = new SyntheticModule(exports, function () {
