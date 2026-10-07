@@ -70,7 +70,7 @@ final class SnapshotCommand extends Command
                 'missing' => ['WARNING (MISSING)', 'yellow'],
                 'failed' => ['WARNING (MISMATCH)', 'yellow'],
                 'passed' => ['PASSED', 'green'],
-                'updated' => ['UPDATED', 'green'],
+                'updated' => ['UPDATED', 'yellow'],
                 default => ['ERROR', 'red'],
             };
             $parts = explode(':', $identifier, 3);

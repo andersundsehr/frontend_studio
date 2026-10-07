@@ -140,7 +140,7 @@ Add `-v` to also see paths for other results and exception stack traces:
 vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text -v
 ```
 
-Passes are green, warnings yellow and errors red.
+Passes are green, warnings and updated snapshots yellow, and errors red.
 Component identifiers and variant names have separate colors.
 Mismatches and missing snapshots are warnings; rendering failures are errors.
 
