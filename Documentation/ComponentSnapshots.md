@@ -4,7 +4,9 @@
 
 Component Snapshots compare rendered fixture HTML with reviewed snapshot files.
 Templates need no changes. When creating or updating a snapshot,
-Frontend Studio renders each variant twice, one second apart.
+Frontend Studio renders each variant twice without waiting.
+For snapshot creation and `--update`, the second render uses TYPO3's Context
+clock advanced by one second. Normal comparisons use the same clock for both samples.
 It compares HTML structure separately from attribute values and text nodes,
 then replaces changing values with `{{frontend-studio:dynamic}}`.
 
@@ -82,6 +84,55 @@ An unchanged update run returns `0`; file changes combined with errors return `3
 Review the resulting Git diff before committing. Production and its subcontexts
 reject updates. Legacy whole-line markers are rejected;
 use `--update` to regenerate them.
+
+## Current time in custom PHP code
+
+Use TYPO3's Context date API when custom ViewHelpers, transformers or services
+need the current time. Inject `TYPO3\CMS\Core\Context\Context` into your service:
+
+```php
+use DateTimeImmutable;
+use TYPO3\CMS\Core\Context\Context;
+
+final readonly class CurrentDateLabel
+{
+    public function __construct(private Context $context)
+    {
+    }
+
+    public function render(): string
+    {
+        /** @var DateTimeImmutable $now */
+        $now = $this->context->getPropertyFromAspect('date', 'full');
+        return $now->format('Y-m-d H:i:s');
+    }
+}
+```
+
+For a Unix timestamp, use
+`$this->context->getPropertyFromAspect('date', 'timestamp')`.
+These are TYPO3's official date aspect APIs; see the
+[Context API documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/ApiOverview/Context/Index.html).
+`<f:format.date date="now" />` already uses this clock,
+so Fluid templates need no changes.
+
+Do not use `time()`, `date()` without a supplied timestamp,
+`new DateTime()` or `new DateTimeImmutable()` without an explicit date to obtain
+the current time in component code. They read PHP's real clock,
+which snapshot sampling cannot advance. Such values may stay identical between
+samples and require manually added dynamic markers.
+Creating objects for explicit fixture dates remains supported.
+
+The sampling clock advances by one second, so formats without seconds,
+such as `Y-m-d` or `H:i`, usually stay unchanged and need manual markers if dynamic.
+The previous Context date aspect is restored after every render,
+including when rendering throws an exception.
+
+Inline `<f:debug>` content is included in snapshots,
+but TYPO3's shared debugger stylesheet is omitted like other support assets.
+That stylesheet is normally emitted only once per PHP process;
+omitting it keeps both samples consistent without changing templates.
+The debugger's stylesheet state is restored after rendering.
 
 ## How automatic matching works
 

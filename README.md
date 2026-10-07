@@ -418,7 +418,16 @@ identifier from the tree to narrow the run. Saved fixture values and slots rende
 through the preview renderer and site TypoScript, including fixture wrappers but
 excluding the preview document and collected assets.
 
-Each variant renders twice, one second apart. Missing baselines are created with a
+Each variant renders twice without waiting. Creating or updating snapshots advances
+TYPO3's Context clock by one second for the second render;
+normal comparisons use the same clock for both samples.
+Custom code should use the Context date aspect (`date.full` or `date.timestamp`)
+instead of `time()` or constructing a date object from the real current time.
+`f:format.date date="now"` already uses this API.
+See [current time in custom PHP code](Documentation/ComponentSnapshots.md#current-time-in-custom-php-code)
+for examples and sampling limitations.
+Inline debug content is kept, while TYPO3's shared debugger stylesheet is omitted.
+Missing baselines are created with a
 warning outside Production; review and commit them, then rerun. Production and
 its subcontexts only compare and never create files. Exit codes are `0` for all
 passes, `1` for mismatch/render/discovery/storage errors, `2` for missing or newly

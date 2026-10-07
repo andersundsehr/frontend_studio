@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
+use DateTimeImmutable;
 use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentTreeDataProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentWritePolicy;
@@ -80,9 +81,10 @@ final readonly class Runner
 
             $baseline = $this->storage->read($path);
             $expected = $baseline ?? '';
-            $actual = $this->formatter->format($this->renderer->render($identifier, $site, $language));
-            sleep(1);
-            $second = $this->formatter->format($this->renderer->render($identifier, $site, $language));
+            $date = new DateTimeImmutable();
+            $actual = $this->formatter->format($this->renderer->render($identifier, $site, $language, $date));
+            $secondDate = $update || $baseline === null ? $date->modify('+1 second') : $date;
+            $second = $this->formatter->format($this->renderer->render($identifier, $site, $language, $secondDate));
             if ($update) {
                 $expected = $this->comparison->create($actual, $second);
                 if ($baseline !== $expected) {

@@ -36,7 +36,7 @@ final readonly class FrontendRenderer
     ) {
     }
 
-    public function render(string $identifier, string $siteIdentifier, string $hreflang): string
+    public function render(string $identifier, string $siteIdentifier, string $hreflang, ?DateTimeImmutable $date = null): string
     {
         try {
             $site = $this->siteFinder->getSiteByIdentifier($siteIdentifier);
@@ -79,7 +79,7 @@ final readonly class FrontendRenderer
             $this->listenerProvider->addListener(GeneratePublicUrlForResourceEvent::class, PublicUrlPrefixer::class, 'prefixWithAbsRefPrefix');
             $this->assets->updateState(new AssetCollector()->getState());
             $this->context->setAspect('language', LanguageAspectFactory::createFromSiteLanguage($language));
-            $this->context->setAspect('date', new DateTimeAspect(new DateTimeImmutable()));
+            $this->context->setAspect('date', new DateTimeAspect($date ?? new DateTimeImmutable()));
             Locales::setSystemLocaleFromSiteLanguage($language);
             $serverParams = [
                 // NormalizedParams needs a host to calculate a nonempty site path.
@@ -103,7 +103,7 @@ final readonly class FrontendRenderer
             $GLOBALS['TYPO3_REQUEST'] = $request;
             $request = $this->contextBuilder->build($request);
             $GLOBALS['TYPO3_REQUEST'] = $request;
-            return $this->renderer->renderVariant($identifier, $request);
+            return DebuggerState::withoutStylesheet(fn(): string => $this->renderer->renderVariant($identifier, $request));
         } finally {
             if ($oldRequest === null) {
                 unset($GLOBALS['TYPO3_REQUEST']);

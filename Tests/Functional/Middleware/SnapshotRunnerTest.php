@@ -18,6 +18,9 @@ use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Site\Set\SetError;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Andersundsehr\FrontendStudio\Service\Snapshot\FrontendRenderer;
+use DateTimeImmutable;
+use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Cache\CacheManager;
 
 final class SnapshotRunnerTest extends FunctionalTestCase
 {
@@ -42,7 +45,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         self::assertNotFalse($originalSetup);
         $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;
         try {
-            file_put_contents($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" />'
+            $this->replaceTemplate($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" />'
                 . '<core:icon identifier="actions-chevron-down" />');
             file_put_contents($setup, $originalSetup . "\nconfig.absRefPrefix = auto\nconfig.forceAbsoluteUrls = " . (int)$absolute . "\n");
             $html = $this->get(FrontendRenderer::class)->render('site:wrappedCard:Default', $site, $language);
@@ -55,7 +58,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertStringContainsString('<svg', $valueField);
             self::assertSame($oldRequest, $GLOBALS['TYPO3_REQUEST'] ?? null);
         } finally {
-            file_put_contents($template, $originalTemplate);
+            $this->replaceTemplate($template, $originalTemplate);
             file_put_contents($setup, $originalSetup);
         }
     }
@@ -100,7 +103,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default.html';
         try {
-            file_put_contents($template, $original . '<p>A<f:format.date date="now" format="Y-M-D H:m:s.u" />B</p>');
+            $this->replaceTemplate($template, $original . '<p>A<f:format.date date="now" format="Y-M-D H:m:s.u" />B</p>');
             $runner = $this->get(Runner::class);
             $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
             self::assertSame('missing', $result['status'], $result['message']);
@@ -110,7 +113,78 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             file_put_contents($path, str_replace('B', 'C', $result['expected']));
             self::assertSame('failed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
         } finally {
-            file_put_contents($template, $original);
+            $this->replaceTemplate($template, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    #[DataProvider('dateClockFormats')]
+    public function testDateViewHelperUsesExplicitClockAndRestoresContext(string $format, string $firstDate, string $secondDate): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $context = $this->get(Context::class);
+        $oldDate = $context->getAspect('date');
+        try {
+            $this->replaceTemplate($template, $original . '<p>A<f:format.date date="now" format="' . $format . '" />B</p>');
+            $renderer = $this->get(FrontendRenderer::class);
+            $date = new DateTimeImmutable('2026-10-07T14:10:01');
+            self::assertStringContainsString('<p>A' . $firstDate . 'B</p>', $renderer->render('site:wrappedCard:Default', 'preview', 'en', $date));
+            self::assertSame($oldDate, $context->getAspect('date'));
+            self::assertStringContainsString('<p>A' . $secondDate . 'B</p>', $renderer->render('site:wrappedCard:Default', 'preview', 'en', $date->modify('+1 second')));
+            self::assertSame($oldDate, $context->getAspect('date'));
+        } finally {
+            $this->replaceTemplate($template, $original);
+        }
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function dateClockFormats(): iterable
+    {
+        yield 'named date and time' => ['Y-M-D H:m:s.u', '2026-Oct-Wed 14:10:01.000000', '2026-Oct-Wed 14:10:02.000000'];
+        yield 'ISO date and time' => ['Y-m-d\\TH:i:s', '2026-10-07T14:10:01', '2026-10-07T14:10:02'];
+        yield 'seconds' => ['H:i:s', '14:10:01', '14:10:02'];
+        yield 'date without seconds stays literal' => ['Y-m-d', '2026-10-07', '2026-10-07'];
+    }
+
+    public function testDateContextIsRestoredAfterRenderingException(): void
+    {
+        $context = $this->get(Context::class);
+        $oldDate = $context->getAspect('date');
+        try {
+            $this->get(FrontendRenderer::class)->render('site:wrappedCard:missing', 'preview', 'en', new DateTimeImmutable('2030-01-01'));
+            self::fail('A missing variant must fail to render.');
+        } catch (RuntimeException) {
+            self::assertSame($oldDate, $context->getAspect('date'));
+        }
+    }
+
+    public function testInlineDebugOutputDoesNotChangeStructureBetweenSamples(): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $path = $template . '-snapshots/html-Default.html';
+        try {
+            $this->replaceTemplate($template, '<f:argument name="uri" type="TYPO3\\CMS\\Core\\Http\\Uri" />'
+                . '<f:argument name="link" type="TYPO3\\CMS\\Core\\LinkHandling\\TypolinkParameter" />'
+                . '<f:argument name="image" type="TYPO3\\CMS\\Core\\Resource\\File" />'
+                . $original . '<f:image image="{image}" /><f:debug inline="{true}">{uri}</f:debug>{uri}'
+                . '<f:debug inline="{true}">{link}</f:debug><f:link.typolink parameter="{link}" />');
+            $runner = $this->get(Runner::class);
+            $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertStringContainsString('extbase-debugger-inline', $result['expected']);
+            self::assertStringNotContainsString('<style', $result['expected']);
+            self::assertStringContainsString('<img', $result['expected']);
+            self::assertStringContainsString('<a', $result['expected']);
+            self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
+        } finally {
+            $this->replaceTemplate($template, $original);
             if (is_file($path)) {
                 unlink($path);
                 rmdir(dirname($path));
@@ -424,5 +498,17 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         } finally {
             file_put_contents($fixture, $original);
         }
+    }
+
+    private function replaceTemplate(string $path, string $content): void
+    {
+        clearstatcache(true, $path);
+        $modified = filemtime($path);
+        self::assertNotFalse($modified);
+        file_put_contents($path, $content);
+        // Fluid identifies compiled templates by path and second-precision mtime.
+        touch($path, $modified + 1);
+        clearstatcache(true, $path);
+        $this->get(CacheManager::class)->getCache('fluid_component_definitions')->flush();
     }
 }
