@@ -13,8 +13,9 @@ It helps frontend developers:
 
 ## Component Snapshots
 
-Catch unintended HTML changes before they reach a page: test your saved component
-variants, review readable diffs, and commit the snapshots alongside your templates.
+Catch unintended HTML changes locally and in CI: test your saved component variants,
+review readable diffs, and commit the snapshots alongside your templates.
+Run the same checks in your CI pipeline to catch regressions before merging.
 
 **[Start snapshot testing →](Documentation/ComponentSnapshots.md)**
 
@@ -32,7 +33,7 @@ so frontend developers can inspect and adjust a component without rebuilding a c
 
 - Browse discovered Fluid component namespaces, folders, components, and fixture variants in a TYPO3 backend module.
 - Preview selected variants in an isolated render area.
-- [Test component HTML with Component Snapshots](Documentation/ComponentSnapshots.md).
+- [Test component HTML locally and in CI with Component Snapshots](Documentation/ComponentSnapshots.md).
 - Edit fixture values through generated controls based on component argument metadata.
 - Inspect rendered HTML, Fluid template source, and generated Fluid usage snippets.
 - Create, rename, delete, and save component variants where the component collection and fixture file support it.
