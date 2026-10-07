@@ -13,6 +13,107 @@ use RuntimeException;
 
 final class ComparisonTest extends TestCase
 {
+    #[DataProvider('dynamicDiffSamples')]
+    public function testDiffMasksCurrentDynamicValuesAcrossSnapshotChanges(string $baseline, string $first, string $second, string $masked): void
+    {
+        $comparison = new Comparison();
+        self::assertFalse($comparison->matches($baseline, $first));
+        self::assertSame($masked, $comparison->maskForDiff($baseline, $first, $second));
+        self::assertSame($masked, $comparison->maskForDiff($baseline, $masked));
+    }
+
+    /** @return iterable<string, array{string, string, string, string}> */
+    public static function dynamicDiffSamples(): iterable
+    {
+        $marker = Comparison::MARKER;
+        $firstDate = '2026-Oct-Wed 15:10:16.000000';
+        $secondDate = '2027-Nov-Mon 16:11:17.000000';
+        yield 'line break splits a saved dynamic text node' => [
+            "<div>\n  TestA" . $marker . "B\n</div>\n",
+            "<div>\n  Test<br>\n  A" . $firstDate . "B\n</div>\n",
+            "<div>\n  Test<br>\n  A" . $secondDate . "B\n</div>\n",
+            "<div>\n  Test<br>\n  A" . $marker . "B\n</div>\n",
+        ];
+        yield 'new tag wraps a saved dynamic value' => [
+            '<p>A' . $marker . 'B</p>',
+            '<p><time>A' . $firstDate . 'B</time></p>',
+            '<p><time>A' . $secondDate . 'B</time></p>',
+            '<p><time>A' . $marker . 'B</time></p>',
+        ];
+        yield 'tag name changes without changing token count' => [
+            '<p>A' . $marker . 'B</p>',
+            '<div>A' . $firstDate . 'B</div>',
+            '<div>A' . $secondDate . 'B</div>',
+            '<div>A' . $marker . 'B</div>',
+        ];
+        yield 'new dynamic attribute is absent from the baseline' => [
+            '<p>Stable</p>',
+            '<p title="A' . $firstDate . 'B">Stable</p>',
+            '<p title="A' . $secondDate . 'B">Stable</p>',
+            '<p title="A' . $marker . 'B">Stable</p>',
+        ];
+        yield 'new UUID stays inside its attribute after structural changes' => [
+            '<p>Stable</p>',
+            '<div id="card-550e8400-e29b-41d4-a716-446655440000">Stable</div>',
+            '<div id="card-550e8400-e29b-41d4-a716-446655440001">Stable</div>',
+            '<div id="card-' . $marker . '">Stable</div>',
+        ];
+        yield 'unknown dynamic attribute uses the full value' => [
+            '<p>Stable</p>',
+            '<p data-token="prefix-abcXdef-suffix">Stable</p>',
+            '<p data-token="prefix-abcYdef-suffix">Stable</p>',
+            '<p data-token="' . $marker . '">Stable</p>',
+        ];
+        yield 'unknown dynamic text keeps labels after a tag change' => [
+            '<p>Token: ' . $marker . '; status ready</p>',
+            '<div>Token: abcXdef; status ready</div>',
+            '<div>Token: abcYdef; status ready</div>',
+            '<div>Token: ' . $marker . '; status ready</div>',
+        ];
+        yield 'stable dates remain visible beside a changing date' => [
+            '<p>Old</p>',
+            '<p>Published: 2025-01-01; now: ' . $firstDate . '</p>',
+            '<p>Published: 2025-01-01; now: ' . $secondDate . '</p>',
+            '<p>Published: 2025-01-01; now: ' . $marker . '</p>',
+        ];
+        yield 'changed stable text is retained beside the marker' => [
+            '<p>Old A' . $marker . 'B</p>',
+            '<p>New A' . $firstDate . 'B</p>',
+            '<p>New A' . $secondDate . 'B</p>',
+            '<p>New A' . $marker . 'B</p>',
+        ];
+        yield 'manual markers still mask stable values in matching structures' => [
+            '<p id="' . $marker . '">Old</p>',
+            '<p id="custom-token">New</p>',
+            '<p id="custom-token">New</p>',
+            '<p id="' . $marker . '">New</p>',
+        ];
+        yield 'stable output does not acquire markers' => [
+            '<p>Old</p>', '<div>New 2026-10-07</div>', '<div>New 2026-10-07</div>', '<div>New 2026-10-07</div>',
+        ];
+        yield 'inserted markup between current samples stays visible' => [
+            '<p>Old</p>', '<div>First</div>', '<div>First<br>Second</div>', '<div>First</div>',
+        ];
+        yield 'changed tag between current samples stays visible' => [
+            '<p>Old</p>', '<div>First</div>', '<section>Second</section>', '<div>First</div>',
+        ];
+        yield 'changed attribute name between current samples stays visible' => [
+            '<p>Old</p>', '<div title="First">New</div>', '<div class="Second">New</div>', '<div title="First">New</div>',
+        ];
+        yield 'inserted text line between current samples stays visible' => [
+            '<p>Old</p>', "<p>First\n</p>", "<p>First\nSecond\n</p>", "<p>First\n</p>",
+        ];
+        yield 'moved text lines between current samples stay visible' => [
+            '<p>Old</p>', "<p>First\nSecond\n</p>", "<p>Second\nFirst\n</p>", "<p>First\nSecond\n</p>",
+        ];
+    }
+
+    public function testDiffDoesNotHideReservedMarkerExceptions(): void
+    {
+        $this->expectExceptionMessage('Rendered output contains a reserved dynamic marker.');
+        new Comparison()->maskForDiff('<p>Old</p>', '<p>' . Comparison::MARKER . '</p>', '<p>Second</p>');
+    }
+
     public function testWhitespaceRunsCompareAsOneButPresenceStillMatters(): void
     {
         $comparison = new Comparison();

@@ -138,6 +138,56 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         yield 'year alone' => ['Y'];
     }
 
+    #[DataProvider('changedDynamicTemplates')]
+    public function testMismatchDiffMasksDynamicValuesAfterMarkupChanges(string $before, string $after, string $maskedAddition): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $path = $template . '-snapshots/html-Default.snapshot.html';
+        try {
+            $this->replaceTemplate($template, $original . $before);
+            $runner = $this->get(Runner::class);
+            $created = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('missing', $created['status'], $created['message']);
+            $this->replaceTemplate($template, $original . $after);
+            $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('failed', $result['status'], $result['message']);
+            self::assertNull($result['exception']);
+            self::assertSame($created['expected'], $result['expected']);
+            self::assertSame($created['expected'], file_get_contents($path));
+            self::assertStringContainsString($maskedAddition, $result['actual']);
+            self::assertDoesNotMatchRegularExpression('/\d{4}-[A-Z][a-z]{2}-[A-Z][a-z]{2} \d{2}:\d{2}:\d{2}/', $result['actual']);
+
+            $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
+            self::assertSame(1, $tester->execute(['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard']));
+            $output = $tester->getDisplay();
+            self::assertStringContainsString('WARNING (MISMATCH)', $output);
+            self::assertStringContainsString('Dynamic markers used.', $output);
+            self::assertStringContainsString(Path::makeRelative($path, Environment::getProjectPath()), $output);
+            self::assertStringNotContainsString(Environment::getProjectPath() . '/', $output);
+            self::assertMatchesRegularExpression('/^\+ .*' . preg_quote($maskedAddition, '/') . '/m', $output);
+            self::assertDoesNotMatchRegularExpression('/\d{4}-[A-Z][a-z]{2}-[A-Z][a-z]{2} \d{2}:\d{2}:\d{2}/', $output);
+            self::assertStringNotContainsString('Stack trace:', $output);
+        } finally {
+            $this->replaceTemplate($template, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function changedDynamicTemplates(): iterable
+    {
+        $date = '<f:format.date date="now" format="Y-M-D H:i:s.u" />';
+        yield 'line break before the date' => ['<div>TestA' . $date . 'B</div>', '<div>Test<br>A' . $date . 'B</div>', 'A' . Comparison::MARKER . 'B'];
+        yield 'new tag around the date' => ['<p>A' . $date . 'B</p>', '<p><time>A' . $date . 'B</time></p>', '<time>A' . Comparison::MARKER . 'B</time>'];
+        yield 'first dynamic value introduced in an attribute' => ['<p>Stable</p>', '<p title="A' . $date . 'B">Stable</p>', 'title="A' . Comparison::MARKER . 'B"'];
+        yield 'stable label changes beside the date' => ['<p>Old A' . $date . 'B</p>', '<p>New A' . $date . 'B</p>', 'New A' . Comparison::MARKER . 'B'];
+    }
+
     #[DataProvider('savedDateSnapshots')]
     public function testNormalChecksCompareBothClockSamplesWithoutChangingBaseline(bool $dynamic): void
     {
@@ -161,7 +211,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame($baseline, file_get_contents($path));
             self::assertNull($result['exception']);
             if (!$dynamic) {
-                self::assertStringContainsString('Year: ' . SamplingClock::advance($date)->format('Y'), $result['actual']);
+                self::assertStringContainsString('Year: ' . Comparison::MARKER, $result['actual']);
                 self::assertNotSame($first, $result['actual']);
             }
         } finally {
@@ -178,6 +228,47 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     {
         yield 'current datetime matches but changed datetime fails' => [false];
         yield 'reviewed marker matches both datetime samples' => [true];
+    }
+
+    #[DataProvider('clockDependentMarkupBaselines')]
+    public function testClockDependentMarkupRemainsAMismatchWithTheFailingSample(bool $baselineMatchesFirst): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $path = $template . '-snapshots/html-Default.snapshot.html';
+        try {
+            $date = new DateTimeImmutable();
+            $this->replaceTemplate($template, $original . '<f:if condition="{f:format.date(date: \'now\', format: \'Y\')} == ' . $date->format('Y') . '">'
+                . '<f:then><p>Current</p></f:then><f:else><div>Changed<br>Structure</div></f:else></f:if>');
+            $renderer = $this->get(FrontendRenderer::class);
+            $formatter = new HtmlFormatter();
+            $first = $formatter->format($renderer->render('site:wrappedCard:Default', 'preview', 'en', $date));
+            $second = $formatter->format($renderer->render('site:wrappedCard:Default', 'preview', 'en', SamplingClock::advance($date)));
+            self::assertStringContainsString('<p>Current</p>', $first);
+            self::assertStringContainsString('Changed<br>', $second);
+            $baseline = $baselineMatchesFirst ? $first : $second;
+            mkdir(dirname($path));
+            file_put_contents($path, $baseline);
+            $result = $this->get(Runner::class)->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('failed', $result['status'], $result['message']);
+            self::assertNull($result['exception']);
+            self::assertSame($baselineMatchesFirst ? $second : $first, $result['actual']);
+            self::assertSame($baseline, file_get_contents($path));
+        } finally {
+            $this->replaceTemplate($template, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function clockDependentMarkupBaselines(): iterable
+    {
+        yield 'changed clock sample differs from baseline' => [true];
+        yield 'current clock sample differs from baseline' => [false];
     }
 
     #[DataProvider('dateClockFormats')]
@@ -449,7 +540,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertStringContainsString('snapshot | actual', $tester->getDisplay());
             self::assertStringContainsString('To accept these changes, rerun this command with --update outside Production.', $tester->getDisplay());
             self::assertStringContainsString('Review and commit the updated snapshot files, then rerun without --update to verify.', $tester->getDisplay());
-            self::assertStringNotContainsString('html-Default.snapshot.html', $tester->getDisplay());
+            self::assertStringContainsString('html-Default.snapshot.html', $tester->getDisplay());
             self::assertStringNotContainsString('EXPECTED:', $tester->getDisplay());
             self::assertStringNotContainsString('ACTUAL:', $tester->getDisplay());
             self::assertStringNotContainsString('Stack trace:', $tester->getDisplay());
@@ -469,7 +560,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         self::assertStringContainsString('Stack trace:', $tester->getDisplay());
     }
 
-    public function testCommandColorsLabelsAndOnlyShowsRelativePathsWhenVerbose(): void
+    public function testCommandColorsLabelsAndShowsRelativePathsForWarningsOrVerboseOutput(): void
     {
         $runner = $this->get(Runner::class);
         $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
@@ -481,7 +572,10 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertStringContainsString("\033[33;1mWARNING (MISSING)", $output);
             self::assertStringContainsString("\033[36msite:wrappedCard", $output);
             self::assertStringContainsString("\033[35mDefault", $output);
-            self::assertStringNotContainsString('html-Default.snapshot.html', $output);
+            $absolutePath = realpath($path);
+            self::assertNotFalse($absolutePath);
+            self::assertStringContainsString(Path::makeRelative($absolutePath, Environment::getProjectPath()), $output);
+            self::assertStringNotContainsString(Environment::getProjectPath() . '/', $output);
             self::assertStringNotContainsString('dynamic markers', strtolower($output));
             self::assertStringNotContainsString('To accept this change', $output);
 
@@ -548,6 +642,10 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame(1, $tester->execute($arguments));
             $output = $tester->getDisplay();
             self::assertSame(2, substr_count($output, 'WARNING (MISMATCH)'));
+            foreach (array_slice($paths, 0, 2) as $path) {
+                self::assertStringContainsString(Path::makeRelative($path, Environment::getProjectPath()), $output);
+            }
+
             self::assertSame(1, substr_count($output, 'To accept these changes'));
             self::assertGreaterThan(strrpos($output, '[-removed-]'), strpos($output, 'To accept these changes'));
             foreach ($paths as $path) {

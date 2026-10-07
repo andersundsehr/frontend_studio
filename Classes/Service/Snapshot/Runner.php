@@ -111,7 +111,9 @@ final readonly class Runner
                 $status = 'failed';
                 $message = 'Rendered HTML differs from the saved baseline.';
                 if ($this->comparison->matches($baseline, $actual)) {
-                    $actual = $second;
+                    $actual = $this->comparison->maskForDiff($baseline, $second, $actual);
+                } else {
+                    $actual = $this->comparison->maskForDiff($baseline, $actual, $second);
                 }
             }
         } catch (Throwable $throwable) {

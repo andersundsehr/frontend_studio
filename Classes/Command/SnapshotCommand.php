@@ -77,7 +77,7 @@ final class SnapshotCommand extends Command
             $component = $parts[0] . ':' . $parts[1];
             $variant = $parts[2];
             $message = $this->relativeText($result['message']);
-            if ($result['status'] !== 'error' && str_contains($result['expected'], Comparison::MARKER)) {
+            if ($result['status'] !== 'error' && (str_contains($result['expected'], Comparison::MARKER) || str_contains($result['actual'], Comparison::MARKER))) {
                 $message .= ' Dynamic markers used.';
             }
 
@@ -87,7 +87,7 @@ final class SnapshotCommand extends Command
                 . '<fg=magenta>' . OutputFormatter::escape($variant) . '</>: '
                 . OutputFormatter::escape($message),
             );
-            if ($output->isVerbose() && $result['path'] !== '') {
+            if (($output->isVerbose() || in_array($result['status'], ['missing', 'failed'], true)) && $result['path'] !== '') {
                 $output->writeln('  <fg=gray>' . OutputFormatter::escape(Path::makeRelative($result['path'], Environment::getProjectPath())) . '</>');
             }
 

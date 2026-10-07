@@ -92,6 +92,7 @@ with line numbers for the saved snapshot and current output:
 
 ```text
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
+  packages/content_element_text/Components/Element/Text/Text.fluid.html-snapshots/html-Default.snapshot.html
   snapshot | actual
   1 | 1  <div>
 - 2 | -    <p>Hello world</p>
@@ -114,6 +115,9 @@ Spaces are displayed normally, including spaces inside changed text.
 A `-` in a line-number column means that side has no content on that row.
 Unchanged lines reserve the same space as the leading signs so the code stays aligned.
 Unchanged sections are shortened so you can focus on the differences.
+Dynamic values detected in the current output appear as `{{frontend-studio:dynamic}}`,
+including on added lines when the HTML structure has changed.
+Stable text and markup changes remain visible and still cause a mismatch.
 
 If the change is unintended, fix your template or fixture and rerun the test.
 To accept an intentional change, add `--update` or its shortcut `-u`:
@@ -129,7 +133,8 @@ An update that creates or changes files returns a nonzero exit code;
 an unchanged update returns `0`.
 Ordinary comparisons do not overwrite existing snapshots.
 
-Add `-v` to see project-relative snapshot paths and exception stack traces:
+Warnings always show the project-relative snapshot path so you can open the affected file.
+Add `-v` to also see paths for other results and exception stack traces:
 
 ```bash
 vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text -v

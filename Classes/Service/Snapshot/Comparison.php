@@ -79,18 +79,26 @@ final readonly class Comparison
         return true;
     }
 
-    public function maskForDiff(string $expected, string $actual): string
+    /** Mask display values only; compare the unmodified samples before calling this. */
+    public function maskForDiff(string $expected, string $actual, ?string $secondSample = null): string
     {
-        $a = $this->tokens($expected);
-        $b = $this->tokens($actual);
-        if (count($a) !== count($b)) {
-            return $actual;
+        // Detect current dynamic values independently of the saved HTML structure.
+        // If the samples change markup, keep that mismatch visible in the diff.
+        if ($secondSample !== null && $this->canAlign($this->tokens($actual), $this->tokens($secondSample))) {
+            try {
+                $actual = $this->create($actual, $secondSample);
+            } catch (RuntimeException $exception) {
+                // DynamicValueMatcher cannot safely mask inserted or moved text lines.
+                if ($exception->getCode() !== 1791270200) {
+                    throw $exception;
+                }
+            }
         }
 
-        foreach ($a as $index => $token) {
-            if ($token['type'] !== $b[$index]['type'] || ($token['type'] === 'literal' && self::normalizeWhitespace($token['value']) !== self::normalizeWhitespace($b[$index]['value']))) {
-                return $actual;
-            }
+        $a = $this->tokens($expected);
+        $b = $this->tokens($actual);
+        if (!$this->canAlign($a, $b)) {
+            return $actual;
         }
 
         $matcher = new DynamicValueMatcher();
@@ -101,6 +109,19 @@ final readonly class Comparison
         }
 
         return implode('', array_column($b, 'value'));
+    }
+
+    /**
+     * @param list<array{value: string, type: string, name: string}> $first
+     * @param list<array{value: string, type: string, name: string}> $second
+     */
+    private function canAlign(array $first, array $second): bool
+    {
+        if (count($first) !== count($second)) {
+            return false;
+        }
+
+        return array_all($first, fn(array $token, $index): bool => $token['type'] === $second[$index]['type'] && ($token['type'] !== 'literal' || self::normalizeWhitespace($token['value']) === self::normalizeWhitespace($second[$index]['value'])));
     }
 
     /** @return list<array{value: string, type: string, name: string}> */
