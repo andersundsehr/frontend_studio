@@ -19,6 +19,8 @@ use TYPO3Fluid\Fluid\View\TemplateView;
 
 final class ComponentOverviewTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [
         __DIR__ . '/../../..', __DIR__ . '/../Fixtures/Extensions/preview_site_set',
     ];
@@ -43,7 +45,14 @@ final class ComponentOverviewTest extends FunctionalTestCase
             self::assertSame(file_get_contents($documentation), $assignments['documentationMarkdown']);
             $html = $this->render($assignments);
             self::assertSame(2, substr_count($html, 'data-overview-frame data-variant-identifier'));
-            self::assertSame(1, preg_match_all('/data-frontend-studio-variant-save[\\s>]/', $html));
+            foreach (['site-select', 'language-select', 'variant-reset', 'variant-copy', 'variant-save'] as $control) {
+                self::assertStringNotContainsString('data-frontend-studio-' . $control, $html);
+            }
+
+            self::assertStringContainsString('data-frontend-studio-variant-value', $html);
+            self::assertSame(2, substr_count($html, 'data-overview-variant-link'));
+            self::assertStringNotContainsString('Open Zebra variant', $html);
+            self::assertStringNotContainsString('Open Alpha variant', $html);
             self::assertStringContainsString('componentVariant=site%3Acard%3AAlpha', $html);
             self::assertStringContainsString('site=preview', $html);
             self::assertStringContainsString('language=de', $html);
@@ -65,6 +74,7 @@ final class ComponentOverviewTest extends FunctionalTestCase
         $path = $metadata->fixture->absolutePath;
         $original = file_get_contents($path);
         try {
+            file_put_contents($path, "variants:\n  Default:\n    title: Single\n");
             $single = $this->assignments('site:card');
             self::assertCount(1, $single['overviewVariants']);
             file_put_contents($path, "variants: {}\n");

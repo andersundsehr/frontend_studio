@@ -1,6 +1,6 @@
 .frontend-studio-overview { max-width: 1200px; margin: 0 auto; padding: clamp(1rem, 3vw, 3rem); }
 .frontend-studio-overview-example { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--typo3-component-border-color, #ddd); }
-.frontend-studio-overview-frame { border: 1px solid var(--typo3-component-border-color, #ccc); background: white; }
+.frontend-studio-overview-frame { border: 1px solid var(--typo3-component-border-color, #ccc); padding: 1rem; background: repeating-conic-gradient(#e6e6e6 0% 25%, white 0% 50%) 0 0 / 10px 10px; }
 .frontend-studio-overview-frame.is-first:not(.is-expanded) { max-height: 480px; overflow: auto; }
 .frontend-studio-overview iframe { display: block; width: 100%; height: 240px; border: 0; }
 .frontend-studio-overview-controls { margin-top: 1rem; padding: 1rem; border: 1px solid var(--typo3-component-border-color, #ddd); }
@@ -8,4 +8,4 @@
 .frontend-studio-overview pre { white-space: pre-wrap; }
 .frontend-studio-overview img { max-width: 100%; }
 .frontend-studio-overview [hidden] { display: none !important; }
-.frontend-studio-overview .frontend-studio-variant-values-actions { flex-wrap: wrap; }
+.frontend-studio-overview h2 [data-overview-variant-link] { text-decoration: underline; }

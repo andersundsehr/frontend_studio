@@ -2,7 +2,7 @@ import DocumentService from '@typo3/core/document-service.js';
 import VariantFeature from '@andersundsehr/frontend-studio/backend/variant-lifecycle.js';
 import VariantPreview from '@andersundsehr/frontend-studio/backend/variant-preview.js';
 import { getVariantState } from '@andersundsehr/frontend-studio/backend/variant-state.js';
-import { renderMarkdown } from '@andersundsehr/frontend-studio/backend/markdown-editor.bundle.js';
+import { renderMarkdown } from '@andersundsehr/frontend-studio/vendor/markdown-converter';
 
 export default class ComponentOverview extends VariantFeature {
   constructor(root, view) {

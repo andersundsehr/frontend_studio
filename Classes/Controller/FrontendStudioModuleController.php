@@ -160,9 +160,7 @@ final readonly class FrontendStudioModuleController
             'variantActiveTab' => $this->getVariantActiveTab($GLOBALS['BE_USER']->uc ?? []),
             'renderedHtmlSource' => $renderedHtmlSource,
             'renderedHtmlStatus' => $renderedHtmlStatus,
-            'fluidTemplateAnalysis' => $this->fluidTemplateAnalyzer->analyze($selectedComponentMetadata?->template),
-            'fluidUsageSource' => $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata),
-            'fluidTemplateSource' => $renderSources ? $this->renderFluidTemplateSource($selectedComponentMetadata) : '',
+            'fluidTemplateAnalysis' => $this->fluidTemplateAnalyzer->analyze($renderSources ? $selectedComponentMetadata?->template : null),
             'fluidUsageSource' => $renderSources ? $this->fluidUsageSnippetRenderer->render($selectedComponentMetadata) : [],
             'componentChangeStreamUri' => Environment::getContext()->isDevelopment()
                 ? (string)$this->uriBuilder->buildUriFromRoute('ajax_frontend_studio_component_change_stream')

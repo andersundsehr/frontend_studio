@@ -163,7 +163,8 @@ Selecting a component in the tree opens its Docs overview; selecting an individu
 The overview shows the shared component Markdown, then the first variant in fixture declaration order with its existing Controls beneath it.
 Other variants appear as separate previews with links to their inspectors.
 Live controls affect only the first preview; the remaining examples keep their stored fixture values.
-Site and language selection updates all previews and variant links.
+The overview preserves the current site and language context without showing selectors.
+Controls provide temporary live edits; fixture save and reset actions remain in the variant inspector.
 
 A long first preview can be expanded or collapsed. Preview frames resize when content, images, fonts or layout change;
 when measurement is unavailable, a scrolling frame and variant link remain available.

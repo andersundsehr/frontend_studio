@@ -27,11 +27,6 @@
           <f:for each="{overviewVariants}" as="variant">
             <section class="frontend-studio-overview-example" aria-labelledby="overview-variant-{variant.index}">
               <h2 id="overview-variant-{variant.index}"><a href="{variant.variantUri}" data-overview-variant-link>{variant.name}</a></h2>
-              <f:if condition="{variant.first}">
-                <frontend.studio:variant.header selectedVariantIdentifier="{selectedVariantIdentifier}" selectedComponentMetadata="{selectedComponentMetadata}"
-                  componentPreviewUri="{componentPreviewUri}" previewSites="{previewSites}" previewLanguages="{previewLanguages}"
-                  selectedSiteIdentifier="{selectedSiteIdentifier}" selectedLanguageHreflang="{selectedLanguageHreflang}"/>
-              </f:if>
               <f:if condition="{variant.previewUri}">
                 <f:then>
                   <div class="frontend-studio-overview-frame{f:if(condition: variant.first, then: ' is-first')}" data-overview-frame-container>
@@ -49,10 +44,9 @@
               </f:if>
               <f:if condition="{variant.first}">
                 <div class="frontend-studio-overview-controls">
-                  <frontend.studio:variant.controls selectedComponentMetadata="{selectedComponentMetadata}" variantActiveTab="values"/>
+                  <frontend.studio:variant.controls selectedComponentMetadata="{selectedComponentMetadata}" variantActiveTab="values" showActions="{false}"/>
                 </div>
               </f:if>
-              <p class="mt-3"><a href="{variant.variantUri}" data-overview-variant-link>Open {variant.name} variant</a></p>
             </section>
           </f:for>
         </f:then>
