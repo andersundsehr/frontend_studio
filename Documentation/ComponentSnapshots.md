@@ -51,8 +51,9 @@ vendor/bin/typo3 frontend-studio:test main en-us
 ```
 
 Use the same intended site and language locally and in CI.
-Each component variant has one snapshot shared by site and language selections;
-there are no separate language-specific snapshot files.
+Each component variant has a separate snapshot for every site and language combination.
+Run the command for each context you want to protect, and commit all of its snapshots.
+Translated content and site-specific markup can then have different baselines.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -92,12 +93,13 @@ with line numbers for the saved snapshot and current output:
 
 ```text
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
-  packages/content_element_text/Components/Element/Text/Text.fluid.html-snapshots/html-Default.snapshot.html
+  packages/content_element_text/Components/Element/Text/Text.fluid.html-snapshots/html-Default@main@en-us.snapshot.html
   snapshot | actual
   1 | 1  <div>
-- 2 | -    <p>Hello world</p>
-+ - | 2    <p>Hello TYPO3</p>
-  3 | 3  </div>
+- 2 | -    <p>Hello world
++ - | 2    <p>Hello TYPO3
+  3 | 3    </p>
+  4 | 4  </div>
 ```
 
 Each changed line appears twice: `-` shows the snapshot and `+` shows the current output.
@@ -107,8 +109,8 @@ Without colors, compare the before and after lines to see the changed words.
 Entire added or removed lines use only a leading `+` or `-` and keep their line numbers:
 
 ```text
-- 3 | -  <p>Old content</p>
-+ - | 3  <p>New content</p>
+- 3 | -  <br class="old">
++ - | 3  <hr class="new">
 ```
 
 Spaces are displayed normally, including spaces inside changed text.
@@ -147,32 +149,43 @@ Mismatches and missing snapshots are warnings; rendering failures are errors.
 ## Find and manually edit snapshot files
 
 Snapshots live beside their component template.
-For `Text.fluid.html` and variant `Default`, the file is:
+For `Text.fluid.html`, variant `Default`, site `main` and language `en-us`, the file is:
 
 ```text
-Text.fluid.html-snapshots/html-Default.snapshot.html
+Text.fluid.html-snapshots/html-Default@main@en-us.snapshot.html
 ```
 
 The `.snapshot.html` ending identifies snapshots while keeping them viewable as HTML
 in editors and Git tools.
 Snapshots and `_slots/` files do not appear as components in Frontend Studio.
-If two variant names produce the same filename, rename one variant before testing.
+Filenames include the variant, site identifier and hreflang, separated by `@`.
+Special characters in each part are percent-encoded: `Simple Test` becomes
+`Simple%20Test`, and `a/b` becomes `a%2Fb`.
+Different templates, variants, sites and languages therefore keep independent baselines.
+An update changes only the selected site, language and scope.
 
 Generated HTML uses two spaces per nesting level, with aligned closing tags.
-Short text-only elements stay on one line; long opening tags put each attribute
+Opening and closing tags start on separate lines, including inline tags such as
+`span`, `strong` and `em`. Opening tags longer than 80 characters put every attribute
 on its own indented line. The CLI diff keeps this indentation:
 
 ```html
 <div class="card">
   <section>
-    <h2>Title</h2>
-    <p>Hello <strong>world</strong>!</p>
+    <h2>Title
+    </h2>
+    <p>Hello
+      <strong> world
+      </strong>!
+    </p>
   </section>
 </div>
 ```
 
-Text and inline elements stay together to preserve their spaces and punctuation.
-The contents of `pre`, `textarea`, `script` and `style` keep their original whitespace.
+Text, entities, spaces and punctuation stay in their original order.
+The contents of `pre`, `textarea`, `script` and `style` keep their exact original whitespace;
+their closing tags also stay in place, even when they share the final content line.
+This avoids changing preformatted text, textarea values or embedded code.
 Formatting is stable: formatting an existing snapshot again produces the same result.
 If an older snapshot uses different formatting, regenerate it with `-u`,
 review the changes and commit the updated file.
@@ -181,14 +194,17 @@ When a value should change without failing the test,
 replace only that value with `{{frontend-studio:dynamic}}`:
 
 ```html
-<div id="card-{{frontend-studio:dynamic}}" class="card">Hello</div>
-<p>Published: {{frontend-studio:dynamic}}; status ready</p>
+<div id="card-{{frontend-studio:dynamic}}" class="card">Hello
+</div>
+<p>Published: {{frontend-studio:dynamic}}; status ready
+</p>
 ```
 
 For an attribute whose entire value is dynamic, use:
 
 ```html
-<div data-token="{{frontend-studio:dynamic}}" class="card">Hello</div>
+<div data-token="{{frontend-studio:dynamic}}" class="card">Hello
+</div>
 ```
 
 A marker accepts changing content, including an empty value,
@@ -263,8 +279,15 @@ escape the letters as `\T`, `\Z` or `\U\T\C`.
 For example, a changing URL token can produce:
 
 ```html
-<a href="/path?token={{frontend-studio:dynamic}}&amp;page=1#top">Link</a>
+<a href="/path?token={{frontend-studio:dynamic}}&amp;page=1#top">Link
+</a>
 ```
+
+Generated TYPO3 backend route URLs use realistic synthetic tokens in snapshot output.
+These change between samples, so the CLI and backend snapshot tests both save
+`token={{frontend-studio:dynamic}}` and format the URLs consistently.
+Normal component previews keep their original route tokens.
+Regenerate older snapshots containing `token=dummyToken` with `--update` or `-u`.
 
 The marker does not ignore additional parameters or the fragment.
 Numeric matching can also mask prices or counters;
@@ -278,7 +301,8 @@ punctuation and neighboring words remain checked. For example,
 `Token: abcXdef; status ready` and `Token: abcYdef; status ready` produce:
 
 ```html
-<p>Token: {{frontend-studio:dynamic}}; status ready</p>
+<p>Token: {{frontend-studio:dynamic}}; status ready
+</p>
 ```
 
 If the result ignores too much or too little, edit the snapshot manually.

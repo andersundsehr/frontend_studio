@@ -23,6 +23,7 @@ use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\Routing\SiteRouteResult;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use DateTimeImmutable;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
 
 final readonly class FrontendRenderer
 {
@@ -33,6 +34,7 @@ final readonly class FrontendRenderer
         private AssetCollector $assets,
         private Context $context,
         private ListenerProvider $listenerProvider,
+        private UriBuilder $backendUriBuilder,
     ) {
     }
 
@@ -103,7 +105,8 @@ final readonly class FrontendRenderer
             $GLOBALS['TYPO3_REQUEST'] = $request;
             $request = $this->contextBuilder->build($request);
             $GLOBALS['TYPO3_REQUEST'] = $request;
-            return DebuggerState::withoutStylesheet(fn(): string => $this->renderer->renderVariant($identifier, $request));
+            $html = DebuggerState::withoutStylesheet(fn(): string => $this->renderer->renderVariant($identifier, $request));
+            return BackendRouteTokens::normalize($html, $this->backendUriBuilder);
         } finally {
             if ($oldRequest === null) {
                 unset($GLOBALS['TYPO3_REQUEST']);

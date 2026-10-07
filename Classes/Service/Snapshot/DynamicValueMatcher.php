@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
 use cogpowered\FineDiff\Diff;
+use cogpowered\FineDiff\Render\Renderer;
 use RuntimeException;
 
 final readonly class DynamicValueMatcher
@@ -145,10 +146,26 @@ final readonly class DynamicValueMatcher
         $startA = null;
         $startB = 0;
         $ranges = [];
-        foreach ([...new Diff()->getOpcodes($a, $b)->getOpcodes(), 'c0'] as $opcode) {
-            $type = $opcode[0];
-            $length = preg_match('/^[cdi](\d+)/', $opcode, $match) === 1 ? (int)$match[1] : 1;
+        $renderer = new class extends Renderer {
+            /** @var list<array{string, int}> */
+            public array $operations = [];
+
+            public function callback(string $opcode, string $from, int $from_offset, int $from_len): string
+            {
+                $this->operations[] = [$opcode, $from_len];
+                return '';
+            }
+        };
+        new Diff(renderer: $renderer)->render($a, $b);
+        foreach ([...$renderer->operations, ['c', 0]] as [$type, $length]) {
             if ($type === 'c') {
+                // Normalized whitespace can be copied even when a sample adds a newline.
+                $copiedA = substr($first, $offsetsA[$positionA], $offsetsA[$positionA + $length] - $offsetsA[$positionA]);
+                $copiedB = substr($second, $offsetsB[$positionB], $offsetsB[$positionB + $length] - $offsetsB[$positionB]);
+                if (substr_count($copiedA, "\n") !== substr_count($copiedB, "\n")) {
+                    throw new RuntimeException('Dynamic text inserted, removed or moved lines; review the component before updating the snapshot.', 1791270200);
+                }
+
                 if ($startA !== null) {
                     $changedA = substr($first, $offsetsA[$startA], $offsetsA[$positionA] - $offsetsA[$startA]);
                     $changedB = substr($second, $offsetsB[$startB], $offsetsB[$positionB] - $offsetsB[$startB]);

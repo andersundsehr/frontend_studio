@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
-/** @phpstan-type Element array{name: string, end: int, text: bool, children: bool} */
+/** @phpstan-type Element array{name: string, end: int} */
 final readonly class HtmlFormatter
 {
     private const string INDENT = '  ';
@@ -13,8 +13,6 @@ final readonly class HtmlFormatter
 
     private const array VOID_ELEMENTS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
 
-    private const array INLINE_ELEMENTS = ['a', 'abbr', 'b', 'bdi', 'bdo', 'br', 'button', 'cite', 'code', 'data', 'del', 'dfn', 'em', 'i', 'img', 'input', 'ins', 'kbd', 'label', 'mark', 'meter', 'output', 'picture', 'progress', 'q', 'ruby', 's', 'samp', 'select', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'var', 'wbr'];
-
     public function format(string $html): string
     {
         // Keep quoted angles, comments, CDATA and whitespace-sensitive bodies opaque.
@@ -22,7 +20,7 @@ final readonly class HtmlFormatter
         $tokens = $matches[0];
         $elements = $this->elements($tokens);
         // Do not repair malformed fragments or HTML with omitted closing tags.
-        $formatted = $elements === null ? $html : $this->formatRange($tokens, $elements, 0, count($tokens), 0, $elements[-1]['text']);
+        $formatted = $elements === null ? $html : $this->formatTokens($tokens, $elements);
 
         return rtrim($formatted, "\r\n") . "\n";
     }
@@ -34,7 +32,7 @@ final readonly class HtmlFormatter
     private function elements(array $tokens): ?array
     {
         /** @var array<int, Element> $elements */
-        $elements = [-1 => ['name' => '', 'end' => count($tokens), 'text' => false, 'children' => false]];
+        $elements = [-1 => ['name' => '', 'end' => count($tokens)]];
         $stack = [-1];
         foreach ($tokens as $index => $token) {
             $parent = $stack[count($stack) - 1] ?? -1;
@@ -52,11 +50,7 @@ final readonly class HtmlFormatter
 
             if (preg_match('~^<([a-zA-Z][\w:-]*)\b~', $token, $opening)) {
                 $name = strtolower($opening[1]);
-                $parentElement['children'] = true;
-                // Even without surrounding text, adjacent inline elements must not gain spaces.
-                $parentElement['text'] = $parentElement['text'] || in_array($name, self::INLINE_ELEMENTS, true);
-                $elements[$parent] = $parentElement;
-                $elements[$index] = ['name' => $name, 'end' => $index, 'text' => false, 'children' => false];
+                $elements[$index] = ['name' => $name, 'end' => $index];
                 if (
                     !in_array($name, self::VOID_ELEMENTS, true) && !str_ends_with($token, '/>')
                     && !preg_match('~^<(script|style|pre|textarea)\b[\s\S]*</\1\s*>$~i', $token)
@@ -66,16 +60,6 @@ final readonly class HtmlFormatter
 
                 continue;
             }
-
-            if (str_starts_with($token, '<![CDATA[')) {
-                $parentElement['text'] = true;
-            } elseif (str_starts_with($token, '<!')) {
-                $parentElement['children'] = true;
-            } elseif (trim($token) !== '') {
-                $parentElement['text'] = true;
-            }
-
-            $elements[$parent] = $parentElement;
         }
 
         return count($stack) === 1 ? $elements : null;
@@ -85,33 +69,36 @@ final readonly class HtmlFormatter
      * @param list<string> $tokens
      * @param array<int, Element> $elements
      */
-    private function formatRange(array $tokens, array $elements, int $start, int $end, int $depth, bool $inline = false): string
+    private function formatTokens(array $tokens, array $elements): string
     {
-        $indent = str_repeat(self::INDENT, $depth);
-        $parts = [];
-        for ($index = $start; $index < $end; $index++) {
-            $token = $tokens[$index];
-            if (!$inline && trim($token) === '') {
+        $depth = 0;
+        $output = '';
+        foreach ($tokens as $index => $token) {
+            $closing = preg_match('~^</[\w:-]+\s*>$~', $token) === 1;
+            $markup = isset($elements[$index]) || $closing || (str_starts_with($token, '<!') && !str_starts_with($token, '<![CDATA['));
+            if (!$markup) {
+                // Remove existing presentation indentation before the next tag only.
+                // Retain text, entities, punctuation and literal spaces within values.
+                $output .= preg_replace('/(?:\r?\n[\t ]*)+$/', '', $token) ?? $token;
                 continue;
             }
 
-            $part = ($inline ? '' : $indent) . $this->formatOpeningTag($token, $indent);
-            if (isset($elements[$index]) && $elements[$index]['end'] > $index) {
-                $element = $elements[$index];
-                if ($inline || $element['text'] || !$element['children']) {
-                    $part .= $this->formatRange($tokens, $elements, $index + 1, $element['end'] + 1, $depth + 1, true);
-                } else {
-                    $part .= "\n" . $this->formatRange($tokens, $elements, $index + 1, $element['end'], $depth + 1)
-                        . "\n" . $indent . $tokens[$element['end']];
-                }
-
-                $index = $element['end'];
+            if ($closing) {
+                $depth--;
             }
 
-            $parts[] = $part;
+            $indent = str_repeat(self::INDENT, $depth);
+            if ($output !== '') {
+                $output .= "\n";
+            }
+
+            $output .= $indent . $this->formatOpeningTag($token, $indent);
+            if (isset($elements[$index]) && $elements[$index]['end'] > $index) {
+                $depth++;
+            }
         }
 
-        return implode($inline ? '' : "\n", $parts);
+        return $output;
     }
 
     private function formatOpeningTag(string $token, string $indent): string

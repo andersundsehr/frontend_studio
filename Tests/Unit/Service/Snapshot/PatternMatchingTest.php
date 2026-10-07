@@ -11,6 +11,27 @@ use RuntimeException;
 
 final class PatternMatchingTest extends TestCase
 {
+    #[DataProvider('replacementLineChanges')]
+    public function testReplacementOpcodesCannotMaskInsertedRemovedOrMovedLines(string $first, string $second): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Dynamic text inserted, removed or moved lines');
+        new Comparison()->create('<p>' . $first . '</p>', '<p>' . $second . '</p>');
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function replacementLineChanges(): iterable
+    {
+        yield 'one character replaced with a newline' => ['x', "\n"];
+        yield 'word replaced with text containing a newline' => ['abc', "foo\nbar"];
+        yield 'replacement after a stable prefix' => ['Label: x; done', "Label: \ny; done"];
+        yield 'replacement before a stable suffix' => ['abc suffix', "foo\nbar suffix"];
+        yield 'newline replaced with one character' => ["\n", 'x'];
+        yield 'multiline word replaced with plain text' => ["foo\nbar", 'abc'];
+        yield 'multibyte replacement includes a newline' => ['Café: old; ready', "Café: \nnew; ready"];
+        yield 'replacement after another replacement' => ['Token: abc; value xyz; ready', "Token: def; value foo\nbar; ready"];
+    }
+
     #[DataProvider('recognizedValues')]
     public function testRecognizedValuesPreserveSurroundingText(string $first, string $second, string $third): void
     {
@@ -91,6 +112,8 @@ final class PatternMatchingTest extends TestCase
         yield 'unquoted attribute' => ['<input value=abc/>', '<input value=xyz/>', '<input value=@/>', '<input value=other/>'];
         yield 'mixed known and unknown attribute falls back whole' => ['<div data-token="id-123-alpha"></div>', '<div data-token="id-456-omega"></div>', '<div data-token="@"></div>', '<div data-token="other"></div>'];
         yield 'two values in text' => ['<p>At 14:10:01; request 123; status ready</p>', '<p>At 14:10:02; request 456; status ready</p>', '<p>At @; request @; status ready</p>', '<p>At 23:59:59; request 999999; status ready</p>'];
+        yield 'unequal replacements preserve the following label' => ['<p>Token: x; value abc; ready</p>', '<p>Token: longword; value z; ready</p>', '<p>Token: @; value @; ready</p>', '<p>Token: ANY; value OTHER; ready</p>'];
+        yield 'multibyte replacement preserves the following label' => ['<p>Token: café; value xyz; ready</p>', '<p>Token: résumé; value q; ready</p>', '<p>Token: @; value @; ready</p>', '<p>Token: ANY; value OTHER; ready</p>'];
         yield 'unknown text preserves surrounding label' => ['<p>Token: abcXdef; status ready</p>', '<p>Token: abcYdef; status ready</p>', '<p>Token: @; status ready</p>', '<p>Token: ANY; status ready</p>'];
         yield 'Unicode text fallback' => ['<p>Dessert: café, ready</p>', '<p>Dessert: cafe, ready</p>', '<p>Dessert: @, ready</p>', '<p>Dessert: ANY, ready</p>'];
         yield 'multiple differences inside one word share one marker' => ['<p>Token: abcXdefYghi; ready</p>', '<p>Token: abcZdefWghi; ready</p>', '<p>Token: @; ready</p>', '<p>Token: ANY; ready</p>'];

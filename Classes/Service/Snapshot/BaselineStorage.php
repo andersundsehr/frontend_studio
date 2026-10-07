@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
 use Andersundsehr\FrontendStudio\Service\ComponentWritePolicy;
-use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
 use RuntimeException;
 
 final readonly class BaselineStorage
@@ -14,7 +13,7 @@ final readonly class BaselineStorage
     {
     }
 
-    public function path(string $template, string $variantName): string
+    public function path(string $template, string $variantName, string $site, string $hreflang): string
     {
         $template = realpath($template);
         if ($template === false || !is_file($template)) {
@@ -26,7 +25,8 @@ final readonly class BaselineStorage
             throw new RuntimeException('Snapshot directories must not be symbolic links.', 2269502052);
         }
 
-        return $directory . '/html-' . ComponentFixtureProvider::normalizeSlotFilenameSegment($variantName) . '.snapshot.html';
+        // Each segment escapes @, slashes and percent signs, so contexts cannot collide.
+        return $directory . '/html-' . rawurlencode($variantName) . '@' . rawurlencode($site) . '@' . rawurlencode($hreflang) . '.snapshot.html';
     }
 
     /** @phpstan-impure */

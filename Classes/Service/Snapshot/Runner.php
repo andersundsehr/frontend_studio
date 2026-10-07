@@ -72,12 +72,7 @@ final readonly class Runner
                 throw new RuntimeException('Invalid variant or fixture: ' . implode('; ', $metadata->errors ?? []), 4582022199);
             }
 
-            $path = $this->storage->path($metadata->template->absolutePath, $metadata->fixture->selectedVariant->name);
-            foreach ($metadata->fixture->variants as $variant) {
-                if ($variant->name !== $metadata->fixture->selectedVariant->name && $this->storage->path($metadata->template->absolutePath, $variant->name) === $path) {
-                    throw new RuntimeException('Fixture variants use the same snapshot filename.', 1768482530);
-                }
-            }
+            $path = $this->storage->path($metadata->template->absolutePath, $metadata->fixture->selectedVariant->name, $site, $language);
 
             $baseline = $this->storage->read($path);
             $expected = $baseline ?? '';
