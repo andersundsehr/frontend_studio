@@ -6,6 +6,7 @@ return [
     'dependencies' => [
         'backend',
         'core',
+        'rte_ckeditor',
     ],
     'tags' => [
         'backend.module',

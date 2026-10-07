@@ -21,6 +21,8 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 final class FluidTemplateAnalyzerTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [
         'typo3conf/ext/frontend_studio',
         'typo3conf/ext/frontend_studio/Tests/Functional/Fixtures/Extensions/preview_site_set',

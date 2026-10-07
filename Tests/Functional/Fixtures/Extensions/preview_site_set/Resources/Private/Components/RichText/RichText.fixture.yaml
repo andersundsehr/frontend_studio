@@ -1,0 +1,7 @@
+variants:
+  Default:
+    body:
+      string: '<p><strong>Rich text</strong></p>'
+    unsafe:
+      string: '<p onclick="alert(1)">Safe output</p>'
+    plain: '<strong>Plain string</strong>'

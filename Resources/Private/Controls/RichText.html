@@ -1,0 +1,15 @@
+<f:asset.css identifier="frontend-studio-rich-text" href="EXT:rte_ckeditor/Resources/Public/Css/editor.css"/>
+<f:asset.css identifier="frontend-studio-rich-text-content" href="EXT:frontend_studio/Resources/Public/Css/Backend/rich-text-control.css"/>
+<textarea
+  id="frontend-studio-variant-value-{variantValue.fixtureName}"
+  name="{variantValue.fixtureName}"
+  aria-label="{variantValue.name}"
+  data-frontend-studio-variant-value
+  data-fixture-name="{variantValue.fixtureName}"
+  data-fixture-type="string"
+  data-fixture-value-defined="{f:if(condition: variantValue.isFixtureValue, then: 'true', else: 'false')}"
+  data-fixture-value-null="{f:if(condition: '{variantValue.nativeValue} === {null}', then: 'true', else: 'false')}"
+  class="form-control"
+  {f:if(condition: variantValue.required, then: 'required')}
+  rows="6"
+>{variantValue.value}</textarea>

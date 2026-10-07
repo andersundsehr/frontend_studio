@@ -15,6 +15,8 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[CoversClass(ComponentVariantListMiddleware::class)]
 final class ComponentVariantListWithoutComponentsTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [
         __DIR__ . '/../../..',
     ];
