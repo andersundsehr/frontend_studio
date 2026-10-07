@@ -77,15 +77,15 @@ final class SnapshotCommand extends Command
             $component = $parts[0] . ':' . $parts[1];
             $variant = $parts[2];
             $message = $this->relativeText($result['message']);
-            if ($result['status'] !== 'error' && (str_contains($result['expected'], Comparison::MARKER) || str_contains($result['actual'], Comparison::MARKER))) {
+            if (in_array($result['status'], ['missing', 'updated'], true) && str_contains($result['expected'], Comparison::MARKER)) {
                 $message .= ' Dynamic markers used.';
             }
 
             $output->writeln(
                 '<fg=' . $color . ';options=bold>' . $label . '</> '
                 . '<fg=cyan>' . OutputFormatter::escape($component) . '</>:'
-                . '<fg=magenta>' . OutputFormatter::escape($variant) . '</>: '
-                . OutputFormatter::escape($message),
+                . '<fg=magenta>' . OutputFormatter::escape($variant) . '</>'
+                . ($message === '' ? '' : ': ' . OutputFormatter::escape($message)),
             );
             if (($output->isVerbose() || in_array($result['status'], ['missing', 'failed'], true)) && $result['path'] !== '') {
                 $output->writeln('  <fg=gray>' . OutputFormatter::escape(Path::makeRelative($result['path'], Environment::getProjectPath())) . '</>');

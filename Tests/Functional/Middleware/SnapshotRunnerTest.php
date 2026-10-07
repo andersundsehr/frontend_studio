@@ -114,13 +114,26 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         try {
             $this->replaceTemplate($template, $original . '<p>A<f:format.date date="now" format="' . $format . '" />B</p>');
             $runner = $this->get(Runner::class);
+            $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
+            $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard:Default'];
+            self::assertSame(2, $tester->execute($arguments));
+            self::assertStringContainsString('Dynamic markers used.', $tester->getDisplay());
             $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
-            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertSame('passed', $result['status'], $result['message']);
+            self::assertSame('', $result['message']);
             self::assertStringContainsString('<p>A' . Comparison::MARKER . 'B', $result['expected']);
             self::assertSame(1, substr_count($result['expected'], Comparison::MARKER));
-            self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
+            self::assertSame(0, $tester->execute($arguments));
+            self::assertSame("PASSED site:wrappedCard:Default\n1/1 passed.\n", $tester->getDisplay());
+            self::assertSame(0, $tester->execute([...$arguments, '-u' => true]));
+            self::assertSame("PASSED site:wrappedCard:Default\n1/1 snapshots ready (0 updated).\n", $tester->getDisplay());
             file_put_contents($path, str_replace('B', 'C', $result['expected']));
-            self::assertSame('failed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
+            self::assertSame(1, $tester->execute($arguments));
+            self::assertStringNotContainsString('Dynamic markers used.', $tester->getDisplay());
+            self::assertSame(2, $tester->execute([...$arguments, '-u' => true]));
+            self::assertStringContainsString('UPDATED site:wrappedCard:Default:', $tester->getDisplay());
+            self::assertStringContainsString('Dynamic markers used.', $tester->getDisplay());
+            self::assertSame($result['expected'], file_get_contents($path));
         } finally {
             $this->replaceTemplate($template, $original);
             if (is_file($path)) {
@@ -164,7 +177,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame(1, $tester->execute(['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard']));
             $output = $tester->getDisplay();
             self::assertStringContainsString('WARNING (MISMATCH)', $output);
-            self::assertStringContainsString('Dynamic markers used.', $output);
+            self::assertStringNotContainsString('Dynamic markers used.', $output);
             self::assertStringContainsString(Path::makeRelative($path, Environment::getProjectPath()), $output);
             self::assertStringNotContainsString(Environment::getProjectPath() . '/', $output);
             self::assertMatchesRegularExpression('/^\+ .*' . preg_quote($maskedAddition, '/') . '/m', $output);
@@ -716,7 +729,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $lines[1] = str_replace('Wrapped', Comparison::MARKER, $lines[1]);
             file_put_contents($path, implode("\n", $lines));
             self::assertSame(0, $tester->execute($arguments));
-            self::assertStringContainsString('Dynamic markers used.', $tester->getDisplay());
+            self::assertSame("PASSED site:wrappedCard:Default\n1/1 passed.\n", $tester->getDisplay());
             file_put_contents($path, str_replace('preview', 'broken', implode("\n", $lines)));
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());

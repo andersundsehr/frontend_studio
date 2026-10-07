@@ -88,7 +88,7 @@ final readonly class Runner
                     $message = 'Updated snapshot. Review and commit the changes.';
                 } else {
                     $status = 'passed';
-                    $message = 'Snapshot is up to date.';
+                    $message = '';
                 }
             } elseif ($baseline === null) {
                 $expected = $this->comparison->create($actual, $second);
@@ -101,7 +101,7 @@ final readonly class Runner
                 $status = 'missing';
             } elseif ($this->comparison->matches($baseline, $actual) && $this->comparison->matches($baseline, $second)) {
                 $status = 'passed';
-                $message = 'Both samples match the saved baseline.';
+                $message = '';
             } else {
                 $status = 'failed';
                 $message = 'Rendered HTML differs from the saved baseline.';
