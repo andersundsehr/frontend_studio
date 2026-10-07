@@ -48,6 +48,94 @@ test('test all runs every server identifier even when no rows are visible', asyn
   assert.equal(tests.passed, 3);
 });
 
+const similarComponent = 'site:folder.cardExtra:Default';
+const colonVariant = a + ':Extra';
+const otherNamespace = 'other:card:Default';
+const similarFolder = 'site:folderExtra.card:Default';
+const previousCatalog = [a, b, c, similarComponent, colonVariant, otherNamespace, similarFolder];
+
+for (const [name, scope, cleared] of [
+  ['all', '', previousCatalog],
+  ['namespace', 'site:', [a, b, c, similarComponent, colonVariant, similarFolder]],
+  ['folder', 'site:folder.', [a, b, similarComponent, colonVariant]],
+  ['component', 'site:folder.card', [a, b, colonVariant]],
+  ['variant', a, [a]],
+  ['colon-containing variant', colonVariant, [colonVariant]],
+] as const) {
+  test(`a new ${name} run clears scoped passes before discovery and keeps them cleared when discovery fails`, async () => {
+    let failDiscovery = false;
+    let rejectDiscovery: (error: Error) => void = () => {};
+    const { tests } = await state(async (body) => {
+      if (body.operation === 'discover') {
+        if (failDiscovery) return new Promise((_resolve, reject) => { rejectDiscovery = reject; });
+        return { identifiers: previousCatalog, catalog: previousCatalog };
+      }
+      return { result: result(body.scope) };
+    });
+    await tests.run();
+    assert.equal(tests.passed, previousCatalog.length);
+    assert.equal(tests.status(), 'passed');
+    const previous = new Map(tests.results);
+    const remaining = previousCatalog.filter((id) => !(cleared as readonly string[]).includes(id));
+    const notifications: string[][] = [];
+    tests.changed = () => notifications.push([...tests.results.keys()]);
+    failDiscovery = true;
+
+    const run = tests.run(scope);
+    assert.deepEqual([...tests.results.keys()], remaining);
+    assert.deepEqual(notifications[0], remaining, 'The first UI update must already exclude stale results.');
+    assert.equal(tests.active, true);
+    assert.equal(tests.completed, 0);
+    assert.equal(tests.total, 0);
+    assert.equal(tests.passed, remaining.length);
+    for (const id of cleared) assert.equal(tests.status(id, 'variant'), 'not-run');
+
+    rejectDiscovery(new Error('Discovery unavailable'));
+    await run;
+    assert.equal(tests.active, false);
+    assert.equal(tests.passed, remaining.length);
+    assert.deepEqual([...tests.results.keys()], remaining);
+    assert.equal(tests.status(), 'failed');
+    assert.equal(tests.failures()[0].message, 'Discovery unavailable');
+    for (const id of remaining) {
+      assert.equal(tests.results.get(id), previous.get(id), 'Unrelated results must be retained unchanged.');
+      assert.equal(tests.status(id, 'variant'), 'passed');
+    }
+  });
+}
+
+for (const staleFailure of [false, true]) {
+  test(`cancelled discovery ${staleFailure ? 'errors' : 'responses'} cannot overwrite a newer successful run`, async () => {
+    let settleDiscovery: () => void = () => {};
+    let oldSignal: AbortSignal | undefined;
+    let discoveries = 0;
+    const { tests } = await state(async (body, signal) => {
+      if (body.operation === 'discover') {
+        if (discoveries++ === 0) {
+          oldSignal = signal;
+          return new Promise((resolve, reject) => {
+            settleDiscovery = () => staleFailure ? reject(new Error('Old discovery failed')) : resolve({ identifiers: [a], catalog: [a] });
+          });
+        }
+        return { identifiers: [b], catalog: [b, c] };
+      }
+      return { result: result(body.scope) };
+    });
+    const cancelled = tests.run(a);
+    tests.invalidate();
+    assert.equal(oldSignal?.aborted, true);
+    await tests.run(b);
+    settleDiscovery();
+    await cancelled;
+    assert.deepEqual([...tests.catalog], [b, c]);
+    assert.deepEqual([...tests.results.keys()], [b]);
+    assert.equal(tests.status(b, 'variant'), 'passed');
+    assert.equal(tests.passed, 1);
+    assert.equal(tests.errors.size, 0);
+    assert.equal(tests.active, false);
+  });
+}
+
 test('duplicate clicks are ignored and context changes discard in-flight results', async () => {
   let release: (value: any) => void = () => {};
   let signal: AbortSignal | undefined;

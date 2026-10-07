@@ -78,6 +78,8 @@ export default class SnapshotTests {
     this.active = true;
     this.errors.clear();
     this.completed = this.total = 0;
+    const type = scope.split(':').length > 2 ? 'variant' : (scope.endsWith(':') || scope.endsWith('.') ? '' : 'component');
+    for (const id of this.results.keys()) if (belongsToScope(id, scope, type)) this.results.delete(id);
     const context = { ...this.context };
     this.changed();
     try {

@@ -97,8 +97,8 @@ class FrontendStudioComponentTree extends Tree {
         @dblclick=${(event) => event.stopPropagation()}
         @click=${(event) => { event.preventDefault(); event.stopImmediatePropagation(); this.clearPendingNodeSelection(); this.runSnapshots(node.identifier); }}
       >▶</button>
-      ${status === 'passed' ? html`<span class="text-success" role="img" aria-label="All tests passed">✓</span>` : ''}
-      ${status === 'failed' ? html`<button type="button" class="btn btn-sm btn-borderless text-danger"
+      ${status === 'passed' ? html`<span class="snapshot-status text-success" role="img" aria-label="All tests passed">✓</span>` : ''}
+      ${status === 'failed' ? html`<button type="button" class="snapshot-status btn btn-sm btn-borderless text-danger"
         title="Inspect snapshot failures" aria-label=${`Inspect snapshot failures for ${node.name}`}
         @keydown=${(event) => event.stopPropagation()}
         @dblclick=${(event) => event.stopPropagation()}
@@ -766,6 +766,14 @@ class FrontendStudioComponentTreeContainer extends LitElement {
           width: auto;
           visibility: visible;
           opacity: 1;
+        }
+
+        andersundsehr-frontend-studio-component-tree .node-action > button:not(.snapshot-status) {
+          display: none;
+        }
+
+        andersundsehr-frontend-studio-component-tree .node:hover .node-action > button:not(.snapshot-status):not([hidden]) {
+          display: inline-flex;
         }
       </style>
       <andersundsehr-frontend-studio-component-tree-toolbar

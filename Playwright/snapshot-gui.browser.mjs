@@ -40,7 +40,7 @@ const server=createServer(async(req,res)=>{
  await new Promise(r=>setTimeout(r,80));res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:data.scope.endsWith('Default')?'passed':'failed',message:'Rendered HTML differs from the saved baseline.',path:'Card.html-snapshots/html-Second@preview@de.snapshot.html',diff:[{expected:1,actual:1,expectedSegments:[{text:'<article>',changed:false}],actualSegments:[{text:'<article>',changed:false}],changed:false},{expected:2,actual:2,expectedSegments:[{text:'Old title',changed:true}],actualSegments:[{text:'<img src=x onerror="window.injected=true">',changed:true}],changed:true},{expected:3,actual:3,expectedSegments:[{text:'</article>',changed:false}],actualSegments:[{text:'</article>',changed:false}],changed:false}],expected:'<article>\nOld title\n</article>',actual:'<article>\n<img src=x onerror="window.injected=true">\n</article>'}}));return;
  }
  if(url.pathname==='/'||url.pathname==='/module'){
- res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/vendor/typo3/cms-backend/Resources/Public/Css/backend.css"><script type="importmap">${JSON.stringify({imports})}</script><style>body{padding:20px;background:#f4f4f4}.demo-tree{width:min(440px,100%);height:620px;background:white;border:1px solid #aaa}h1{font-size:24px}.node-action{visibility:visible!important;opacity:1!important}</style></head><body><h1>Frontend Studio · HTML tests</h1><div data-frontend-studio-variant-header data-selected-site-identifier="preview" data-selected-language-hreflang="de">Preview / German</div><div class="demo-tree"><andersundsehr-frontend-studio-component-tree-container></andersundsehr-frontend-studio-component-tree-container></div><script>window.selections=0;window.TYPO3={settings:{ajaxUrls:{frontend_studio_component_tree_data:'/tree',frontend_studio_component_tree_filter:'/tree',frontend_studio_snapshot:'/snapshots'},ContextHelp:{},formEngine:{}},lang:{},ModuleMenu:{App:{getCurrentModule:()=> 'admin_frontendstudio'}},Backend:{NavigationContainer:{}}};</script><script type="module">await import('@andersundsehr/frontend-studio/backend/component-tree-container.js');window.ready=true;</script></body></html>`);return;
+ res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/vendor/typo3/cms-backend/Resources/Public/Css/backend.css"><script type="importmap">${JSON.stringify({imports})}</script><style>body{padding:20px;background:#f4f4f4}.demo-tree{width:min(440px,100%);height:620px;background:white;border:1px solid #aaa}h1{font-size:24px}</style></head><body><h1>Frontend Studio · HTML tests</h1><div data-frontend-studio-variant-header data-selected-site-identifier="preview" data-selected-language-hreflang="de">Preview / German</div><div class="demo-tree"><andersundsehr-frontend-studio-component-tree-container></andersundsehr-frontend-studio-component-tree-container></div><script>window.selections=0;window.TYPO3={settings:{ajaxUrls:{frontend_studio_component_tree_data:'/tree',frontend_studio_component_tree_filter:'/tree',frontend_studio_snapshot:'/snapshots'},ContextHelp:{},formEngine:{}},lang:{},ModuleMenu:{App:{getCurrentModule:()=> 'admin_frontendstudio'}},Backend:{NavigationContainer:{}}};</script><script type="module">await import('@andersundsehr/frontend-studio/backend/component-tree-container.js');window.ready=true;</script></body></html>`);return;
  }
  const file=path.resolve(root,'.'+url.pathname);if(!file.startsWith(root+'/'))throw Error('path');
  res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'application/octet-stream');res.end(await readFile(file));
@@ -55,11 +55,23 @@ try{
  page.on('console',m=>{if(m.type()==='error')console.error('CONSOLE',m.text())});
  await page.goto(`http://127.0.0.1:${server.address().port}/`);
  await page.waitForFunction(()=>window.ready, null, {timeout:10000});
+ const row=(name)=>page.locator('.node').filter({has:page.getByText(name,{exact:true})});
+ const actions=(name)=>row(name).locator('.node-action > button:not(.snapshot-status)');
+ await row('Default').waitFor();
+ assert.equal(await actions('Default').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display==='none')),true);
+ await row('Default').hover();
+ assert.equal(await actions('Default').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display!=='none')),true);
  await page.getByRole('button',{name:'Test Default',exact:true}).click();
  await page.getByRole('status').filter({hasText:'1/2 passed'}).waitFor();
+ await page.mouse.move(980,10);
  assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),1);
+ assert.equal(await row('Default').getByRole('img',{name:'All tests passed'}).isVisible(),true);
+ assert.equal(await actions('Default').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display==='none')),true);
+ await row('Nested').hover();
  await page.getByRole('button',{name:'Test Nested',exact:true}).click();
+ await page.mouse.move(980,10);
  await page.getByRole('button',{name:'Inspect snapshot failures for Nested',exact:true}).waitFor();
+ assert.equal(await actions('Nested').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display==='none')),true);
  await page.evaluate(()=>{const tree=document.querySelector('andersundsehr-frontend-studio-component-tree');tree.hideChildren(tree.nodes.find(node=>node.nodeType==='folder'));});
  await page.getByRole('button',{name:'Test all',exact:true}).click();
  await page.getByRole('status').filter({hasText:'1/2 passed'}).waitFor();
@@ -67,6 +79,7 @@ try{
  await page.evaluate(()=>{const tree=document.querySelector('andersundsehr-frontend-studio-component-tree');tree.showChildren(tree.nodes.find(node=>node.nodeType==='folder'));});
  assert.equal(await page.evaluate(()=>window.selections),0);
  await mkdir(evidence,{recursive:true});
+ await page.mouse.move(980,10);
  await page.screenshot({path:path.join(evidence,'tree.png')});
  await page.getByRole('button',{name:'Inspect snapshot failures for Card',exact:true}).click();
  await page.getByText('Snapshot mismatch: site:nested.card:Second',{exact:true}).waitFor();
@@ -126,5 +139,31 @@ try{
  await page.waitForFunction(()=>window.selections===1);
  assert.match(await page.evaluate(()=>window.openedComponentUrl),/componentVariant=site%3Anested.card%3ASecond/);
  assert.match(await page.evaluate(()=>window.openedComponentUrl),/site=preview&language=de/);
- console.log('PASS real TYPO3 tree/Lit/modal: focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
+ // A failed rediscovery must remove every old green result from the rendered tree.
+ let failDiscovery=false;
+ await page.route('**/snapshots',async(route)=>{
+  const body=route.request().postData()||'';
+  if(body.includes('discover')) {
+   if(failDiscovery) await route.fulfill({status:503,json:{success:false,message:'Discovery unavailable'}});
+   else await route.fulfill({json:{success:true,catalog:ids,identifiers:ids}});
+  } else {
+   const identifier=body.includes('Second')?ids[1]:ids[0];
+   await route.fulfill({json:{success:true,result:{identifier,status:'passed',message:'Both samples match.',expected:'',actual:''}}});
+  }
+ });
+ await page.reload();
+ await page.waitForFunction(()=>window.ready);
+ await page.getByRole('button',{name:'Test all',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'2/2 passed'}).waitFor();
+ assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),5);
+ failDiscovery=true;
+ await page.getByRole('button',{name:'Test all',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.active);
+ await page.getByRole('status').filter({hasText:'0/2 passed'}).waitFor();
+ assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),0);
+ await page.getByRole('button',{name:'✕ Results',exact:true}).click();
+ await page.getByRole('heading',{name:'Test error',exact:true}).waitFor();
+ await page.getByText('Discovery unavailable',{exact:true}).waitFor();
+ await page.screenshot({path:path.join(evidence,'discovery-error.png')});
+ console.log('PASS real TYPO3 tree/Lit/modal: hover-only actions, persistent result icons, failed rediscovery clears old passes, focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
 }finally{await browser.close();server.close();}

@@ -68,12 +68,16 @@ they do not create missing snapshots and reject updates.
 
 ## Running HTML tests from the component tree
 
-Select the preview site and language, then use a row's ▶ button to test its saved
-fixtures or **Test all** to test the complete catalog, including filtered or
+Select the preview site and language, then hover over a row to test its saved fixtures
+with the ▶ button. Use **Test all** to test the complete catalog, including filtered or
 collapsed rows. Unsaved form edits are not used. Requests run one variant at a time;
 the toolbar separates progress from the passed/total count. A scope receives a
 checkmark only after every descendant has passed. Missing/new baselines, errors
 and mismatches show a clickable red X that opens the failure details.
+Row action buttons appear on hover; green checkmarks and red X results stay visible.
+Starting another run clears the previous results for that scope immediately,
+including when discovery fails. Partial runs retain results outside their scope;
+**Test all** clears all previous results.
 The popup identifies a snapshot mismatch, missing snapshot or test error
 and explains the next step.
 When several variants fail, select one in the list to inspect its result.
