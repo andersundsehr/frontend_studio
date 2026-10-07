@@ -448,27 +448,17 @@ The **Doc** inspector tab edits Markdown shared by every variant of a component.
 `Card.html` and `Card.fluid.html` use the adjacent `Card.md` file.
 Opening a missing document does not create a file; **Save** creates it explicitly.
 Production and Production subcontexts permit reading only.
-Documentation endpoints require a backend login and TYPO3 route tokens.
 
-CKEditor from TYPO3’s `rte_ckeditor` extension supports paragraphs, headings, emphasis, lists, links, and code blocks.
+The rich text editor supports paragraphs, headings, emphasis, lists, links, and code blocks.
 Writable documentation opens in the rich text editor, whose **Markdown** toolbar button lets you edit the source directly.
 The editor itself is the preview; there is no separate preview below it.
 A small hint below the editor shows the documentation file path.
 Production shows rendered Markdown inline without an editor or action buttons.
 The Doc tab is hidden in Production when the Markdown file does not exist.
 Saving empty documentation removes the Markdown file.
-Opening a document keeps the original Markdown untouched; rich edits serialize it using consistent Markdown formatting.
-Raw HTML is displayed as text and executable link schemes are rejected.
 **Reset** restores the last loaded or saved document locally.
 Documentation has its own Save button and unsaved-change warning, independent of fixture controls.
 In Development, changes to adjacent Markdown files refresh the editor automatically when documentation has no unsaved edits.
 Documentation-only changes keep the view and fixture controls in place.
-A save uses an optimistic content revision; external edits or another editor's save produce a conflict instead of overwriting stale content.
+If someone else changes the document, saving shows a conflict and keeps your unsaved text.
 Copy your pending text before reloading a conflicting document.
-
-Markdown conversion is shipped as a checked-in browser module in
-`Resources/Public/Contrib/markdown-converter.js`.
-It contains the pinned `markdown-it` 14.3.2 and `turndown` 7.2.2 dependencies.
-Third-party license notices are stored alongside it.
-The editor modules and styling come from the required `typo3/cms-rte-ckeditor` Composer package.
-No separate CKEditor bundle or CDN is used.
