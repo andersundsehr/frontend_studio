@@ -93,9 +93,10 @@ with line numbers for the saved snapshot and current output:
 ```text
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
   snapshot | actual
-- 1 | -  <p>Hello world
-+ - | 1  <p>Hello TYPO3
-  2 | 2  </p>
+  1 | 1  <div>
+- 2 | -    <p>Hello world</p>
++ - | 2    <p>Hello TYPO3</p>
+  3 | 3  </div>
 ```
 
 Each changed line appears twice: `-` shows the snapshot and `+` shows the current output.
@@ -150,6 +151,25 @@ Text.fluid.html-snapshots/html-Default.html
 The files keep their `.html` extension for viewing in editors and Git tools.
 Snapshots and `_slots/` files do not appear as components in Frontend Studio.
 If two variant names produce the same filename, rename one variant before testing.
+
+Generated HTML uses two spaces per nesting level, with aligned closing tags.
+Short text-only elements stay on one line; long opening tags put each attribute
+on its own indented line. The CLI diff keeps this indentation:
+
+```html
+<div class="card">
+  <section>
+    <h2>Title</h2>
+    <p>Hello <strong>world</strong>!</p>
+  </section>
+</div>
+```
+
+Text and inline elements stay together to preserve their spaces and punctuation.
+The contents of `pre`, `textarea`, `script` and `style` keep their original whitespace.
+Formatting is stable: formatting an existing snapshot again produces the same result.
+If an older snapshot uses different formatting, regenerate it with `-u`,
+review the changes and commit the updated file.
 
 When a value should change without failing the test,
 replace only that value with `{{frontend-studio:dynamic}}`:

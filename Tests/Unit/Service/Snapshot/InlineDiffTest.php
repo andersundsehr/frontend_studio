@@ -147,6 +147,90 @@ final class InlineDiffTest extends TestCase
         self::assertStringContainsString('3 | 2', $deleted);
     }
 
+    #[DataProvider('indentedSources')]
+    public function testDiffPreservesSourceIndentationAndHighlightsOnlyChangedWords(string $expected, string $actual, string $removedLine, string $addedLine): void
+    {
+        $diff = new InlineDiff()->render($expected, $actual);
+        $plain = new OutputFormatter()->format($diff);
+        self::assertNotNull($plain);
+        self::assertStringContainsString($removedLine, $plain);
+        self::assertStringContainsString($addedLine, $plain);
+        self::assertStringContainsString('<fg=red>old ', $diff);
+        self::assertStringContainsString('<fg=green>new ', $diff);
+        self::assertStringNotContainsString('<fg=red>  ', $diff);
+        self::assertStringNotContainsString('<fg=green>  ', $diff);
+    }
+
+    /** @return iterable<string, array{string, string, string, string}> */
+    public static function indentedSources(): iterable
+    {
+        yield 'nested HTML content' => [
+            "<div>\n  <section>\n    <p>Hello old world</p>\n  </section>\n</div>\n",
+            "<div>\n  <section>\n    <p>Hello new world</p>\n  </section>\n</div>\n",
+            '- 3 | -      <p>Hello old world</p>',
+            '+ - | 3      <p>Hello new world</p>',
+        ];
+        yield 'split attributes' => [
+            "<div>\n  <p\n    title=\"Hello old world\"\n    class=\"card\"\n  >Content</p>\n</div>\n",
+            "<div>\n  <p\n    title=\"Hello new world\"\n    class=\"card\"\n  >Content</p>\n</div>\n",
+            '- 3 | -      title="Hello old world"',
+            '+ - | 3      title="Hello new world"',
+        ];
+        yield 'each source keeps its own indentation' => [
+            "<div>\n  <p>Hello old world</p>\n</div>\n",
+            "<div>\n      <p>Hello new world</p>\n</div>\n",
+            '- 2 | -    <p>Hello old world</p>',
+            '+ - | 2        <p>Hello new world</p>',
+        ];
+        yield 'first line has no duplicate normalized indent' => [
+            '    <p>Hello old world</p>',
+            '    <p>Hello new world</p>',
+            '- 1 | -      <p>Hello old world</p>',
+            '+ - | 1      <p>Hello new world</p>',
+        ];
+        yield 'tabs are preserved as indentation' => [
+            "<div>\n\t<p>Hello old world</p>\n</div>\n",
+            "<div>\n\t<p>Hello new world</p>\n</div>\n",
+            "- 2 | -  \t<p>Hello old world</p>",
+            "+ - | 2  \t<p>Hello new world</p>",
+        ];
+    }
+
+    public function testUnchangedContextKeepsItsNestingIndentation(): void
+    {
+        $expected = "<div>\n  <section>\n    <p>Hello old world</p>\n  </section>\n</div>\n";
+        $actual = str_replace('old', 'new', $expected);
+        $plain = new OutputFormatter()->format(new InlineDiff()->render($expected, $actual));
+        self::assertNotNull($plain);
+        self::assertStringContainsString('  2 | 2    <section>', $plain);
+        self::assertStringContainsString('  4 | 4    </section>', $plain);
+        self::assertStringContainsString('  5 | 5  </div>', $plain);
+    }
+
+    public function testAddedAndRemovedLinesKeepTheirSourceIndentation(): void
+    {
+        $before = "<div>\n  <p>One</p>\n</div>\n";
+        $after = "<div>\n  <p>One</p>\n  <section>\n    <p>Added</p>\n  </section>\n</div>\n";
+        $added = new OutputFormatter()->format(new InlineDiff()->render($before, $after));
+        self::assertNotNull($added);
+        self::assertStringContainsString('+ - | 3    <section>', $added);
+        self::assertStringContainsString('+ - | 4      <p>Added</p>', $added);
+        self::assertStringContainsString('+ - | 5    </section>', $added);
+        $removed = new OutputFormatter()->format(new InlineDiff()->render($after, $before));
+        self::assertNotNull($removed);
+        self::assertStringContainsString('- 3 | -    <section>', $removed);
+        self::assertStringContainsString('- 4 | -      <p>Added</p>', $removed);
+        self::assertStringContainsString('- 5 | -    </section>', $removed);
+    }
+
+    public function testIndentationLengthDoesNotCreateChanges(): void
+    {
+        $expected = "<div>\n  <p>Content</p>\n</div>\n";
+        $actual = "<div>\n\t\t    <p>Content</p>\n</div>\n";
+        self::assertTrue(new Comparison()->matches($expected, $actual));
+        self::assertSame('<fg=gray>  snapshot | actual</>', new InlineDiff()->render($expected, $actual));
+    }
+
     #[DataProvider('completeLines')]
     public function testCompleteLineChangesUseOnlyLeadingSigns(string $expected, string $actual, string $removed, string $added): void
     {

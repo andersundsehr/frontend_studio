@@ -109,13 +109,13 @@ final class ComparisonTest extends TestCase
     {
         $html = '<span title="a > b"> text </span><script>if (x < 1) { x = "<b>"; }</script><pre>  a\nb </pre><!-- <i> -->';
         $formatted = new HtmlFormatter()->format($html);
-        self::assertSame('<span title="a > b"> text ' . "\n" . '</span>' . "\n" . '<script>if (x < 1) { x = "<b>"; }</script>' . "\n" . '<pre>  a\nb </pre>' . "\n" . '<!-- <i> -->' . "\n", $formatted);
+        self::assertSame($html . "\n", $formatted);
     }
 
     public function testLongStartTagsSplitEveryAttribute(): void
     {
         $value = str_repeat('x', 70);
-        self::assertSame('<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi\n</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
+        self::assertSame('<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
     }
 
     public function testLongRawTextOpeningTagFormatsWithoutChangingItsContents(): void

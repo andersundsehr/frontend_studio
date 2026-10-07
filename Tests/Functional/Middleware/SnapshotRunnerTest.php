@@ -29,6 +29,8 @@ use Andersundsehr\FrontendStudio\Service\Snapshot\HtmlFormatter;
 
 final class SnapshotRunnerTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['rte_ckeditor'];
+
     protected array $testExtensionsToLoad = [
         __DIR__ . '/../../..',
         __DIR__ . '/../Fixtures/Extensions/preview_site_set',
@@ -59,8 +61,8 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertStringContainsString('href="' . $prefix, $html);
             self::assertStringContainsString('<svg', $html);
             $valueField = $this->get(FrontendRenderer::class)->render('frontend.studio:variant.valueField:Fallback', $site, $language);
-            self::assertStringContainsString('href="' . $prefix, $valueField);
-            self::assertStringContainsString('<svg', $valueField);
+            self::assertStringContainsString('<textarea', $valueField);
+            self::assertStringContainsString('data-fixture-type="array"', $valueField);
             self::assertSame($oldRequest, $GLOBALS['TYPO3_REQUEST'] ?? null);
         } finally {
             $this->replaceTemplate($template, $originalTemplate);

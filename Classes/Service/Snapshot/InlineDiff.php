@@ -21,6 +21,12 @@ final class InlineDiff extends Renderer
     /** @var list<int> */
     private array $actualLines = [];
 
+    /** @var array<int, string> */
+    private array $expectedIndents = [];
+
+    /** @var array<int, string> */
+    private array $actualIndents = [];
+
     private int $expectedOffset = 0;
 
     private int $actualOffset = 0;
@@ -31,8 +37,8 @@ final class InlineDiff extends Renderer
     public function render(string $expected, string $actual): string
     {
         $actual = new Comparison()->maskForDiff($expected, $actual);
-        [$expected, $this->expectedLines] = $this->source($expected);
-        [$actual, $this->actualLines] = $this->source($actual);
+        [$expected, $this->expectedLines, $this->expectedIndents] = $this->source($expected);
+        [$actual, $this->actualLines, $this->actualIndents] = $this->source($actual);
         $this->collect($expected, $actual);
         $visible = [];
         foreach ($this->rows as $index => $row) {
@@ -56,13 +62,13 @@ final class InlineDiff extends Renderer
                 if ($row['expected'] !== null) {
                     $text = $row['unchanged'] ? $this->mergeHighlights($row['expectedDiff']) : '<fg=red>' . $row['expectedText'] . '</>';
                     $output[] = '<fg=red>' . self::REMOVED_PREFIX . '</> <fg=gray>' . str_pad((string)$row['expected'], $width, ' ', STR_PAD_LEFT)
-                        . ' | ' . str_pad('-', $width, ' ', STR_PAD_LEFT) . '</>  ' . $text;
+                        . ' | ' . str_pad('-', $width, ' ', STR_PAD_LEFT) . '</>  ' . $this->expectedIndents[$row['expected']] . $text;
                 }
 
                 if ($row['actual'] !== null) {
                     $text = $row['unchanged'] ? $this->mergeHighlights($row['actualDiff']) : '<fg=green>' . $row['actualText'] . '</>';
                     $output[] = '<fg=green>' . self::ADDED_PREFIX . '</> <fg=gray>' . str_pad('-', $width, ' ', STR_PAD_LEFT)
-                        . ' | ' . str_pad((string)$row['actual'], $width, ' ', STR_PAD_LEFT) . '</>  ' . $text;
+                        . ' | ' . str_pad((string)$row['actual'], $width, ' ', STR_PAD_LEFT) . '</>  ' . $this->actualIndents[$row['actual']] . $text;
                 }
 
                 $previous = $index;
@@ -71,7 +77,7 @@ final class InlineDiff extends Renderer
 
             $numbers = str_pad((string)($row['expected'] ?? '-'), $width, ' ', STR_PAD_LEFT) . ' | '
                 . str_pad((string)($row['actual'] ?? '-'), $width, ' ', STR_PAD_LEFT);
-            $output[] = '  <fg=gray>' . $numbers . '</>  ' . $row['expectedText'];
+            $output[] = '  <fg=gray>' . $numbers . '</>  ' . ($this->expectedIndents[$row['expected'] ?? 0] ?? '') . $row['expectedText'];
             $previous = $index;
         }
 
@@ -97,12 +103,12 @@ final class InlineDiff extends Renderer
             $row['expected'] ??= $expected;
             $row['actual'] ??= $actual;
             $escaped = OutputFormatter::escape($character);
-            if ($opcode !== 'i') {
+            if ($opcode !== 'i' && ($row['expectedText'] !== '' || trim($character) !== '')) {
                 $row['expectedText'] .= $escaped;
                 $row['expectedDiff'] .= $opcode === 'd' ? '<fg=red>' . $escaped . '</>' : $escaped;
             }
 
-            if ($opcode !== 'd') {
+            if ($opcode !== 'd' && ($row['actualText'] !== '' || trim($character) !== '')) {
                 $row['actualText'] .= $escaped;
                 $row['actualDiff'] .= $opcode === 'i' ? '<fg=green>' . $escaped . '</>' : $escaped;
             }
@@ -131,9 +137,16 @@ final class InlineDiff extends Renderer
         new Diff(granularity: new Word(), renderer: $this)->render($expected, $actual);
     }
 
-    /** @return array{string, list<int>} */
+    /** @return array{string, list<int>, array<int, string>} */
     private function source(string $html): array
     {
+        // Keep presentation indentation separate from the normalized comparison text.
+        $indents = [];
+        foreach (explode("\n", $html) as $index => $sourceLine) {
+            preg_match('/^[\t ]*/', $sourceLine, $indent);
+            $indents[$index + 1] = $indent[0] ?? '';
+        }
+
         preg_match_all('/\s+|[^\s]/u', $html, $matches);
         $text = '';
         $lines = [];
@@ -144,6 +157,6 @@ final class InlineDiff extends Renderer
             $line += substr_count($part, "\n");
         }
 
-        return [$text, $lines];
+        return [$text, $lines, $indents];
     }
 }
