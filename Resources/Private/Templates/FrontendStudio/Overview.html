@@ -9,11 +9,13 @@
   data-selected-site-identifier="{selectedSiteIdentifier}" data-selected-language-hreflang="{selectedLanguageHreflang}">
   <f:if condition="{overviewComponent}">
     <f:then>
-      <div class="d-flex align-items-center gap-2">
-        <typo3-backend-content-navigation-toggle class="btn btn-sm btn-icon btn-default" action="expand" hidden></typo3-backend-content-navigation-toggle>
-        <h1>{overviewComponent.componentName}</h1>
-      </div>
-      <p class="text-body-secondary"><code>{overviewComponent.componentIdentifier}</code></p>
+      <header class="frontend-studio-overview-header">
+        <div class="d-flex align-items-center gap-2">
+          <typo3-backend-content-navigation-toggle class="btn btn-sm btn-icon btn-default" action="expand" hidden></typo3-backend-content-navigation-toggle>
+          <h1>{overviewComponent.componentName}</h1>
+        </div>
+        <p class="frontend-studio-overview-identifier text-body-secondary"><code>{overviewComponent.componentIdentifier}</code></p>
+      </header>
       <f:if condition="{documentationError}"><p role="alert">{documentationError}</p></f:if>
       <f:if condition="{documentationMarkdown}">
         <f:then><div data-overview-description><pre data-overview-markdown>{documentationMarkdown}</pre></div></f:then>
@@ -44,6 +46,7 @@
               </f:if>
               <f:if condition="{variant.first}">
                 <div class="frontend-studio-overview-controls">
+                  <h3>Controls</h3>
                   <frontend.studio:variant.controls selectedComponentMetadata="{selectedComponentMetadata}" variantActiveTab="values" showActions="{false}"/>
                 </div>
               </f:if>

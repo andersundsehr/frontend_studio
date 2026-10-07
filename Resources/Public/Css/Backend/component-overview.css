@@ -1,11 +1,232 @@
-.frontend-studio-overview { max-width: 1200px; margin: 0 auto; padding: clamp(1rem, 3vw, 3rem); }
-.frontend-studio-overview-example { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--typo3-component-border-color, #ddd); }
-.frontend-studio-overview-frame { border: 1px solid var(--typo3-component-border-color, #ccc); padding: 1rem; background: repeating-conic-gradient(#e6e6e6 0% 25%, white 0% 50%) 0 0 / 10px 10px; }
-.frontend-studio-overview-frame.is-first:not(.is-expanded) { max-height: 480px; overflow: auto; }
-.frontend-studio-overview iframe { display: block; width: 100%; height: 240px; border: 0; }
-.frontend-studio-overview-controls { margin-top: 1rem; padding: 1rem; border: 1px solid var(--typo3-component-border-color, #ddd); }
-.frontend-studio-overview [data-overview-description] { line-height: 1.6; overflow-wrap: anywhere; }
-.frontend-studio-overview pre { white-space: pre-wrap; }
-.frontend-studio-overview img { max-width: 100%; }
-.frontend-studio-overview [hidden] { display: none !important; }
-.frontend-studio-overview h2 [data-overview-variant-link] { text-decoration: underline; }
+.frontend-studio-overview {
+  --overview-border: var(--typo3-component-border-color, #d8dee4);
+  --overview-muted-surface: var(--typo3-surface-container-low, #f6f8fa);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  background: var(--typo3-surface-container-lowest, #fff);
+  overflow-wrap: anywhere;
+}
+
+.frontend-studio-overview-header,
+.frontend-studio-overview [data-overview-description] {
+  max-width: 880px;
+}
+
+.frontend-studio-overview-header {
+  margin-bottom: 2rem;
+}
+
+.frontend-studio-overview-header h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.frontend-studio-overview-identifier {
+  margin: 0.5rem 0 0;
+  color: var(--typo3-text-color-secondary, #656d76);
+  font-size: 0.875rem;
+}
+
+.frontend-studio-overview-identifier code {
+  --typo3-text-color-code: currentColor;
+  color: inherit;
+}
+
+.frontend-studio-overview [data-overview-description] {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.frontend-studio-overview [data-overview-description] :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.5em 0 0.75em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.frontend-studio-overview [data-overview-description] h1 {
+  font-size: 2em;
+}
+
+.frontend-studio-overview [data-overview-description] h2 {
+  font-size: 1.5em;
+}
+
+.frontend-studio-overview [data-overview-description] :is(h1, h2) {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--overview-border);
+}
+
+.frontend-studio-overview [data-overview-description] h3 {
+  font-size: 1.25em;
+}
+
+.frontend-studio-overview [data-overview-description] :is(h4, h5, h6) {
+  font-size: 1em;
+}
+
+.frontend-studio-overview [data-overview-description] :is(p, ul, ol, dl, pre, blockquote, table) {
+  margin: 0 0 1rem;
+}
+
+.frontend-studio-overview [data-overview-description] :is(ul, ol) {
+  padding-left: 1.75em;
+}
+
+.frontend-studio-overview [data-overview-description] li + li {
+  margin-top: 0.25em;
+}
+
+.frontend-studio-overview [data-overview-description] li > p {
+  margin-bottom: 0.5em;
+}
+
+.frontend-studio-overview [data-overview-description] a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.frontend-studio-overview [data-overview-description] code {
+  --typo3-text-color-code: currentColor;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  background: var(--overview-muted-surface);
+  color: inherit;
+  font-family: var(--typo3-font-family-monospace, monospace);
+  font-size: 0.875em;
+}
+
+.frontend-studio-overview [data-overview-description] pre {
+  max-width: 100%;
+  padding: 1rem;
+  border-radius: 6px;
+  background: var(--overview-muted-surface);
+  overflow-x: auto;
+  white-space: pre;
+  overflow-wrap: normal;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.frontend-studio-overview [data-overview-description] pre code {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.frontend-studio-overview [data-overview-markdown] {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.frontend-studio-overview [data-overview-description] blockquote {
+  padding: 0.25rem 1rem;
+  border-left: 3px solid var(--overview-border);
+  color: var(--typo3-text-color-secondary, #656d76);
+}
+
+.frontend-studio-overview [data-overview-description] blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.frontend-studio-overview [data-overview-description] table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.frontend-studio-overview [data-overview-description] :is(th, td) {
+  min-width: 8rem;
+  padding: 0.5rem 0.75rem;
+  overflow-wrap: normal;
+  border: 1px solid var(--overview-border);
+}
+
+.frontend-studio-overview [data-overview-description] :is(th, tr:nth-child(even)) {
+  background: var(--overview-muted-surface);
+}
+
+.frontend-studio-overview [data-overview-description] hr {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid var(--overview-border);
+}
+
+.frontend-studio-overview [data-overview-description] > :first-child {
+  margin-top: 0;
+}
+
+.frontend-studio-overview-example {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--overview-border);
+}
+
+.frontend-studio-overview-example > h2 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.frontend-studio-overview h2 [data-overview-variant-link] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.frontend-studio-overview-frame {
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+  border: 1px solid var(--overview-border);
+  border-radius: 8px;
+  background: repeating-conic-gradient(light-dark(#f0f1f3, #343a40) 0% 25%, light-dark(#fff, #292e33) 0% 50%) 0 0 / 10px 10px;
+  overflow: hidden;
+}
+
+.frontend-studio-overview-frame.is-first:not(.is-expanded) {
+  max-height: 480px;
+  overflow: auto;
+}
+
+.frontend-studio-overview iframe {
+  display: block;
+  width: 100%;
+  height: 240px;
+  border: 0;
+  background: transparent;
+}
+
+.frontend-studio-overview [data-overview-frame-status]:empty {
+  margin: 0;
+}
+
+.frontend-studio-overview-controls {
+  margin-top: 1rem;
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+  border-radius: 8px;
+  background: var(--overview-muted-surface);
+}
+
+.frontend-studio-overview-controls > h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.frontend-studio-overview-controls .frontend-studio-variant-argument-group {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.frontend-studio-overview img {
+  max-width: 100%;
+  height: auto;
+}
+
+.frontend-studio-overview [hidden] {
+  display: none !important;
+}
