@@ -22,8 +22,8 @@ final class BaselineStorageTest extends TestCase
         file_put_contents($directory . '/Text.fluid.html', '<p>card</p>');
         $storage = new BaselineStorage(new ComponentWritePolicy());
         $path = $storage->path($directory . '/Text.fluid.html', 'Default');
-        self::assertSame($directory . '/Text.fluid.html-snapshots/html-Default.html', $path);
-        self::assertSame($directory . '/Text.fluid.html-snapshots/html-a-b.html', $storage->path($directory . '/Text.fluid.html', 'a/b'));
+        self::assertSame($directory . '/Text.fluid.html-snapshots/html-Default.snapshot.html', $path);
+        self::assertSame($directory . '/Text.fluid.html-snapshots/html-a-b.snapshot.html', $storage->path($directory . '/Text.fluid.html', 'a/b'));
         self::assertSame($storage->path($directory . '/Text.fluid.html', 'a/b'), $storage->path($directory . '/Text.fluid.html', 'a-b'));
         $property = new ReflectionProperty(Environment::class, 'context');
         $original = Environment::getContext();
@@ -62,7 +62,7 @@ final class BaselineStorageTest extends TestCase
             $property->setValue(null, new ApplicationContext('Testing'));
             $storage->update($path, 'replacement');
             self::assertSame('replacement', $storage->read($path));
-            self::assertSame(['.', '..', 'html-Default.html'], scandir(dirname($path)));
+            self::assertSame(['.', '..', 'html-Default.snapshot.html'], scandir(dirname($path)));
             unlink($path);
             $storage->update($path, 'new snapshot');
             self::assertSame('new snapshot', $storage->read($path));

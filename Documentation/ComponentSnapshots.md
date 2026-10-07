@@ -145,10 +145,11 @@ Snapshots live beside their component template.
 For `Text.fluid.html` and variant `Default`, the file is:
 
 ```text
-Text.fluid.html-snapshots/html-Default.html
+Text.fluid.html-snapshots/html-Default.snapshot.html
 ```
 
-The files keep their `.html` extension for viewing in editors and Git tools.
+The `.snapshot.html` ending identifies snapshots while keeping them viewable as HTML
+in editors and Git tools.
 Snapshots and `_slots/` files do not appear as components in Frontend Studio.
 If two variant names produce the same filename, rename one variant before testing.
 

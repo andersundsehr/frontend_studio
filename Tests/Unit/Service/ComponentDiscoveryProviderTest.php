@@ -39,11 +39,11 @@ final class ComponentDiscoveryProviderTest extends TestCase
     public static function templatePaths(): iterable
     {
         yield 'ordinary component' => ['Element/Text/Text', '/components/Element/Text/Text.fluid.html', true];
-        yield 'nested snapshot directory' => ['Element/Text/Text.fluid.html-snapshots/html-Default', '/components/Element/Text/Text.fluid.html-snapshots/html-Default.html', false];
-        yield 'flat component pattern' => ['Text.fluid.html-snapshots/html-Default', '/components/Text.fluid.html-snapshots/html-Default.html', false];
+        yield 'nested snapshot directory' => ['Element/Text/Text.fluid.html-snapshots/html-Default', '/components/Element/Text/Text.fluid.html-snapshots/html-Default.snapshot.html', false];
+        yield 'flat component pattern' => ['Text.fluid.html-snapshots/html-Default', '/components/Text.fluid.html-snapshots/html-Default.snapshot.html', false];
         yield 'snapshot directory above template root' => ['Text/Text', '/components/Archive-snapshots/Text/Text.html', false];
-        yield 'custom resolver hides snapshot location' => ['Text', '/components/Text.html-snapshots/html-Default.html', false];
-        yield 'Windows snapshot path' => ['Text', 'C:\\components\\Text.html-snapshots\\html-Default.html', false];
+        yield 'custom resolver hides snapshot location' => ['Text', '/components/Text.html-snapshots/html-Default.snapshot.html', false];
+        yield 'Windows snapshot path' => ['Text', 'C:\\components\\Text.html-snapshots\\html-Default.snapshot.html', false];
         yield 'unresolved snapshot template' => ['Text.html-snapshots/html-Default', null, false];
         yield 'unresolved ordinary template' => ['Text/Text', null, true];
         yield 'Windows unresolved snapshot template' => ['Text.html-snapshots\\html-Default', null, false];

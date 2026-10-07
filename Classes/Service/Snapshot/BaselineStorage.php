@@ -26,7 +26,7 @@ final readonly class BaselineStorage
             throw new RuntimeException('Snapshot directories must not be symbolic links.', 2269502052);
         }
 
-        return $directory . '/html-' . ComponentFixtureProvider::normalizeSlotFilenameSegment($variantName) . '.html';
+        return $directory . '/html-' . ComponentFixtureProvider::normalizeSlotFilenameSegment($variantName) . '.snapshot.html';
     }
 
     /** @phpstan-impure */
