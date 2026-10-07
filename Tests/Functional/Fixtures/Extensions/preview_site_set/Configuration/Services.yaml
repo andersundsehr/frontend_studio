@@ -1,0 +1,3 @@
+services:
+  Andersundsehr\FrontendStudio\Tests\Functional\Fixtures\Extensions\preview_site_set\ControlProvider:
+    autoconfigure: true

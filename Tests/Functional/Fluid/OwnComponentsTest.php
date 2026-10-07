@@ -56,6 +56,19 @@ final class OwnComponentsTest extends FunctionalTestCase
         'typo3conf/ext/frontend_studio/Tests/Functional/Fixtures/Sites' => 'typo3conf/sites',
     ];
 
+    public function testExtensionOwnedControlUsesTransformerInputContext(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:customControl:Default');
+        self::assertNotNull($metadata);
+        $value = $metadata->fixture?->selectedVariant?->values[0];
+        self::assertSame('body.text', $value?->fixtureName);
+        self::assertSame('@frontend-studio-test/control.js', $value->control?->module);
+        $html = $this->renderVariantView(['selectedComponentMetadata' => $metadata]);
+        self::assertStringContainsString('data-frontend-studio-control="@frontend-studio-test/control.js"', $html);
+        self::assertStringContainsString('Custom example</textarea>', $html);
+        self::assertStringContainsString('data-fixture-name="body.text"', $html);
+    }
+
     public function testRendersTheEmptyVariantView(): void
     {
         $html = $this->renderVariantView([]);

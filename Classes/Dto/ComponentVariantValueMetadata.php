@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Dto;
 
+use Andersundsehr\FrontendStudio\Control\ControlDefinition;
+
 final readonly class ComponentVariantValueMetadata
 {
     public function __construct(
@@ -21,6 +23,7 @@ final readonly class ComponentVariantValueMetadata
         /** @var array<string, string> */
         public array $options = [],
         public ?string $transformerSource = null,
+        public ?ControlDefinition $control = null,
     ) {
     }
 }

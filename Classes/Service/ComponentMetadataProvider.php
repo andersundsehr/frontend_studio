@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service;
 
 use DateTime;
+use Andersundsehr\FrontendStudio\Control\ControlContext;
+use Andersundsehr\FrontendStudio\Control\TypeControls;
 use DateTimeInterface;
 use Andersundsehr\FrontendStudio\ValueFormatter;
 use Andersundsehr\FrontendStudio\Dto\ComponentArgumentMetadata;
@@ -43,6 +45,7 @@ final readonly class ComponentMetadataProvider
         private ComponentDiscoveryProvider $componentDiscoveryProvider,
         private TransformersFactory $transformersFactory,
         private ComponentWritePolicy $writePolicy = new ComponentWritePolicy(),
+        private TypeControls $typeControls = new TypeControls(),
     ) {
     }
 
@@ -204,6 +207,7 @@ final readonly class ComponentMetadataProvider
                         $this->isDateType($inputDefinition->getType()),
                         $this->getEnumOptions($inputDefinition->getType()),
                         $transformer->from,
+                        $this->typeControls->resolve(new ControlContext($argument, $value, $hasValue, $inputDefinition, $transformer->from), $transformer->controls[$inputName] ?? null),
                     );
                 }
 
@@ -222,6 +226,7 @@ final readonly class ComponentMetadataProvider
                     $argument->required,
                     null,
                     $argument->name,
+                    control: $this->typeControls->resolve(new ControlContext($argument, $argument->defaultValue, false)),
                 );
                 continue;
             }
@@ -237,6 +242,7 @@ final readonly class ComponentMetadataProvider
                 $argument->required,
                 null,
                 $argument->name,
+                control: $this->typeControls->resolve(new ControlContext($argument, $variantValue->nativeValue, $variantValue->isFixtureValue)),
             );
         }
 

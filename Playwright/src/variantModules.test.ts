@@ -1595,3 +1595,40 @@ test('copy prompt and request preserve the complete colon-containing variant nam
   assert.equal(requests[0].name, 'Mobile:Dark copy');
   assert.equal(new URL(env.window.location.href).searchParams.get('componentVariant'), 'site:card:Mobile:Dark copy');
 });
+
+test('nullable custom controls preserve null through mounting, edits and Reset', async (t) => {
+  const { root, field } = controlsRoot();
+  field.value = '';
+  field.dataset.fixtureValueNull = 'true';
+  Object.assign(field, { setCustomValidity() {} });
+  const host = element({ frontendStudioControl: '@test/nullable-control' });
+  host.selectors.set('[data-frontend-studio-variant-value], [data-frontend-studio-variant-slot]', field);
+  root.selectors.set('[data-frontend-studio-control]', [host]);
+  let value = '';
+  const written: unknown[] = [];
+  const modules = backendModules(environment(), {
+    '@test/nullable-control': () => ({
+      getValue: () => value,
+      setValue: (next: unknown) => { written.push(next); value = next === null ? '' : String(next); },
+      validate: () => '', destroy: () => {},
+    }),
+  });
+  const { default: Controls } = await modules.import('variant-controls.js');
+  const controls = new Controls(root, { root, changed() {} });
+  t.after(() => controls.destroy());
+  await controls.ready;
+  assert.equal(controls.savedValues.title, null);
+  assert.equal(controls.collectValues().title, null);
+  value = 'Edited';
+  assert.equal(controls.collectValues().title, 'Edited');
+  assert.equal(field.dataset.fixtureValueNull, 'false');
+  value = '';
+  assert.equal(controls.collectValues().title, '', 'clearing an edited value is an empty string');
+  controls.resetValues();
+  assert.equal(written.at(-1), null);
+  assert.equal(field.dataset.fixtureValueNull, 'true');
+  assert.equal(controls.collectValues().title, null);
+  controls.writeFieldValue(field, '');
+  assert.equal(field.dataset.fixtureValueNull, 'false');
+  assert.equal(controls.readFieldValue(field), '');
+});

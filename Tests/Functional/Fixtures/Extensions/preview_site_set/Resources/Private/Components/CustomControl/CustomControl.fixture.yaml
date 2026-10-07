@@ -1,0 +1,4 @@
+variants:
+  Default:
+    body:
+      text: Custom example
