@@ -17,7 +17,7 @@ use TYPO3Fluid\Fluid\View\TemplatePaths;
 final class ComponentDiscoveryProviderTest extends TestCase
 {
     #[DataProvider('templatePaths')]
-    public function testFiltersSnapshotDirectories(string $templateName, ?string $templatePath, bool $available): void
+    public function testFiltersFixtureDirectories(string $templateName, ?string $templatePath, bool $available): void
     {
         $paths = $this->createMock(TemplatePaths::class);
         $paths->method('resolveTemplateFileForControllerAndActionAndFormat')
@@ -51,6 +51,16 @@ final class ComponentDiscoveryProviderTest extends TestCase
         yield 'snapshot suffix in filename is allowed' => ['Text-snapshots', '/components/Text-snapshots.html', true];
         yield 'ordinary snapshots folder is allowed' => ['Snapshots/Text', '/components/Snapshots/Text.html', true];
         yield 'empty wildcard matches directory' => ['-snapshots/Text', '/components/-snapshots/Text.html', false];
+        yield 'nested slot directory' => ['Element/Text/_slots/Default__slot__content', '/components/Element/Text/_slots/Default__slot__content.fluid.html', false];
+        yield 'flat slot template' => ['_slots/Default__slot__content', '/components/_slots/Default__slot__content.html', false];
+        yield 'slot directory above template root' => ['Text/Text', '/components/_slots/Text/Text.html', false];
+        yield 'custom resolver hides slot location' => ['Text', '/components/Text/_slots/Default__slot__content.html', false];
+        yield 'Windows slot path' => ['Text', 'C:\\components\\Text\\_slots\\Default__slot__content.html', false];
+        yield 'unresolved slot template' => ['_slots/Default__slot__content', null, false];
+        yield 'Windows unresolved slot template' => ['_slots\\Default__slot__content', null, false];
+        yield 'slot prefix directory is allowed' => ['_slots-extra/Text', '/components/_slots-extra/Text.html', true];
+        yield 'slot suffix directory is allowed' => ['extra_slots/Text', '/components/extra_slots/Text.html', true];
+        yield 'slot filename is allowed' => ['_slots', '/components/_slots.html', true];
     }
 
     public function testNormalizesNamesWithoutATemplateResolver(): void

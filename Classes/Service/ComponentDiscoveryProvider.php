@@ -19,7 +19,7 @@ final readonly class ComponentDiscoveryProvider
             if ($resolverDelegate instanceof ComponentTemplateResolverInterface) {
                 return array_values(array_filter(
                     $components,
-                    fn(string $component): bool => !$this->isSnapshotTemplate($resolverDelegate, $component),
+                    fn(string $component): bool => !$this->isFixtureTemplate($resolverDelegate, $component),
                 ));
             }
 
@@ -34,12 +34,12 @@ final readonly class ComponentDiscoveryProvider
         return in_array($componentName, $this->getAvailableComponents($resolverDelegate), true);
     }
 
-    private function isSnapshotTemplate(ComponentTemplateResolverInterface $resolverDelegate, string $component): bool
+    private function isFixtureTemplate(ComponentTemplateResolverInterface $resolverDelegate, string $component): bool
     {
         $templateName = $resolverDelegate->resolveTemplateName($component);
         $templatePath = $resolverDelegate->getTemplatePaths()->resolveTemplateFileForControllerAndActionAndFormat('Default', $templateName);
 
-        return preg_match('~(?:^|/)[^/]*-snapshots/~', str_replace('\\', '/', $templatePath ?? $templateName)) === 1;
+        return preg_match('~(?:^|/)(?:_slots|[^/]*-snapshots)/~', str_replace('\\', '/', $templatePath ?? $templateName)) === 1;
     }
 
     /**
