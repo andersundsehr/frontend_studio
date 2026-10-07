@@ -5,11 +5,20 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
 use cogpowered\FineDiff\Diff;
+use cogpowered\FineDiff\Granularity\Word;
 use cogpowered\FineDiff\Render\Renderer;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final class InlineDiff extends Renderer
 {
+    private const string REMOVED_OPEN = '(-';
+
+    private const string REMOVED_CLOSE = '-)';
+
+    private const string ADDED_OPEN = '(+';
+
+    private const string ADDED_CLOSE = '+)';
+
     /** @var list<int> */
     private array $expectedLines = [];
 
@@ -20,7 +29,7 @@ final class InlineDiff extends Renderer
 
     private int $actualOffset = 0;
 
-    /** @var list<array{expected: int|null, actual: int|null, text: string, changed: bool}> */
+    /** @var list<array{expected: int|null, actual: int|null, text: string, expectedText: string, actualText: string, unchanged: bool, changed: bool}> */
     private array $rows = [];
 
     public function render(string $expected, string $actual): string
@@ -39,7 +48,8 @@ final class InlineDiff extends Renderer
         }
 
         $width = strlen((string)max([...$this->expectedLines, ...$this->actualLines, 1]));
-        $output = ['<fg=red>[-removed-]</> <fg=green>{+added+}</>  <fg=gray>snapshot | actual</>'];
+        $output = ['<fg=red>' . self::REMOVED_OPEN . 'removed' . self::REMOVED_CLOSE . '</> <fg=green>'
+            . self::ADDED_OPEN . 'added' . self::ADDED_CLOSE . '</>  <fg=gray>snapshot | actual</>'];
         $previous = -1;
         foreach (array_keys($visible) as $index) {
             if ($index > $previous + 1) {
@@ -47,9 +57,27 @@ final class InlineDiff extends Renderer
             }
 
             $row = $this->rows[$index];
+            if ($row['changed'] && !$row['unchanged']) {
+                if ($row['expected'] !== null) {
+                    $output[] = '<fg=red>-</> <fg=gray>' . str_pad((string)$row['expected'], $width, ' ', STR_PAD_LEFT)
+                        . ' | ' . str_pad('-', $width, ' ', STR_PAD_LEFT) . '</>  <fg=red>' . $row['expectedText'] . '</>';
+                }
+
+                if ($row['actual'] !== null) {
+                    $output[] = '<fg=green>+</> <fg=gray>' . str_pad('-', $width, ' ', STR_PAD_LEFT)
+                        . ' | ' . str_pad((string)$row['actual'], $width, ' ', STR_PAD_LEFT) . '</>  <fg=green>' . $row['actualText'] . '</>';
+                }
+
+                $previous = $index;
+                continue;
+            }
+
             $numbers = str_pad((string)($row['expected'] ?? '-'), $width, ' ', STR_PAD_LEFT) . ' | '
                 . str_pad((string)($row['actual'] ?? '-'), $width, ' ', STR_PAD_LEFT);
-            $text = str_replace(['-]</><fg=red>[-', '+}</><fg=green>{+'], '', $row['text']);
+            $text = str_replace([
+                self::REMOVED_CLOSE . '</><fg=red>' . self::REMOVED_OPEN,
+                self::ADDED_CLOSE . '</><fg=green>' . self::ADDED_OPEN,
+            ], '', $row['text']);
             $output[] = '<fg=gray>' . $numbers . '</>  ' . $text;
             $previous = $index;
         }
@@ -68,17 +96,26 @@ final class InlineDiff extends Renderer
                 $index < 0 || ($expected !== null && $this->rows[$index]['expected'] !== null && $this->rows[$index]['expected'] !== $expected)
                 || ($actual !== null && $this->rows[$index]['actual'] !== null && $this->rows[$index]['actual'] !== $actual)
             ) {
-                $this->rows[] = ['expected' => $expected, 'actual' => $actual, 'text' => '', 'changed' => false];
+                $this->rows[] = ['expected' => $expected, 'actual' => $actual, 'text' => '', 'expectedText' => '', 'actualText' => '', 'unchanged' => false, 'changed' => false];
                 $index++;
             }
 
             $row = $this->rows[$index];
             $row['expected'] ??= $expected;
             $row['actual'] ??= $actual;
-            $escaped = OutputFormatter::escape($opcode !== 'c' && $character === ' ' ? '␠' : $character);
+            $escaped = OutputFormatter::escape($character);
+            if ($opcode !== 'i') {
+                $row['expectedText'] .= $escaped;
+            }
+
+            if ($opcode !== 'd') {
+                $row['actualText'] .= $escaped;
+            }
+
+            $row['unchanged'] = $row['unchanged'] || ($opcode === 'c' && trim($character) !== '');
             $row['text'] .= match ($opcode) {
-                'd' => '<fg=red>[-' . $escaped . '-]</>',
-                'i' => '<fg=green>{+' . $escaped . '+}</>',
+                'd' => '<fg=red>' . self::REMOVED_OPEN . $escaped . self::REMOVED_CLOSE . '</>',
+                'i' => '<fg=green>' . self::ADDED_OPEN . $escaped . self::ADDED_CLOSE . '</>',
                 default => $escaped,
             };
             $row['changed'] = $row['changed'] || $opcode !== 'c';
@@ -93,7 +130,7 @@ final class InlineDiff extends Renderer
         $this->expectedOffset = 0;
         $this->actualOffset = 0;
         $this->rows = [];
-        new Diff(renderer: $this)->render($expected, $actual);
+        new Diff(granularity: new Word(), renderer: $this)->render($expected, $actual);
     }
 
     /** @return array{string, list<int>} */

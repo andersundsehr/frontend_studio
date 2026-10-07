@@ -64,17 +64,25 @@ An unknown scope or a scope without variants fails the command.
 
 ## Review changes and update snapshots
 
-A mismatch shows removed text in red and added text in green,
+A mismatch highlights changed words: removed text in red and added text in green,
 with line numbers for the saved snapshot and current output:
 
 ```text
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
-[-removed-] {+added+}  snapshot | actual
-1 | 1  <p>Hello [-world-]{+TYPO3+}
+(-removed-) (+added+)  snapshot | actual
+1 | 1  <p>Hello (-world -)(+TYPO3 +)
 2 | 2  </p>
 ```
 
-The delimiters remain readable without colors.
+Inline edits use `(-removed-)` and `(+added+)`, readable without colors.
+Entire added or removed lines use only a leading `+` or `-` and keep their line numbers:
+
+```text
+- 3 | -  <p>Old content</p>
++ - | 3  <p>New content</p>
+```
+
+Spaces are displayed normally, including spaces inside changed text.
 A `-` in a line-number column means that side has no content on that row.
 Unchanged sections are shortened so you can focus on the differences.
 
