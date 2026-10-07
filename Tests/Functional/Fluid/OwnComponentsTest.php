@@ -91,8 +91,9 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertNull($values[2]->control);
         $controls = $this->renderVariantView(['selectedComponentMetadata' => $metadata]);
         self::assertStringContainsString('rich-text-control.js', $controls);
-        self::assertStringContainsString('data-control-type-toggle', $controls);
-        self::assertStringContainsString('data-short-type="UnsafeHTML|string"', $controls);
+        self::assertStringContainsString('data-control-type', $controls);
+        self::assertStringContainsString('<code>UnsafeHTML|string</code>', $controls);
+        self::assertStringContainsString('role="tooltip" popover="auto"', $controls);
         self::assertStringContainsString('data-transformer-summary', $controls);
         self::assertDoesNotMatchRegularExpression('/<details[^>]*data-transformer-group[^>]* open/', $controls);
         self::assertStringContainsString('&lt;p&gt;&lt;strong&gt;Rich text&lt;/strong&gt;&lt;/p&gt;', $controls);

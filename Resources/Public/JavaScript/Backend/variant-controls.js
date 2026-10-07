@@ -23,12 +23,46 @@ class VariantControls extends VariantValues {
         button.setAttribute('aria-expanded', String(!description.hidden));
       });
     });
-    this.root.querySelectorAll('[data-control-type-toggle]').forEach((button) => {
-      this.listen(button, 'click', () => {
-        const expanded = button.getAttribute('aria-expanded') !== 'true';
-        button.setAttribute('aria-expanded', String(expanded));
-        button.querySelector('code').textContent = expanded ? button.dataset.fullType : button.dataset.shortType;
-      });
+    this.root.querySelectorAll('[data-control-type]').forEach((label) => {
+      const button = label.querySelector('button');
+      const popover = label.querySelector('[popover]');
+      let closeTimer;
+      const hide = () => {
+        clearTimeout(closeTimer);
+        popover.hidePopover();
+      };
+      const show = () => {
+        clearTimeout(closeTimer);
+        popover.showPopover();
+        const anchor = button.getBoundingClientRect();
+        const popup = popover.getBoundingClientRect();
+        popover.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - popup.width - 8))}px`;
+        const below = anchor.bottom + 4;
+        popover.style.top = `${Math.max(8, below + popup.height <= window.innerHeight - 8 ? below : anchor.top - popup.height - 4)}px`;
+      };
+      const scheduleHide = (event) => {
+        if (label.contains(event.relatedTarget)) {
+          return;
+        }
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => {
+          if (!label.matches(':hover') && !label.contains(document.activeElement)) {
+            hide();
+          }
+        }, 150);
+      };
+      this.listen(label, 'pointerenter', show);
+      this.listen(label, 'pointerleave', scheduleHide);
+      this.listen(label, 'focusin', show);
+      this.listen(label, 'focusout', scheduleHide);
+      this.listen(button, 'click', show);
+      this.listen(window, 'resize', hide);
+      this.listen(window, 'scroll', (event) => {
+        if (!popover.contains(event.target)) {
+          hide();
+        }
+      }, { capture: true });
+      this.abortController.signal.addEventListener('abort', hide, { once: true });
     });
     this.listen(root, 'keydown', (event) => {
       if (event.key !== 'Escape') {
@@ -37,10 +71,6 @@ class VariantControls extends VariantValues {
       const row = event.target.closest('[data-control-row]');
       row?.querySelectorAll('[data-control-description]').forEach((description) => { description.hidden = true; });
       row?.querySelectorAll('[data-control-description-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
-      row?.querySelectorAll('[data-control-type-toggle]').forEach((button) => {
-        button.setAttribute('aria-expanded', 'false');
-        button.querySelector('code').textContent = button.dataset.shortType;
-      });
     });
     this.saving = false;
     this.copying = false;

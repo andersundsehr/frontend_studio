@@ -101,7 +101,15 @@
                         <div class="frontend-studio-control-label">
   <button type="button" class="frontend-studio-control-name" data-control-description-toggle aria-expanded="false" title="{argument.description}"><strong>{argument.name}</strong></button>
   <f:if condition="{argument.required} == false"><span class="text-body-secondary">?</span></f:if>
-  <button type="button" class="frontend-studio-control-type" data-control-type-toggle data-short-type="{argument.shortType}" data-full-type="{argument.type}" aria-expanded="false"><code>{argument.shortType}</code></button>
+  <f:if condition="{argument.shortType} != {argument.type}">
+    <f:then>
+      <span class="frontend-studio-control-type" data-control-type>
+        <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="frontend-studio-argument-type-{argument.name}" aria-label="Full type for {argument.name}"><code>{argument.shortType}</code></button>
+        <span id="frontend-studio-argument-type-{argument.name}" class="frontend-studio-control-type-popover" role="tooltip" popover="auto"><code>{argument.type}</code></span>
+      </span>
+    </f:then>
+    <f:else><code>{argument.shortType}</code></f:else>
+  </f:if>
 </div>
                         <div class="form-text frontend-studio-control-description" data-control-description hidden>{argument.description}</div>
                       </f:if>

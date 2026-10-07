@@ -405,7 +405,7 @@
 }
 
 .frontend-studio-control-name,
-.frontend-studio-control-type {
+.frontend-studio-control-type-trigger {
   background: none;
   border: 0;
   padding: .15rem 0;
@@ -419,7 +419,7 @@
 }
 
 .frontend-studio-control-name:focus-visible,
-.frontend-studio-control-type:focus-visible {
+.frontend-studio-control-type-trigger:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
@@ -451,6 +451,33 @@
 .frontend-studio-transformer-inputs[open] {
   grid-column: 1 / -1;
   grid-row: 2;
+  padding: .5rem .75rem;
+  border-inline-start: 3px solid var(--typo3-component-border-color);
+  border-radius: .25rem;
+  background: var(--typo3-surface-container-low);
+}
+
+.frontend-studio-control-type-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: .5rem .75rem;
+  width: max-content;
+  max-width: min(32rem, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  user-select: text;
+  color: var(--typo3-text-color-base);
+  background: var(--typo3-surface-container-high);
+  border: 1px solid var(--typo3-component-border-color);
+  border-radius: .25rem;
+  box-shadow: 0 .25rem .75rem rgb(0 0 0 / 20%);
+}
+
+.frontend-studio-control-type-popover code {
+  user-select: text;
 }
 
 .frontend-studio-control-row:has(> .frontend-studio-control-input .ck-editor),

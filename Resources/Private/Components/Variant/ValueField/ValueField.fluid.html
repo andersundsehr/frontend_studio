@@ -11,7 +11,15 @@
   <div class="frontend-studio-control-label">
   <button type="button" class="frontend-studio-control-name" data-control-description-toggle aria-expanded="false" title="{variantValue.description}"><strong>{variantValue.name}</strong></button>
   <f:if condition="{variantValue.required} == false"><span class="text-body-secondary">?</span></f:if>
-  <button type="button" class="frontend-studio-control-type" data-control-type-toggle data-short-type="{variantValue.shortType}" data-full-type="{variantValue.type}" aria-expanded="false"><code>{variantValue.shortType}</code></button>
+  <f:if condition="{variantValue.shortType} != {variantValue.type}">
+    <f:then>
+      <span class="frontend-studio-control-type" data-control-type>
+        <button type="button" class="frontend-studio-control-type-trigger" aria-describedby="frontend-studio-value-type-{variantValue.fixtureName}" aria-label="Full type for {variantValue.name}"><code>{variantValue.shortType}</code></button>
+        <span id="frontend-studio-value-type-{variantValue.fixtureName}" class="frontend-studio-control-type-popover" role="tooltip" popover="auto"><code>{variantValue.type}</code></span>
+      </span>
+    </f:then>
+    <f:else><code>{variantValue.shortType}</code></f:else>
+  </f:if>
 </div>
   <div class="frontend-studio-control-input">
     <f:if condition="{variantValue.control}">
