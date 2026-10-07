@@ -70,11 +70,14 @@ with line numbers for the saved snapshot and current output:
 ```text
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
 (-removed-) (+added+)  snapshot | actual
-1 | 1  <p>Hello (-world -)(+TYPO3 +)
+- 1 | -  <p>Hello (-world -)
++ - | 1  <p>Hello (+TYPO3 +)
 2 | 2  </p>
 ```
 
-Inline edits use `(-removed-)` and `(+added+)`, readable without colors.
+Each changed line appears twice: `-` shows the snapshot and `+` shows the current output.
+Only changed words are colored; surrounding text remains uncolored.
+Word edits use `(-removed-)` and `(+added+)`, readable without colors.
 Entire added or removed lines use only a leading `+` or `-` and keep their line numbers:
 
 ```text

@@ -29,7 +29,7 @@ final class InlineDiff extends Renderer
 
     private int $actualOffset = 0;
 
-    /** @var list<array{expected: int|null, actual: int|null, text: string, expectedText: string, actualText: string, unchanged: bool, changed: bool}> */
+    /** @var list<array{expected: int|null, actual: int|null, expectedText: string, actualText: string, expectedDiff: string, actualDiff: string, unchanged: bool, changed: bool}> */
     private array $rows = [];
 
     public function render(string $expected, string $actual): string
@@ -57,15 +57,17 @@ final class InlineDiff extends Renderer
             }
 
             $row = $this->rows[$index];
-            if ($row['changed'] && !$row['unchanged']) {
+            if ($row['changed']) {
                 if ($row['expected'] !== null) {
+                    $text = $row['unchanged'] ? $this->mergeHighlights($row['expectedDiff']) : '<fg=red>' . $row['expectedText'] . '</>';
                     $output[] = '<fg=red>-</> <fg=gray>' . str_pad((string)$row['expected'], $width, ' ', STR_PAD_LEFT)
-                        . ' | ' . str_pad('-', $width, ' ', STR_PAD_LEFT) . '</>  <fg=red>' . $row['expectedText'] . '</>';
+                        . ' | ' . str_pad('-', $width, ' ', STR_PAD_LEFT) . '</>  ' . $text;
                 }
 
                 if ($row['actual'] !== null) {
+                    $text = $row['unchanged'] ? $this->mergeHighlights($row['actualDiff']) : '<fg=green>' . $row['actualText'] . '</>';
                     $output[] = '<fg=green>+</> <fg=gray>' . str_pad('-', $width, ' ', STR_PAD_LEFT)
-                        . ' | ' . str_pad((string)$row['actual'], $width, ' ', STR_PAD_LEFT) . '</>  <fg=green>' . $row['actualText'] . '</>';
+                        . ' | ' . str_pad((string)$row['actual'], $width, ' ', STR_PAD_LEFT) . '</>  ' . $text;
                 }
 
                 $previous = $index;
@@ -74,11 +76,7 @@ final class InlineDiff extends Renderer
 
             $numbers = str_pad((string)($row['expected'] ?? '-'), $width, ' ', STR_PAD_LEFT) . ' | '
                 . str_pad((string)($row['actual'] ?? '-'), $width, ' ', STR_PAD_LEFT);
-            $text = str_replace([
-                self::REMOVED_CLOSE . '</><fg=red>' . self::REMOVED_OPEN,
-                self::ADDED_CLOSE . '</><fg=green>' . self::ADDED_OPEN,
-            ], '', $row['text']);
-            $output[] = '<fg=gray>' . $numbers . '</>  ' . $text;
+            $output[] = '<fg=gray>' . $numbers . '</>  ' . $row['expectedText'];
             $previous = $index;
         }
 
@@ -96,7 +94,7 @@ final class InlineDiff extends Renderer
                 $index < 0 || ($expected !== null && $this->rows[$index]['expected'] !== null && $this->rows[$index]['expected'] !== $expected)
                 || ($actual !== null && $this->rows[$index]['actual'] !== null && $this->rows[$index]['actual'] !== $actual)
             ) {
-                $this->rows[] = ['expected' => $expected, 'actual' => $actual, 'text' => '', 'expectedText' => '', 'actualText' => '', 'unchanged' => false, 'changed' => false];
+                $this->rows[] = ['expected' => $expected, 'actual' => $actual, 'expectedText' => '', 'actualText' => '', 'expectedDiff' => '', 'actualDiff' => '', 'unchanged' => false, 'changed' => false];
                 $index++;
             }
 
@@ -106,23 +104,28 @@ final class InlineDiff extends Renderer
             $escaped = OutputFormatter::escape($character);
             if ($opcode !== 'i') {
                 $row['expectedText'] .= $escaped;
+                $row['expectedDiff'] .= $opcode === 'd' ? '<fg=red>' . self::REMOVED_OPEN . $escaped . self::REMOVED_CLOSE . '</>' : $escaped;
             }
 
             if ($opcode !== 'd') {
                 $row['actualText'] .= $escaped;
+                $row['actualDiff'] .= $opcode === 'i' ? '<fg=green>' . self::ADDED_OPEN . $escaped . self::ADDED_CLOSE . '</>' : $escaped;
             }
 
             $row['unchanged'] = $row['unchanged'] || ($opcode === 'c' && trim($character) !== '');
-            $row['text'] .= match ($opcode) {
-                'd' => '<fg=red>' . self::REMOVED_OPEN . $escaped . self::REMOVED_CLOSE . '</>',
-                'i' => '<fg=green>' . self::ADDED_OPEN . $escaped . self::ADDED_CLOSE . '</>',
-                default => $escaped,
-            };
             $row['changed'] = $row['changed'] || $opcode !== 'c';
             $this->rows[$index] = $row;
         }
 
         return '';
+    }
+
+    private function mergeHighlights(string $text): string
+    {
+        return str_replace([
+            self::REMOVED_CLOSE . '</><fg=red>' . self::REMOVED_OPEN,
+            self::ADDED_CLOSE . '</><fg=green>' . self::ADDED_OPEN,
+        ], '', $text);
     }
 
     private function collect(string $expected, string $actual): void
