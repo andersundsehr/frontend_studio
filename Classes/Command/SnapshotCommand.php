@@ -17,19 +17,22 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Throwable;
 use Andersundsehr\FrontendStudio\Service\Snapshot\InlineDiff;
+use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
+use TYPO3\CMS\Core\Http\ServerRequest;
+use RuntimeException;
 
 #[AsCommand(name: 'frontend-studio:test', description: 'Component Snapshots: compare rendered fixture HTML against reviewed snapshots')]
 final class SnapshotCommand extends Command
 {
-    public function __construct(private readonly Runner $runner)
+    public function __construct(private readonly Runner $runner, private readonly PreviewContextResolver $previewContextResolver)
     {
         parent::__construct();
     }
 
     protected function configure(): void
     {
-        $this->addArgument('site', InputArgument::REQUIRED, 'Site identifier')
-            ->addArgument('language', InputArgument::REQUIRED, 'Site language hreflang')
+        $this->addArgument('site', InputArgument::OPTIONAL, 'Site identifier (defaults to the backend module selection)')
+            ->addArgument('language', InputArgument::OPTIONAL, "Site language hreflang (defaults to the selected site's first enabled language)")
             ->addOption('scope', null, InputOption::VALUE_REQUIRED, 'Variant, component, folder or namespace identifier', '')
             ->addOption('update', 'u', InputOption::VALUE_NONE, 'Regenerate snapshots in the selected scope outside Production');
     }
@@ -37,6 +40,21 @@ final class SnapshotCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
+            $site = $input->getArgument('site');
+            $language = $input->getArgument('language');
+            if ($site === null || $language === null) {
+                $defaults = $this->previewContextResolver->resolve(new ServerRequest('/'), $site, $language);
+                if ($defaults === null) {
+                    throw new RuntimeException('No TYPO3 sites are configured for Component Snapshots.', 1773112751);
+                }
+
+                $site ??= $defaults[0];
+                $language ??= $defaults[1];
+                if ($language === '') {
+                    throw new RuntimeException('Snapshot site "' . $site . '" has no enabled languages.', 1773112752);
+                }
+            }
+
             $identifiers = $this->runner->discover((string)$input->getOption('scope'));
         } catch (Throwable $throwable) {
             $output->writeln("<fg=red;options=bold>ERROR</> during snapshot discovery:\n" . OutputFormatter::escape($this->formatException($throwable, $output)));
@@ -46,7 +64,7 @@ final class SnapshotCommand extends Command
         $update = (bool)$input->getOption('update');
         $results = [];
         foreach ($identifiers as $identifier) {
-            $result = $this->runner->run($identifier, (string)$input->getArgument('site'), (string)$input->getArgument('language'), $update);
+            $result = $this->runner->run($identifier, (string)$site, (string)$language, $update);
             $results[] = $result;
             [$label, $color] = match ($result['status']) {
                 'missing' => ['WARNING (MISSING)', 'yellow'],

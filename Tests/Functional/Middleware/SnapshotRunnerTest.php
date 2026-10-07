@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
 use Andersundsehr\FrontendStudio\Service\ComponentFixtureProvider;
+use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
+use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Site\Entity\Site;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use RuntimeException;
@@ -315,7 +318,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $site = $this->get(SiteFinder::class)->getSiteByIdentifier('relative');
         self::assertSame('/en/', (string)$site->getDefaultLanguage()->getBase());
         $runner = $this->get(Runner::class);
-        $tester = new CommandTester(new SnapshotCommand($runner));
+        $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
         $arguments = ['site' => 'relative', 'language' => 'en-us', '--scope' => 'site:text'];
         $paths = [];
         foreach ($runner->discover('site:text') as $identifier) {
@@ -351,10 +354,70 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
     }
 
+    /** @param array<string, string> $arguments */
+    #[DataProvider('defaultCommandContexts')]
+    public function testCommandUsesBackendDefaultsForOmittedArguments(array $arguments, string $site, string $language): void
+    {
+        $runner = $this->get(Runner::class);
+        $resolver = new PreviewContextResolver($this->get(SiteFinder::class));
+        self::assertSame([$site, $language], $resolver->resolve(new ServerRequest('/'), $arguments['site'] ?? null, $arguments['language'] ?? null));
+        $tester = new CommandTester(new SnapshotCommand($runner, $resolver));
+        $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/SnapshotContext/SnapshotContext.html-snapshots/html-Default.html';
+        try {
+            self::assertSame(2, $tester->execute([...$arguments, '--scope' => 'site:snapshotContext:Default']));
+            self::assertStringContainsString('Created baseline.', $tester->getDisplay());
+            self::assertSame('passed', $runner->run('site:snapshotContext:Default', $site, $language)['status']);
+            self::assertSame(0, $tester->execute([...$arguments, '--scope' => 'site:snapshotContext:Default']));
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{array<string, string>, string, string}> */
+    public static function defaultCommandContexts(): iterable
+    {
+        yield 'both omitted' => [[], 'preview', 'de'];
+        yield 'language omitted' => [['site' => 'preview'], 'preview', 'de'];
+        yield 'language belongs to selected site' => [['site' => 'relative'], 'relative', 'en-us'];
+        yield 'site omitted with explicit language' => [['language' => 'en'], 'preview', 'en'];
+    }
+
+    /** @param array<string, Site> $sites */
+    #[DataProvider('unavailableCommandDefaults')]
+    public function testCommandReportsUnavailableDefaults(array $sites, string $message): void
+    {
+        $siteFinder = $this->createMock(SiteFinder::class);
+        $siteFinder->method('getAllSites')->willReturn($sites);
+        $tester = new CommandTester(new SnapshotCommand($this->get(Runner::class), new PreviewContextResolver($siteFinder)));
+
+        self::assertSame(1, $tester->execute(['--scope' => 'site:wrappedCard']));
+        self::assertStringContainsString($message, $tester->getDisplay());
+    }
+
+    /** @return iterable<string, array{array<string, Site>, string}> */
+    public static function unavailableCommandDefaults(): iterable
+    {
+        yield 'no configured sites' => [[], 'No TYPO3 sites are configured'];
+        yield 'no enabled languages' => [['empty' => new Site('empty', 1, [
+            'base' => '/',
+            'languages' => [[
+                'languageId' => 0,
+                'title' => 'Disabled',
+                'locale' => 'en-US',
+                'hreflang' => 'en',
+                'base' => '/',
+                'enabled' => false,
+            ]],
+        ])], 'Snapshot site "empty" has no enabled languages.'];
+    }
+
     public function testCommandReportsExceptionsWithTracesAndMismatchWarningsWithoutTraces(): void
     {
         $runner = $this->get(Runner::class);
-        $tester = new CommandTester(new SnapshotCommand($runner));
+        $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
         $arguments = ['site' => 'preview', 'language' => 'unknown', '--scope' => 'site:wrappedCard'];
         self::assertSame(1, $tester->execute($arguments));
         self::assertStringContainsString('RuntimeException:', $tester->getDisplay());
@@ -407,7 +470,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     public function testCommandColorsLabelsAndOnlyShowsRelativePathsWhenVerbose(): void
     {
         $runner = $this->get(Runner::class);
-        $tester = new CommandTester(new SnapshotCommand($runner));
+        $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
         $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard'];
         $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html-snapshots/html-Default.html';
         try {
@@ -469,7 +532,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     public function testCommandUpdatesOnlyScopedSnapshotsWithOneHintAfterAllMismatches(): void
     {
         $runner = $this->get(Runner::class);
-        $tester = new CommandTester(new SnapshotCommand($runner));
+        $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
         $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:text'];
         $paths = [];
         try {

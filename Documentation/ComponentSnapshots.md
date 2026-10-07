@@ -1,7 +1,7 @@
 # Component Snapshots
 
 Use Component Snapshots to check your saved Fluid component variants before committing
-template changes: run `vendor/bin/typo3 frontend-studio:test main en-us`,
+template changes: run `vendor/bin/typo3 frontend-studio:test`,
 review the generated HTML snapshots, and commit them alongside your templates.
 Later runs show a readable diff when the HTML changes,
 helping you catch unintended changes to markup, content, attributes and links
@@ -15,12 +15,23 @@ a card with an image and a card with a long title.
 Run the command from your installed TYPO3 project's root:
 
 ```bash
+vendor/bin/typo3 frontend-studio:test
+```
+
+Omitted site and language arguments use the backend module's default selection:
+the first configured site and its first enabled language.
+The CLI has no HTTP host to prefer a matching site.
+To select another site or language, supply their identifiers:
+
+```bash
+vendor/bin/typo3 frontend-studio:test main
 vendor/bin/typo3 frontend-studio:test main en-us
 ```
 
-Replace `main` with your TYPO3 site identifier and `en-us` with the language's
-configured hreflang. Relative site and language bases such as `/` and `/en/`
-are supported, as are absolute HTTP(S) URLs.
+`main` is the TYPO3 site identifier; `en-us` is the language's configured hreflang.
+Providing only the site uses that site's first enabled language.
+Relative site and language bases such as `/` and `/en/` are supported,
+as are absolute HTTP(S) URLs. Invalid explicit identifiers fail the command.
 
 On the first run, missing snapshots are created outside Production.
 Review their HTML and commit the files, then rerun the command.
