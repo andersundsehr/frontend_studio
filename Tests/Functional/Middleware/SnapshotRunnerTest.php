@@ -98,6 +98,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $this->get(AssetCollector::class),
             $this->get(Context::class),
             $listeners,
+            $this->get(UriBuilder::class),
         );
         try {
             $frontend->render('site:wrappedCard:Default', 'preview', 'en');

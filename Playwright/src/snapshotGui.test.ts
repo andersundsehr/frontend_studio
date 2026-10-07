@@ -150,7 +150,7 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   const { failureSummary, renderSnapshotDiff, copyDetails } = await modules.import('snapshot-diff.js');
   assert.match(failureSummary({ status: 'missing', message: 'Created baseline. Review it.' }).next, /commit the new snapshot/);
   assert.match(failureSummary({ status: 'missing', message: 'Creation blocked in Production.' }).next, /outside Production/);
-  const failure = { identifier: a, status: 'error', message: '<script>bad</script>', trace: '<img onerror=bad>', path: '/html-Default.snapshot.html' };
+  const failure = { identifier: a, status: 'error', message: '<script>bad</script>', trace: '<img onerror=bad>', path: '/html-Default@preview@en.snapshot.html' };
   const output = renderSnapshotDiff([failure]);
   assert.ok(output.includes('Test error'));
   assert.ok(output.includes('Snapshot file:'));
@@ -161,6 +161,6 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   assert.ok(!output.includes('<img'));
   const copy = copyDetails(failure, { site: 'preview', language: 'de' });
   assert.ok(copy.includes('Site: preview · Language: de'));
-  assert.ok(copy.includes('/html-Default.snapshot.html'));
+  assert.ok(copy.includes('/html-Default@preview@en.snapshot.html'));
   assert.ok(copy.includes(failure.trace));
 });
