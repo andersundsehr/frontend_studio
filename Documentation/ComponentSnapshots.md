@@ -178,7 +178,11 @@ This applies before text, before a closing tag and between inline elements:
 `<p>Content</p>` stays together, while `<p> Content </p>` can use separate lines.
 Spaces, tabs and line breaks allow a break; `&nbsp;` stays literal.
 List items, table cells, SVG text and unknown/custom elements also preserve touching text boundaries.
-Opening tags longer than 80 characters put every attribute on its own indented line.
+When a complete formatted line exceeds 80 characters, its opening tags put every attribute on its own indented line.
+The limit counts indentation, text, inline elements and closing tags, using Unicode characters rather than bytes.
+The `>` or `/>` stays aligned with its opening tag; text stays attached when the original HTML has no whitespace at that boundary.
+Text already on a separate line does not count towards the opening tag's line.
+Long text or attribute values can still exceed the limit.
 The CLI diff keeps this indentation:
 
 ```html
@@ -192,6 +196,14 @@ The CLI diff keeps this indentation:
     After
   </section>
 </div>
+```
+
+An attributed heading on a long line can therefore look like:
+
+```html
+<h1
+  class="text-heading-3 font-bold text-text"
+>A semantic H1 displayed with the H3 heading style</h1>
 ```
 
 Text, entities, spaces and punctuation stay in their original order.

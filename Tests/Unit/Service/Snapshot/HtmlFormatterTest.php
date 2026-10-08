@@ -154,6 +154,46 @@ final class HtmlFormatterTest extends TestCase
         self::assertSame($formatter->format($original), $formatter->format($previous));
     }
 
+    #[DataProvider('completeLineWrapping')]
+    public function testWrapsAttributesUsingTheCompleteDisplayLine(string $html, string $expected): void
+    {
+        $formatter = new HtmlFormatter();
+        $formatted = $formatter->format($html);
+        self::assertSame(HtmlFormatter::HEADER . $expected, preg_replace('~<!-- frontend-studio:snapshot-whitespace:[A-Za-z0-9+/=]+ -->\n$~', '', $formatted));
+        self::assertSame($html, $formatter->original($formatted));
+        self::assertSame($formatted, $formatter->format($formatted));
+        self::assertSame($formatted, $formatter->format($html));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function completeLineWrapping(): iterable
+    {
+        $heading = '<h1 class="text-heading-3 font-bold text-text">Semantic H1 with H3 sizing</h1>';
+        yield 'heading below eighty characters' => [$heading, $heading . "\n"];
+        yield 'heading exactly eighty characters with indentation' => ['<div>' . $heading . '</div>', "<div>\n  " . $heading . "\n</div>\n"];
+        yield 'heading exceeding eighty characters with indentation' => ['<div><section>' . $heading . '</section></div>', "<div>\n  <section>\n    <h1\n      class=\"text-heading-3 font-bold text-text\"\n    >Semantic H1 with H3 sizing</h1>\n  </section>\n</div>\n"];
+        $opening = '<p class="card">';
+        $text = str_repeat('x', 80 - mb_strlen($opening . '</p>'));
+        yield 'complete line exactly eighty characters' => [$opening . $text . '</p>', $opening . $text . "</p>\n"];
+        yield 'closing tag pushes the complete line beyond eighty characters' => [$opening . $text . 'x</p>', "<p\n  class=\"card\"\n>" . $text . "x</p>\n"];
+        $unicode = str_repeat('é', mb_strlen($text));
+        yield 'complete line counts Unicode characters rather than bytes' => [$opening . $unicode . '</p>', $opening . $unicode . "</p>\n"];
+        yield 'long text on a separate line does not wrap a short opening tag' => [$opening . ' ' . str_repeat('x', 100) . '</p>', $opening . "\n  " . str_repeat('x', 100) . "</p>\n"];
+        yield 'container text on a separate line does not wrap a short opening tag' => ['<div class="card">' . str_repeat('x', 100) . '</div>', "<div class=\"card\">\n  " . str_repeat('x', 100) . "\n</div>\n"];
+        yield 'long text without attributes remains literal' => ['<p>' . str_repeat('x', 100) . '</p>', '<p>' . str_repeat('x', 100) . "</p>\n"];
+        yield 'long content splits every attribute and preserves original gaps' => ["<p\tclass='card'  hidden data-id=x>" . str_repeat('x', 60) . '</p>', "<p\n  class='card'\n  hidden\n  data-id=x\n>" . str_repeat('x', 60) . "</p>\n"];
+        yield 'inline prefix counts towards an attributed tag line' => [str_repeat('x', 65) . '<span title="x">text</span>', str_repeat('x', 65) . "<span\n  title=\"x\"\n>text</span>\n"];
+        yield 'self-closing terminator retains its element indentation' => ['<p>' . str_repeat('x', 60) . '<img alt="image"/>tail</p>', '<p>' . str_repeat('x', 60) . "<img\n    alt=\"image\"\n  />tail</p>\n"];
+        yield 'inline descendants count towards the parent line' => [$opening . '<strong>' . str_repeat('x', 60) . '</strong></p>', "<p\n  class=\"card\"\n><strong>" . str_repeat('x', 60) . "</strong></p>\n"];
+        yield 'a following line does not count towards the opening tag line' => [$opening . "First\n" . str_repeat('x', 100) . '</p>', $opening . "First\n" . str_repeat('x', 100) . "</p>\n"];
+        foreach (['pre', 'textarea', 'script', 'style'] as $tag) {
+            $body = str_repeat('x', 90) . "\r\n\t<span>literal</span>\r\n  ";
+            yield $tag . ' long first line preserves its exact body' => ['<div><' . $tag . ' class="card">' . $body . '</' . $tag . '></div>', "<div>\n  <" . $tag . "\n    class=\"card\"\n  >" . $body . '</' . $tag . ">\n</div>\n"];
+            $body = "\r" . str_repeat('x', 90) . "\r  ";
+            yield $tag . ' first CR line break ends the width measurement' => ['<' . $tag . ' class="card">' . $body . '</' . $tag . '>', '<' . $tag . ' class="card">' . $body . '</' . $tag . ">\n"];
+        }
+    }
+
     #[DataProvider('formattedFragments')]
     public function testFormatsContainersAndSensitiveTextWithoutChangingRawContent(string $html, string $expected): void
     {
@@ -263,9 +303,9 @@ final class HtmlFormatterTest extends TestCase
         }
 
         $value = str_repeat('x', 68);
-        yield 'an eighty-character opening tag stays on one line' => ['<p title="' . $value . '">Text</p>', '<p title="' . $value . '">Text' . "</p>\n"];
+        yield 'an eighty-character opening tag wraps when content extends the line' => ['<p title="' . $value . '">Text</p>', "<p\n  title=\"" . $value . "\"\n>Text</p>\n"];
         yield 'indentation counts towards the opening tag width' => ['<div><p title="' . $value . '">Text</p></div>', "<div>\n  <p\n    title=\"" . $value . "\"\n  >Text</p>\n</div>\n"];
         $value = str_repeat('é', 68);
-        yield 'opening tag width counts characters rather than UTF-8 bytes' => ['<p title="' . $value . '">Text</p>', '<p title="' . $value . '">Text' . "</p>\n"];
+        yield 'Unicode opening tag wraps when content extends the line' => ['<p title="' . $value . '">Text</p>', "<p\n  title=\"" . $value . "\"\n>Text</p>\n"];
     }
 }

@@ -44,7 +44,7 @@ final readonly class HtmlFormatter
         }
 
         $whitespace = ['tags' => []];
-        $formatted = $this->formatTokens($tokens, $elements, $whitespace);
+        $formatted = $this->wrapLongLines($this->formatTokens($tokens, $elements, $whitespace), $whitespace);
         $footer = $whitespace === ['tags' => []] ? ''
             : '<!-- frontend-studio:snapshot-whitespace:' . base64_encode(json_encode($whitespace, JSON_THROW_ON_ERROR)) . " -->\n";
 
@@ -283,7 +283,55 @@ final readonly class HtmlFormatter
         return $gaps;
     }
 
-    private function formatOpeningTag(string $token, string $indent): string
+    /** @param Whitespace $whitespace */
+    private function wrapLongLines(string $html, array &$whitespace): string
+    {
+        preg_match_all(self::TOKENS, $html, $matches, PREG_OFFSET_CAPTURE);
+        $elements = $this->elements(array_column($matches[0], 0));
+        if ($elements === null) {
+            return $html;
+        }
+
+        $output = '';
+        $offset = 0;
+        $depth = 0;
+        $markupIndex = 0;
+        foreach ($matches[0] as $index => [$token, $start]) {
+            $closing = preg_match('~^</[\w:-]+\s*>$~', $token) === 1;
+            $markup = isset($elements[$index]) || $closing || (str_starts_with($token, '<!') && !str_starts_with($token, '<![CDATA['));
+            if (!$markup) {
+                continue;
+            }
+
+            if ($closing) {
+                $depth--;
+            }
+
+            $output .= substr($html, $offset, $start - $offset);
+            $formatted = $token;
+            if (preg_match(self::OPENING_TAG, $token, $opening) === 1 && trim($opening[2]) !== '' && strpbrk($opening[0], "\r\n") === false) {
+                // Measure the actual display line after text layout, including inline
+                // content and closing tags. Attribute values and raw bodies stay opaque.
+                preg_match('/[^\r\n]*\z/', $output, $prefix);
+                $line = ($prefix[0] ?? '') . substr($html, $start, strcspn($html, "\r\n", $start));
+                if (mb_strlen($line) > self::LINE_LENGTH) {
+                    $whitespace['tags'][$markupIndex]['attributes'] ??= array_column($this->attributeGaps($opening[2]), 'value');
+                    $formatted = $this->formatOpeningTag($token, str_repeat(self::INDENT, $depth), true);
+                }
+            }
+
+            $output .= $formatted;
+            $offset = $start + strlen($token);
+            $markupIndex++;
+            if (isset($elements[$index]) && $elements[$index]['end'] > $index) {
+                $depth++;
+            }
+        }
+
+        return $output . substr($html, $offset);
+    }
+
+    private function formatOpeningTag(string $token, string $indent, bool $wrap = false): string
     {
         if (!preg_match(self::OPENING_TAG, $token, $tag)) {
             return $token;
@@ -291,7 +339,7 @@ final readonly class HtmlFormatter
 
         preg_match_all(self::ATTRIBUTES, trim($tag[2]), $attributes);
         $opening = '<' . $tag[1] . ($attributes[0] === [] ? '' : ' ' . implode(' ', $attributes[0])) . $tag[3] . '>';
-        if (mb_strlen($indent . $opening) > self::LINE_LENGTH && $attributes[0] !== []) {
+        if (($wrap || mb_strlen($indent . $opening) > self::LINE_LENGTH) && $attributes[0] !== []) {
             $opening = '<' . $tag[1] . "\n" . $indent . self::INDENT . implode("\n" . $indent . self::INDENT, $attributes[0])
                 . "\n" . $indent . $tag[3] . '>';
         }

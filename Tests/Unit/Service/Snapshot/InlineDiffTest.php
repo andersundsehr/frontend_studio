@@ -77,6 +77,9 @@ final class InlineDiffTest extends TestCase
         yield 'reused CRLF and tabs' => ["<div>\r\n\told\r\n</div>", "<div>\n  new\n</div>", 3, 3];
         $value = str_repeat('x', 90);
         yield 'container with multiline attributes' => ['<div title="' . $value . '">old</div>', '<div title="' . $value . '">new</div>', 5, 5];
+        yield 'long complete text line wraps short attributes' => ['<p class="card">old' . $value . '</p>', '<p class="card">new' . $value . '</p>', 4, 4];
+        yield 'changed text moves the actual line across the wrapping limit' => ['<p class="card">old</p>', '<p class="card">new' . $value . '</p>', 2, 4];
+        yield 'changed text moves the snapshot line across the wrapping limit' => ['<p class="card">old' . $value . '</p>', '<p class="card">new</p>', 4, 2];
     }
 
     public function testFormattedDiffIgnoresWhitespaceRunLengthAndLayout(): void
