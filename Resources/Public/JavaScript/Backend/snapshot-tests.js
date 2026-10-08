@@ -10,6 +10,8 @@ export default class SnapshotTests {
   constructor(changed, request = null, openComponent = null) {
     this.changed = changed;
     this.openComponent = openComponent;
+    this.enabled = globalThis.TYPO3?.settings?.frontendStudio?.snapshotTestingEnabled ?? true;
+    this.readOnly = globalThis.TYPO3?.settings?.frontendStudio?.snapshotReadOnly ?? false;
     this.request = request ?? (async (body, signal) => {
       try {
         const response = await new AjaxRequest(TYPO3.settings.ajaxUrls.frontend_studio_snapshot).post(body, { signal });
@@ -72,7 +74,7 @@ export default class SnapshotTests {
   }
 
   async run(scope = '') {
-    if (this.active) return;
+    if (!this.enabled || this.active) return;
     const generation = ++this.generation;
     this.abort = new AbortController();
     this.active = true;
@@ -116,8 +118,42 @@ export default class SnapshotTests {
     }
   }
 
+  async update(identifier, generation = this.generation) {
+    if (!this.enabled || this.readOnly) throw new Error('Snapshot updates are unavailable in this backend.');
+    if (generation !== this.generation) throw new Error('These results have expired. Close the details and rerun the test.');
+    if (this.active) throw new Error('Wait for the current test or update to finish.');
+    if (!this.catalog.includes(identifier)) throw new Error('Update one catalog variant at a time.');
+    this.abort = new AbortController();
+    this.active = true;
+    const context = { ...this.context };
+    this.changed();
+    try {
+      if (!context.site || !context.language) throw new Error('Select a preview site and language before updating.');
+      const payload = await this.request({ ...context, scope: identifier, operation: 'update' }, this.abort.signal);
+      if (generation !== this.generation) return;
+      if (!payload.result || payload.result.identifier !== identifier) throw new Error('Invalid snapshot response.');
+      this.results.set(identifier, payload.result);
+      this.changed();
+      return payload.result;
+    } catch (error) {
+      if (generation === this.generation) throw error;
+    } finally {
+      if (generation === this.generation) {
+        this.active = false;
+        this.changed();
+      }
+    }
+  }
+
   async showFailures(scope = '', type = '') {
+    if (!this.enabled) return;
+    const generation = this.generation;
     const { showSnapshotDiff } = await import('./snapshot-diff.js');
-    return showSnapshotDiff(this.failures(scope, type), { openComponent: this.openComponent, variantIdentifiers: this.catalog, context: { ...this.context } });
+    if (generation !== this.generation) return;
+    return showSnapshotDiff(this.failures(scope, type), {
+      openComponent: this.openComponent, variantIdentifiers: this.catalog, context: { ...this.context },
+      readOnly: this.readOnly, canUpdate: () => !this.active && generation === this.generation,
+      updateSnapshot: (identifier) => this.update(identifier, generation),
+    });
   }
 }

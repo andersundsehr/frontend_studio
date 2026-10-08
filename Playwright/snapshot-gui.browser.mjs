@@ -25,6 +25,7 @@ for(const key in stubs) imports[key]='/stubs/'+encodeURIComponent(key);
 const nodes=[['site:','site:',0,'namespace'],['site:nested.','Nested',1,'folder'],['site:nested.card','Card',2,'component'],['site:nested.card:Default','Default',3,'variant'],['site:nested.card:Second','Second',3,'variant']].map(([identifier,name,depth,nodeType])=>({identifier,name,depth,nodeType,hasChildren:nodeType!=='variant',editable:nodeType==='variant',loaded:true,icon:'actions-code',labels:[]}));
 const ids=nodes.filter(n=>n.nodeType==='variant').map(n=>n.identifier);
 const requests=[];
+const updated=new Set();
 const server=createServer(async(req,res)=>{
  try{
  const url=new URL(req.url,'http://localhost');
@@ -37,10 +38,15 @@ const server=createServer(async(req,res)=>{
  let data;if(req.headers['content-type']?.startsWith('multipart/')){data=Object.fromEntries(await new Response(body,{headers:{'Content-Type':req.headers['content-type']}}).formData());}else{try{data=JSON.parse(body);}catch{data=Object.fromEntries(new URLSearchParams(body));}}
  requests.push(data);res.setHeader('Content-Type','application/json');
  if(data.operation==='discover'){res.end(JSON.stringify({success:true,catalog:ids,identifiers:ids.filter(id=>!data.scope||id===data.scope||id.startsWith(data.scope+(data.scope==='site:nested.card'?':':'')))}));return;}
+ if(data.operation==='update'){
+  updated.add(data.scope);
+  res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:'updated',message:'Updated snapshot. Review and commit the changes.',path:'Card.html-snapshots/html-Second@preview@de.snapshot.html',expected:'<article>New title</article>',actual:'<article>New title</article>',diff:[]}}));return;
+ }
+ if(updated.has(data.scope)){res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:'passed',message:'',expected:'',actual:'',diff:[]}}));return;}
  await new Promise(r=>setTimeout(r,80));res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:data.scope.endsWith('Default')?'passed':'failed',message:'Rendered HTML differs from the saved baseline.',path:'Card.html-snapshots/html-Second@preview@de.snapshot.html',diff:[{expected:1,actual:1,expectedSegments:[{text:'<article>',changed:false}],actualSegments:[{text:'<article>',changed:false}],changed:false},{expected:2,actual:2,expectedSegments:[{text:'Old title',changed:true}],actualSegments:[{text:'<img src=x onerror="window.injected=true">',changed:true}],changed:true},{expected:3,actual:3,expectedSegments:[{text:'</article>',changed:false}],actualSegments:[{text:'</article>',changed:false}],changed:false}],expected:'<article>\nOld title\n</article>',actual:'<article>\n<img src=x onerror="window.injected=true">\n</article>'}}));return;
  }
  if(url.pathname==='/'||url.pathname==='/module'){
- res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/vendor/typo3/cms-backend/Resources/Public/Css/backend.css"><script type="importmap">${JSON.stringify({imports})}</script><style>body{padding:20px;background:#f4f4f4}.demo-tree{width:min(440px,100%);height:620px;background:white;border:1px solid #aaa}h1{font-size:24px}</style></head><body><h1>Frontend Studio · HTML tests</h1><div data-frontend-studio-variant-header data-selected-site-identifier="preview" data-selected-language-hreflang="de">Preview / German</div><div class="demo-tree"><andersundsehr-frontend-studio-component-tree-container></andersundsehr-frontend-studio-component-tree-container></div><script>window.selections=0;window.TYPO3={settings:{ajaxUrls:{frontend_studio_component_tree_data:'/tree',frontend_studio_component_tree_filter:'/tree',frontend_studio_snapshot:'/snapshots'},ContextHelp:{},formEngine:{}},lang:{},ModuleMenu:{App:{getCurrentModule:()=> 'admin_frontendstudio'}},Backend:{NavigationContainer:{}}};</script><script type="module">await import('@andersundsehr/frontend-studio/backend/component-tree-container.js');window.ready=true;</script></body></html>`);return;
+ res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/vendor/typo3/cms-backend/Resources/Public/Css/backend.css"><script type="importmap">${JSON.stringify({imports})}</script><style>body{padding:20px;background:#f4f4f4}.demo-tree{width:min(440px,100%);height:620px;background:white;border:1px solid #aaa}h1{font-size:24px}</style></head><body><h1>Frontend Studio · HTML tests</h1><div data-frontend-studio-variant-header data-selected-site-identifier="preview" data-selected-language-hreflang="de">Preview / German</div><div class="demo-tree"><andersundsehr-frontend-studio-component-tree-container></andersundsehr-frontend-studio-component-tree-container></div><script>window.selections=0;window.TYPO3={settings:{frontendStudio:{snapshotTestingEnabled:${url.searchParams.get('gui')!=='off'},snapshotReadOnly:${url.searchParams.has('production')}},ajaxUrls:{frontend_studio_component_tree_data:'/tree',frontend_studio_component_tree_filter:'/tree',frontend_studio_snapshot:'/snapshots'},ContextHelp:{},formEngine:{}},lang:{},ModuleMenu:{App:{getCurrentModule:()=> 'admin_frontendstudio'}},Backend:{NavigationContainer:{}}};</script><script type="module">await import('@andersundsehr/frontend-studio/backend/component-tree-container.js');window.ready=true;</script></body></html>`);return;
  }
  const file=path.resolve(root,'.'+url.pathname);if(!file.startsWith(root+'/'))throw Error('path');
  res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'application/octet-stream');res.end(await readFile(file));
@@ -119,19 +125,31 @@ try{
  await details.getByRole('heading',{name:'Next step',exact:true}).waitFor();
  await details.getByRole('region',{name:'HTML changes',exact:true}).waitFor();
  await details.getByRole('region',{name:'Snapshot file',exact:true}).waitFor();
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isEnabled(),true);
+ assert.equal(await details.evaluate(details=>{
+  const summary=details.querySelector('.fs-snapshot-summary');
+  const context=details.querySelector('.fs-snapshot-context');
+  const actions=details.querySelector('.fs-snapshot-actions');
+  const next=details.querySelector('.fs-snapshot-next');
+  return summary.compareDocumentPosition(context)&Node.DOCUMENT_POSITION_FOLLOWING
+   &&context.compareDocumentPosition(actions)&Node.DOCUMENT_POSITION_FOLLOWING
+   &&actions.compareDocumentPosition(next)&Node.DOCUMENT_POSITION_FOLLOWING;
+ }),4);
+ const summaryColor=await details.locator('.fs-snapshot-summary').evaluate(el=>getComputedStyle(el).backgroundColor);
+ assert.notEqual(summaryColor,'rgba(0, 0, 0, 0)');
  await page.waitForTimeout(350);
  assert.equal(await page.evaluate(()=>window.injected),undefined);
  assert.equal(await page.locator('.fs-snapshot-added').count(),1);
  assert.equal(await page.locator('details[open]').count(),0);
  await page.getByText('Card.html-snapshots/html-Second@preview@de.snapshot.html',{exact:true}).waitFor();
  assert.equal(await page.getByText('Technical details',{exact:true}).count(),0);
+ await page.setViewportSize({width:1000,height:1150});
+ await page.locator('.t3js-modal-body').evaluate(body=>{body.scrollTop=0;});
+ await page.screenshot({path:path.join(evidence,'diff.png')});
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
  await page.getByRole('button',{name:'Copy details',exact:true}).click();
  await page.getByText('Details copied.',{exact:true}).waitFor();
  assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/Site: preview · Language: de/);
- await page.setViewportSize({width:1000,height:1000});
- await page.locator('.t3js-modal-body').evaluate(body=>{body.scrollTop=0;});
- await page.screenshot({path:path.join(evidence,'diff.png')});
  await page.setViewportSize({width:1000,height:780});
  await page.getByRole('button',{name:'Close',exact:true}).last().click();
  await page.getByRole('button',{name:'Inspect snapshot failures for Card',exact:true}).focus();
@@ -145,6 +163,7 @@ try{
  await page.getByRole('button',{name:'Inspect snapshot failures for Card',exact:true}).click();
  await page.getByRole('heading',{name:'Snapshot mismatch',exact:true}).waitFor();
  await page.waitForTimeout(350);
+ await details.getByRole('region',{name:'HTML changes',exact:true}).scrollIntoViewIfNeeded();
  await page.screenshot({path:path.join(evidence,'narrow-diff.png')});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.keyboard.press('Escape');
@@ -167,6 +186,7 @@ try{
  assert.equal(await page.locator('.fs-snapshot-diff').count(),0);
  await navigation.getByRole('button',{name:/site:nested.card:Broken/}).click();
  await page.getByRole('heading',{name:'Test error',exact:true}).waitFor();
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).count(),0);
  await page.getByRole('region',{name:'Stack trace',exact:true}).waitFor();
  await page.getByText('#0 <img src=x onerror=bad()>',{exact:true}).waitFor();
  assert.equal(await page.locator('.fs-snapshot-view img,.fs-snapshot-view script').count(),0);
@@ -178,6 +198,65 @@ try{
  await page.waitForFunction(()=>window.selections===1);
  assert.match(await page.evaluate(()=>window.openedComponentUrl),/componentVariant=site%3Anested.card%3ASecond/);
  assert.match(await page.evaluate(()=>window.openedComponentUrl),/site=preview&language=de/);
+ // A failed update retains the mismatch, then a successful update affects only its variant.
+ await page.setViewportSize({width:1000,height:1000});
+ await page.getByRole('button',{name:'Inspect snapshot failures for Card',exact:true}).click();
+ await page.getByRole('navigation',{name:'Failed variants'}).getByRole('button',{name:/site:nested.card:Second/}).click();
+ const failUpdate=async(route)=>{
+  if((route.request().postData()||'').includes('update')) await route.fulfill({status:503,json:{success:false,message:'Update unavailable'}});
+  else await route.continue();
+ };
+ await page.route('**/snapshots',failUpdate);
+ await page.getByRole('button',{name:'Update snapshot',exact:true}).click();
+ await details.getByText('Update unavailable',{exact:true}).waitFor();
+ assert.equal(await details.locator('.fs-snapshot-diff').count(),1);
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isEnabled(),true);
+ await page.unroute('**/snapshots',failUpdate);
+ let releaseUpdate;
+ const updateGate=new Promise(resolve=>{releaseUpdate=resolve;});
+ const holdUpdate=async(route)=>{await updateGate;await route.continue();};
+ await page.route('**/snapshots',holdUpdate);
+ await page.getByRole('button',{name:'Update snapshot',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.active);
+ assert.equal(await page.getByRole('button',{name:'Test all',exact:true}).isDisabled(),true);
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isDisabled(),true);
+ releaseUpdate();
+ await page.getByRole('heading',{name:'Snapshot updated',exact:true}).waitFor();
+ assert.equal(await details.locator('.fs-snapshot-tone-warning').count(),1);
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isDisabled(),true);
+ assert.equal(await page.evaluate(()=>document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.passed),0);
+ assert.equal(requests.filter(r=>r.operation==='update').length,1);
+ assert.deepEqual(requests.at(-1),{site:'preview',language:'de',scope:ids[1],operation:'update'});
+ await page.unroute('**/snapshots',holdUpdate);
+ await page.waitForTimeout(350);
+ await page.screenshot({path:path.join(evidence,'updated.png')});
+ await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Test all',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'2/2 passed'}).waitFor();
+ assert.equal(await page.getByRole('button',{name:/✕ Results/}).count(),0);
+ updated.clear();
+ // Turning off the GUI removes all testing controls but preserves the ordinary tree actions.
+ await page.goto(`http://127.0.0.1:${server.address().port}/?gui=off`);
+ await page.waitForFunction(()=>window.ready);
+ await row('Default').waitFor();
+ await row('Default').hover();
+ assert.equal(await page.getByRole('button',{name:/^Test /}).count(),0);
+ assert.equal(await page.getByRole('region',{name:'HTML snapshot tests',exact:true}).count(),0);
+ assert.equal(await page.locator('[aria-label="HTML snapshot tests"]').count(),0);
+ assert.ok(await actions('Default').count()>0);
+ const disabledRequestCount=requests.length;
+ await page.evaluate(()=>document.querySelector('andersundsehr-frontend-studio-component-tree').runSnapshots());
+ assert.equal(requests.length,disabledRequestCount);
+ await page.screenshot({path:path.join(evidence,'disabled.png')});
+ // Production can compare, with an explicitly disabled update button.
+ await page.goto(`http://127.0.0.1:${server.address().port}/?production`);
+ await page.waitForFunction(()=>window.ready);
+ await page.getByRole('button',{name:'Test all',exact:true}).click();
+ await resultsButton(1).click();
+ await page.getByRole('heading',{name:'Snapshot mismatch',exact:true}).waitFor();
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isDisabled(),true);
+ await details.getByText('Production: snapshot files are read-only.',{exact:true}).waitFor();
+ await page.keyboard.press('Escape');
  // A failed rediscovery must remove every old green result from the rendered tree.
  let failDiscovery=false;
  await page.route('**/snapshots',async(route)=>{
@@ -206,5 +285,5 @@ try{
  await page.getByText('Discovery unavailable',{exact:true}).waitFor();
  await page.waitForTimeout(350);
  await page.screenshot({path:path.join(evidence,'discovery-error.png')});
- console.log('PASS real TYPO3 tree/Lit/modal: bordered failure buttons, live failure counts, no running counter, hover-only actions, persistent results, failed rediscovery clears old passes, focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
+ console.log('PASS real TYPO3 tree/Lit/modal: GUI setting hides testing only, isolated updates and errors, disabled pending/Production updates, colored structured details, bordered failure buttons, live failure counts, hover-only actions, stale discovery, focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
 }finally{await browser.close();server.close();}

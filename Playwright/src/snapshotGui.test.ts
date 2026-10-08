@@ -5,8 +5,8 @@ import { backendModules } from './backendModules.ts';
 const a = 'site:folder.card:Default';
 const b = 'site:folder.card:Second';
 const c = 'site:other:Default';
-async function state(request: (body: any, signal: AbortSignal) => Promise<any>) {
-  const modules = backendModules();
+async function state(request: (body: any, signal: AbortSignal) => Promise<any>, settings: Record<string, unknown> = {}) {
+  const modules = backendModules({ TYPO3: { settings: { frontendStudio: settings } } });
   const { default: Tests } = await modules.import('snapshot-tests.js');
   const tests = new Tests(() => {}, request);
   tests.setContext({ site: 'preview', language: 'de' });
@@ -197,6 +197,111 @@ test('discovery errors propagate to parent scope and remain inspectable', async 
   assert.equal(tests.passed, 0);
 });
 
+test('GUI testing defaults on, while disabling it prevents test and update requests', async () => {
+  let calls = 0;
+  const request = async () => { calls++; return { identifiers: [], catalog: [] }; };
+  const enabled = await state(request);
+  assert.equal(enabled.tests.enabled, true);
+  await enabled.tests.run();
+  assert.equal(calls, 1);
+  const disabled = await state(request, { snapshotTestingEnabled: false });
+  await disabled.tests.run();
+  await disabled.tests.showFailures();
+  await assert.rejects(disabled.tests.update(a), /unavailable/);
+  assert.equal(calls, 1);
+  assert.equal(disabled.tests.active, false);
+  assert.ok(![...disabled.modules.loaded].some((name) => name.endsWith('snapshot-diff.js')));
+});
+
+test('updating one snapshot retains other results and sends its original site and language', async () => {
+  const calls: any[] = [];
+  const { tests } = await state(async (body) => {
+    calls.push(body);
+    if (body.operation === 'discover') return { identifiers: [a, b], catalog: [a, b] };
+    return { result: result(body.scope, body.operation === 'update' ? 'updated' : body.scope === a ? 'failed' : 'passed') };
+  });
+  await tests.run();
+  const unrelated = tests.results.get(b);
+  const updated = await tests.update(a);
+  assert.equal(updated.status, 'updated');
+  assert.equal(tests.results.get(a), updated);
+  assert.equal(tests.results.get(b), unrelated);
+  assert.equal(tests.passed, 1, 'An updated baseline must not become a green test result.');
+  assert.equal(tests.active, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1))), { site: 'preview', language: 'de', scope: a, operation: 'update' });
+});
+
+test('Production prevents updates without disabling comparisons', async () => {
+  let calls = 0;
+  const { tests } = await state(async (body) => {
+    calls++;
+    return body.operation === 'discover' ? { identifiers: [a], catalog: [a] } : { result: result(a, 'failed') };
+  }, { snapshotReadOnly: true });
+  await tests.run();
+  await assert.rejects(tests.update(a), /unavailable/);
+  assert.equal(calls, 2);
+  assert.equal(tests.results.get(a).status, 'failed');
+});
+
+test('expired results and unknown variant updates are rejected before making a request', async () => {
+  let calls = 0;
+  const { tests } = await state(async () => { calls++; return {}; });
+  tests.catalog = [a];
+  const generation = tests.generation;
+  tests.invalidate();
+  await assert.rejects(tests.update(a, generation), /expired/);
+  await assert.rejects(tests.update(b), /one catalog variant/);
+  assert.equal(calls, 0);
+});
+
+for (const invalidResponse of [false, true]) {
+  test(`${invalidResponse ? 'invalid update responses' : 'failed update requests'} retain the mismatch for a retry`, async () => {
+    const { tests } = await state(async () => {
+      if (invalidResponse) return { result: result(b, 'updated') };
+      throw new Error('Update unavailable');
+    });
+    tests.catalog = [a, b];
+    const previous = result(a, 'failed');
+    tests.results.set(a, previous);
+    await assert.rejects(tests.update(a), invalidResponse ? /Invalid snapshot response/ : /Update unavailable/);
+    assert.equal(tests.results.get(a), previous);
+    assert.equal(tests.active, false);
+  });
+}
+
+for (const invalidate of ['context', 'files']) {
+  for (const staleError of [false, true]) {
+    test(`${invalidate} changes cancel updates and ignore late ${staleError ? 'errors' : 'results'} after a new run`, async () => {
+      let settle: () => void = () => {};
+      let updateSignal: AbortSignal | undefined;
+      const { tests } = await state(async (body, signal) => {
+        if (body.operation === 'update') {
+          updateSignal = signal;
+          return new Promise((resolve, reject) => {
+            settle = () => staleError ? reject(new Error('Old update failed')) : resolve({ result: result(a, 'updated') });
+          });
+        }
+        return body.operation === 'discover' ? { identifiers: [b], catalog: [a, b] } : { result: result(b) };
+      });
+      tests.catalog = [a];
+      const updating = tests.update(a);
+      await assert.rejects(tests.update(a), /Wait for the current/);
+      await tests.run();
+      assert.equal(tests.active, true);
+      if (invalidate === 'context') tests.setContext({ site: 'preview', language: 'en' });
+      else tests.invalidate();
+      assert.equal(updateSignal?.aborted, true);
+      await tests.run(b);
+      settle();
+      await updating;
+      assert.deepEqual([...tests.results.keys()], [b]);
+      assert.equal(tests.status(b, 'variant'), 'passed');
+      assert.equal(tests.errors.size, 0);
+      assert.equal(tests.active, false);
+    });
+  }
+}
+
 test('diff content escapes scripts, attributes, paths and error messages', async () => {
   const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
   const { renderSnapshotDiff } = await modules.import('snapshot-diff.js');
@@ -253,7 +358,7 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   assert.ok(copy.includes(failure.trace));
 });
 
-for (const status of ['failed', 'missing', 'error']) {
+for (const status of ['failed', 'missing', 'error', 'updated', 'passed']) {
   test(`${status} details separate the result, next step, snapshot file and trace`, async () => {
     const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
     const { renderSnapshotDiff } = await modules.import('snapshot-diff.js');
@@ -267,5 +372,12 @@ for (const status of ['failed', 'missing', 'error']) {
     assert.ok(output.indexOf('<h4>Snapshot file</h4>') > output.indexOf('<h4>Next step</h4>'));
     assert.ok(output.indexOf('<h4>Stack trace</h4>') > output.indexOf('<h4>Snapshot file</h4>'));
     assert.equal(output.includes('<h4>HTML changes</h4>'), status === 'failed');
+    assert.ok(output.includes(`fs-snapshot-tone-${status === 'passed' ? 'success' : status === 'missing' || status === 'updated' ? 'warning' : 'danger'}`));
   });
 }
+
+test('Production mismatch guidance explains that snapshots must be updated elsewhere', async () => {
+  const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+  const { renderSnapshotDiff } = await modules.import('snapshot-diff.js');
+  assert.match(renderSnapshotDiff([result(a, 'failed')], true), /Update the snapshot outside Production/);
+});

@@ -87,7 +87,7 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   snapshotActions(node) {
-    if (node.identifier.startsWith('NEW')) return '';
+    if (!this.snapshots.enabled || node.identifier.startsWith('NEW')) return '';
     const status = this.snapshots.status(node.identifier, node.nodeType);
     return html`
       <button type="button" class="btn btn-default btn-sm btn-icon btn-borderless"
@@ -528,12 +528,12 @@ class FrontendStudioComponentTreeToolbar extends TreeToolbar {
   render() {
     const tests = this.tree?.snapshots;
     return html`${super.render()}
-      <div class="p-2 d-flex align-items-center gap-2 flex-wrap" aria-label="HTML snapshot tests">
+      ${tests?.enabled ? html`<div class="p-2 d-flex align-items-center gap-2 flex-wrap" aria-label="HTML snapshot tests">
         <button type="button" class="btn btn-default btn-sm" ?disabled=${!tests || tests.active}
           @click=${() => this.tree.runSnapshots()}>Test all</button>
         <span role="status" aria-live="polite">${tests?.passed || 0}/${tests?.catalog.length || 0} passed</span>
         ${tests?.status() === 'failed' ? html`<button type="button" class="btn btn-default btn-sm text-danger" @click=${() => tests.showFailures()}>✕ Results (${tests.failures().length})</button>` : ''}
-      </div>`;
+      </div>` : ''}`;
   }
 
   collapseAll(event) {

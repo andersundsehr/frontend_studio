@@ -68,6 +68,10 @@ they do not create missing snapshots and reject updates.
 
 ## Running HTML tests from the component tree
 
+GUI testing is enabled by default. To hide its controls and disable backend test
+requests, clear **Enable GUI snapshot testing** in **Settings → Extension Configuration → frontend_studio**,
+then reload the backend. CLI tests and CI remain available.
+
 Select the preview site and language, then hover over a row to test its saved fixtures
 with the ▶ button. Use **Test all** to test the complete catalog, including filtered or
 collapsed rows. Unsaved form edits are not used. Requests run one variant at a time;
@@ -79,10 +83,10 @@ Row action buttons appear on hover; green checkmarks and red failure buttons sta
 Starting another run clears the previous results for that scope immediately,
 including when discovery fails. Partial runs retain results outside their scope;
 **Test all** clears all previous results.
-The popup identifies a snapshot mismatch, missing snapshot or test error
-and explains the next step in a separate panel. Site, language and variant are
-labeled above the result; HTML changes, the snapshot file and any stack trace
-have their own sections.
+The popup starts with a colored result summary and site/language cards,
+followed by the available actions. Red identifies mismatches and errors;
+yellow identifies missing or updated snapshots. A separate panel explains the
+next step. HTML changes, the snapshot file and any stack trace have their own sections.
 When several variants fail, select one in the list to inspect its result.
 
 For mismatches, the popup uses the CLI's word diff and dynamic-value masking,
@@ -93,11 +97,18 @@ HTML is displayed as escaped text.
 
 Use **Open component** to open the failed variant with the current preview site
 and language, or **Copy details** to copy its message, context and output.
-The project-relative snapshot file path and any error stack trace are always
-visible below the output controls.
+For an intentional mismatch, use **Update snapshot** to replace that variant's
+baseline for the displayed site and language. Other snapshots stay unchanged.
+Updates use the saved fixture, including its dynamic markers, and ignore unsaved form edits.
+Review and commit the changed file, then run the test again. An updated snapshot
+stays yellow in its details and does not count as a passed test.
+If the update request fails, the mismatch stays available so you can inspect it and retry.
+The project-relative snapshot file path and any error stack trace are always visible;
+full output is expandable beneath them.
 Newly created snapshots still require review and a commit before another test run.
 Production never creates them.
-The same baseline creation and Production restrictions apply as in the CLI.
+The same baseline creation and Production restrictions apply as in the CLI;
+**Update snapshot** is disabled in Production and its subcontexts.
 
 ![Snapshot mismatch details](html-snapshot-diff.png)
 

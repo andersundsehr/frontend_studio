@@ -16,12 +16,17 @@ use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Site\SiteFinder;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 
 #[AsController]
 final readonly class SnapshotController
 {
-    public function __construct(private Runner $runner, private Context $context, private SiteFinder $siteFinder)
-    {
+    public function __construct(
+        private Runner $runner,
+        private Context $context,
+        private SiteFinder $siteFinder,
+        private ExtensionConfiguration $extensionConfiguration,
+    ) {
     }
 
     public function runAction(ServerRequestInterface $request): ResponseInterface
@@ -34,10 +39,14 @@ final readonly class SnapshotController
             return new JsonResponse(['success' => false, 'message' => 'A backend login is required.'], 403);
         }
 
+        if (!(bool)$this->extensionConfiguration->get('frontend_studio', 'enableGuiTesting')) {
+            return new JsonResponse(['success' => false, 'message' => 'GUI snapshot testing is disabled in extension settings.'], 403);
+        }
+
         $body = $request->getParsedBody();
         if (
             !is_array($body) || !is_string($body['scope'] ?? null) || !is_string($body['site'] ?? null) || !is_string($body['language'] ?? null)
-            || !in_array($body['operation'] ?? null, ['discover', 'run'], true)
+            || !in_array($body['operation'] ?? null, ['discover', 'run', 'update'], true)
         ) {
             return new JsonResponse(['success' => false, 'message' => 'Provide a scope, site, language and valid operation.'], 400);
         }
@@ -58,7 +67,7 @@ final readonly class SnapshotController
                 return new JsonResponse(['success' => false, 'message' => 'Run one catalog variant per request.'], 400);
             }
 
-            $result = $this->runner->run($body['scope'], $body['site'], $body['language']);
+            $result = $this->runner->run($body['scope'], $body['site'], $body['language'], $body['operation'] === 'update');
             $result['diff'] = $result['status'] === 'failed' ? new InlineDiff()->compare($result['expected'], $result['actual']) : [];
             $result['trace'] = $result['exception']?->getTraceAsString() ?? '';
             $result['exception'] = null;
