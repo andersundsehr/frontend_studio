@@ -182,7 +182,7 @@ final readonly class FrontendStudioModuleController
             self::VARIANT_ACTIVE_TAB_USER_SETTING,
         );
 
-        if (!is_string($configuredActiveTab) || !in_array($configuredActiveTab, ['values', 'html', 'template', 'usage'], true)) {
+        if (!is_string($configuredActiveTab) || !in_array($configuredActiveTab, ['values', 'html', 'template', 'usage', 'doc'], true)) {
             return 'values';
         }
 

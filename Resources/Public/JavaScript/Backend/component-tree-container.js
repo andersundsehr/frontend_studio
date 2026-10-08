@@ -595,6 +595,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     });
     const contentUrl = createUrl(moduleConfiguration.link, contentParameters);
 
+    if (!top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) return;
     Viewport.ContentContainer.setUrl(contentUrl);
   };
 

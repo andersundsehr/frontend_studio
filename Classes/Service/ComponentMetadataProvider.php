@@ -49,6 +49,20 @@ final readonly class ComponentMetadataProvider
     ) {
     }
 
+    public function getComponentTemplateForIdentifier(string $identifier): ?ComponentTemplateMetadata
+    {
+        $parts = explode(':', $identifier);
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+            return null;
+        }
+
+        $component = $this->resolveComponent($parts[0], $parts[1]);
+        $resolver = $component['resolverDelegate'] ?? null;
+        return $resolver instanceof ComponentTemplateResolverInterface
+            ? $this->getTemplateMetadata($resolver, $parts[1])
+            : null;
+    }
+
     public function getComponentMetadataForVariantIdentifier(string $variantIdentifier): ?ComponentMetadata
     {
         $variantIdentifier = trim($variantIdentifier);
@@ -357,6 +371,13 @@ final readonly class ComponentMetadataProvider
             $error = $throwable->getMessage();
         }
 
+        $documentationPath = is_string($absolutePath) ? preg_replace('/(?:\\.fluid)?\\.html$/i', '.md', $absolutePath) : null;
+        $documentationExists = $documentationPath !== null && $documentationPath !== $absolutePath
+            && !is_link($documentationPath) && is_file($documentationPath);
+        $documentationDisplayPath = is_string($absolutePath)
+            ? preg_replace('/(?:\\.fluid)?\\.html$/i', '.md', $this->getExtensionPath($absolutePath) ?? $this->getRelativePath($absolutePath) ?? $absolutePath)
+            : null;
+
         return new ComponentTemplateMetadata(
             $templateName,
             $absolutePath,
@@ -365,6 +386,8 @@ final readonly class ComponentMetadataProvider
             $this->normalizeTemplateRootPaths($templatePaths->getTemplateRootPaths()),
             $content,
             $error,
+            $documentationExists,
+            $documentationDisplayPath,
         );
     }
 

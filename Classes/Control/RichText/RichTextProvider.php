@@ -34,7 +34,7 @@ final readonly class RichTextProvider
         }
 
         return new ControlDefinition(
-            'EXT:frontend_studio/Resources/Private/Controls/RichText.html',
+            'EXT:frontend_studio/Resources/Private/Controls/RichText.fluid.html',
             '@andersundsehr/frontend-studio/backend/rich-text-control.js',
         );
     }

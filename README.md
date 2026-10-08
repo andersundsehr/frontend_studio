@@ -153,6 +153,19 @@ variants:
 
 Use `Save as new` to create another variant.
 
+## Component documentation
+
+Use the **Documentation** inspector tab to write and edit component documentation, then click **Save**.
+Documentation is shared by all variants and saved as Markdown next to the component template:
+`Components/Card/Card.md` documents `Card.html` or `Card.fluid.html`.
+
+Document what another frontend developer needs to use the component:
+
+- Its purpose and when to use it.
+- Usage examples, including how arguments and slots affect the result.
+- Available variants and when to choose each one.
+- Accessibility requirements, expected interactions, and usage limitations.
+
 ## Component Fixtures
 
 Frontend Studio creates and updates fixture files next to component templates.
@@ -436,7 +449,12 @@ Run the checks with each supported PHP version (`8.4` and `8.5`); the CI setup c
 ./Build/Scripts/runTests.sh -p 8.5 -s functional -d mysql
 ./Build/Scripts/runTests.sh -p 8.5 -s functional -d mariadb
 ./Build/Scripts/runTests.sh -p 8.5 -s functional -d postgres
+./Build/Scripts/runTests.sh -s javascript
+./Build/Scripts/runTests.sh -s javascriptBuildCheck
 ```
+
+For JavaScript tests and CI checks, see [test placement and commands](Tests/browser/README.md).
+For dependency updates and bundle builds, see [the build guide](Build/InlineDocumentationEditor/README.md).
 
 ## License and Author
 

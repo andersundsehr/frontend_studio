@@ -64,14 +64,15 @@ jobs:
       - run: CI=true ./Build/Scripts/runTests.sh -b docker -p 8.5 -s functional -d ${{ matrix.database }}
 
   unit-tests-js:
-    name: "unit js"
+    name: "JavaScript and TypeScript (Playwright and Tests/browser)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm install --prefix Playwright --no-package-lock
-      - run: npx --prefix Playwright playwright install --with-deps chromium
-      - run: npm test --prefix Playwright
-      - run: npm run typecheck --prefix Playwright
+      - run: CI=true ./Build/Scripts/runTests.sh -b docker -s javascript
+
+  javascript-build-check:
+    name: "JavaScript bundle reproducibility"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: CI=true ./Build/Scripts/runTests.sh -b docker -s javascriptBuildCheck

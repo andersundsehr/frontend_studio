@@ -84,9 +84,43 @@
           Fluid Usage
         </button>
       </li>
+      <f:if condition="{selectedComponentMetadata.readOnly} == false || {selectedComponentMetadata.template.documentationExists}">
+        <li class="nav-item" role="presentation">
+          <button type="button" class="nav-link frontend-studio-variant-tab{f:if(condition: '{variantActiveTab} == \'doc\'', then: ' active is-active')}"
+            id="frontend-studio-variant-doc-tab" role="tab" aria-controls="frontend-studio-variant-doc-panel"
+            aria-selected="{f:if(condition: '{variantActiveTab} == \'doc\'', then: 'true', else: 'false')}"
+            data-frontend-studio-variant-tab="doc">Documentation</button>
+        </li>
+      </f:if>
     </ul>
   </div>
   <div class="frontend-studio-variant-sidebar-body">
+    <f:asset.css identifier="frontend-studio-markdown" href="EXT:frontend_studio/Resources/Public/Css/Backend/component-markdown.css"/>
+    <f:asset.css identifier="frontend-studio-documentation" href="EXT:frontend_studio/Resources/Public/Css/Backend/component-documentation.css"/>
+    <f:if condition="{selectedComponentMetadata.readOnly} == false || {selectedComponentMetadata.template.documentationExists}">
+      <div class="frontend-studio-variant-tab-panel frontend-studio-documentation{f:if(condition: '{variantActiveTab} == \'doc\'', then: ' is-active', else: ' is-hidden')}"
+        id="frontend-studio-variant-doc-panel" role="tabpanel" aria-labelledby="frontend-studio-variant-doc-tab"
+        data-frontend-studio-variant-tab-panel="doc" data-component-documentation
+        data-component-identifier="{selectedComponentMetadata.componentIdentifier}"
+        data-doc-uri="{f:be.uri(route: 'ajax_frontend_studio_component_documentation')}">
+        <f:if condition="{selectedComponentMetadata.readOnly} == false">
+          <div class="frontend-studio-variant-values-actions" data-doc-actions>
+            <frontend.studio:variant.resetButton data="{doc-reset: ''}"/>
+            <frontend.studio:variant.saveButton data="{doc-save: ''}"/>
+            <span class="frontend-studio-variant-save-state" data-doc-save-state hidden>Unsaved changes</span>
+            <div data-doc-editor-controls></div>
+          </div>
+        </f:if>
+        <div class="frontend-studio-markdown" data-doc-rich></div>
+        <f:if condition="{selectedComponentMetadata.readOnly} == false">
+          <p class="small text-body-secondary" data-doc-file>
+            Documentation file: <code>{selectedComponentMetadata.template.documentationPath}</code>.
+            Documentation is shared by all variants of this component.
+          </p>
+        </f:if>
+        <p data-doc-status role="status" aria-live="polite"></p>
+      </div>
+    </f:if>
     <frontend.studio:variant.controls
       selectedComponentMetadata="{selectedComponentMetadata}"
       variantActiveTab="{variantActiveTab}"

@@ -94,6 +94,13 @@ export default class ComponentFileWatcher {
     if (!Array.isArray(payload?.componentIdentifiers)) {
       return;
     }
+    const documentationIdentifiers = payload.documentationComponentIdentifiers;
+    if (Array.isArray(documentationIdentifiers) && documentationIdentifiers.length > 0) {
+      top.document.dispatchEvent(new CustomEvent('frontend-studio:component-documentation-changed', {
+        detail: { componentIdentifiers: documentationIdentifiers },
+      }));
+      if (payload.componentIdentifiers.length === 0) return;
+    }
     const matches = (identifier) => payload.componentIdentifiers.some((component) => (
       identifier === component || identifier.startsWith(`${component}:`)
     ));
