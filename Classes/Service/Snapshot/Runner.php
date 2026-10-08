@@ -55,7 +55,13 @@ final readonly class Runner
         return $variants;
     }
 
-    /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null} */
+    /**
+     * An error status also means an update failed. GUI callers must keep their
+     * previous comparison and show this error separately so its diff remains
+     * reviewable and the update can be retried.
+     *
+     * @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null}
+     */
     public function run(string $identifier, string $site, string $language, bool $update = false): array
     {
         $path = '';

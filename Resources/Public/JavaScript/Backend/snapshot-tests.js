@@ -78,9 +78,9 @@ export default class SnapshotTests {
     const generation = ++this.generation;
     this.abort = new AbortController();
     this.active = true;
-    this.errors.clear();
     this.completed = this.total = 0;
     const type = scope.split(':').length > 2 ? 'variant' : (scope.endsWith(':') || scope.endsWith('.') ? '' : 'component');
+    for (const id of this.errors.keys()) if (belongsToScope(id, scope, type)) this.errors.delete(id);
     for (const id of this.results.keys()) if (belongsToScope(id, scope, type)) this.results.delete(id);
     const context = { ...this.context };
     this.changed();
@@ -132,6 +132,11 @@ export default class SnapshotTests {
       const payload = await this.request({ ...context, scope: identifier, operation: 'update' }, this.abort.signal);
       if (generation !== this.generation) return;
       if (!payload.result || payload.result.identifier !== identifier) throw new Error('Invalid snapshot response.');
+      if (payload.result.status === 'error') {
+        const error = new Error(payload.result.message || 'Snapshot update failed.');
+        error.trace = payload.result.trace || '';
+        throw error;
+      }
       this.results.set(identifier, payload.result);
       this.changed();
       return payload.result;

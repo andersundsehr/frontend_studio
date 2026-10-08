@@ -17,6 +17,8 @@ use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
+use TYPO3\CMS\Backend\Module\ModuleProvider;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 
 #[AsController]
 final readonly class SnapshotController
@@ -26,6 +28,7 @@ final readonly class SnapshotController
         private Context $context,
         private SiteFinder $siteFinder,
         private ExtensionConfiguration $extensionConfiguration,
+        private ModuleProvider $moduleProvider,
     ) {
     }
 
@@ -37,6 +40,11 @@ final readonly class SnapshotController
 
         if (!$this->context->getPropertyFromAspect('backend.user', 'isLoggedIn', false)) {
             return new JsonResponse(['success' => false, 'message' => 'A backend login is required.'], 403);
+        }
+
+        $user = $GLOBALS['BE_USER'] ?? null;
+        if (!$user instanceof BackendUserAuthentication || !$this->moduleProvider->accessGranted('admin_frontendstudio', $user)) {
+            return new JsonResponse(['success' => false, 'message' => 'Frontend Studio module access is required.'], 403);
         }
 
         if (!(bool)$this->extensionConfiguration->get('frontend_studio', 'enableGuiTesting')) {

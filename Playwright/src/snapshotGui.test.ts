@@ -197,6 +197,53 @@ test('discovery errors propagate to parent scope and remain inspectable', async 
   assert.equal(tests.passed, 0);
 });
 
+test('testing another component preserves an earlier discovery error and unrelated results', async () => {
+  let failA = true;
+  const { tests } = await state(async (body) => {
+    if (body.operation === 'discover') {
+      if (body.scope === 'site:folder.card' && failA) throw new Error('Component A discovery failed');
+      return { catalog: [a, b, c, otherNamespace], identifiers: body.scope === 'site:other' ? [c] : [a, b] };
+    }
+    return { result: result(body.scope) };
+  });
+  const unrelated = result(otherNamespace);
+  tests.results.set(otherNamespace, unrelated);
+  await tests.run('site:folder.card');
+  await tests.run('site:other');
+  assert.equal(tests.errors.get('site:folder.card'), 'Component A discovery failed');
+  assert.equal(tests.status('site:folder.card', 'component'), 'failed');
+  assert.equal(tests.status('site:other', 'component'), 'passed');
+  assert.equal(tests.results.get(otherNamespace), unrelated);
+  assert.equal(tests.failures()[0].message, 'Component A discovery failed');
+  failA = false;
+  await tests.run('site:folder.card');
+  assert.equal(tests.errors.size, 0);
+  tests.errors.set('site:folder.card', 'Old A error');
+  tests.errors.set('site:other', 'Old B error');
+  const run = tests.run();
+  assert.equal(tests.errors.size, 0, 'Test all must invalidate every discovery error immediately.');
+  await run;
+});
+
+for (const [name, scope, removed] of [
+  ['namespace', 'site:', previousCatalog.filter((id) => id.startsWith('site:'))],
+  ['folder', 'site:folder.', [a, b, similarComponent, colonVariant]],
+  ['component', 'site:folder.card', [a, b, colonVariant]],
+  ['variant', a, [a]],
+] as const) {
+  test(`a partial ${name} run retains discovery errors outside its exact scope`, async () => {
+    const { tests } = await state(async () => { throw new Error('New discovery failed'); });
+    for (const id of previousCatalog) tests.errors.set(id, 'Previous ' + id);
+    const run = tests.run(scope);
+    for (const id of previousCatalog) assert.equal(tests.errors.has(id), !(removed as readonly string[]).includes(id));
+    await run;
+    for (const id of previousCatalog.filter((id) => !(removed as readonly string[]).includes(id))) {
+      assert.equal(tests.errors.get(id), 'Previous ' + id);
+    }
+    assert.equal(tests.errors.get(scope), 'New discovery failed');
+  });
+}
+
 test('GUI testing defaults on, while disabling it prevents test and update requests', async () => {
   let calls = 0;
   const request = async () => { calls++; return { identifiers: [], catalog: [] }; };
@@ -269,16 +316,41 @@ for (const invalidResponse of [false, true]) {
   });
 }
 
+test('application-level update errors retain the mismatch, its diff and a retryable action', async () => {
+  let attempts = 0;
+  const { tests } = await state(async () => ({ success: true, result: attempts++ === 0
+    ? { ...result(a, 'error'), message: 'Cannot write baseline.', trace: '#0 storage write failed' }
+    : result(a, 'updated') }));
+  tests.catalog = [a, b];
+  const previous = { ...result(a, 'failed'), diff: [{ changed: true, text: 'original diff' }] };
+  const unrelated = result(b);
+  tests.results.set(a, previous);
+  tests.results.set(b, unrelated);
+  await assert.rejects(tests.update(a), (error: any) => {
+    assert.equal(error.message, 'Cannot write baseline.');
+    assert.equal(error.trace, '#0 storage write failed');
+    return true;
+  });
+  assert.equal(tests.results.get(a), previous);
+  assert.equal(tests.results.get(a).diff, previous.diff);
+  assert.equal(tests.results.get(b), unrelated);
+  assert.equal(tests.active, false);
+  assert.equal(tests.status(a, 'variant'), 'failed');
+  assert.equal((await tests.update(a)).status, 'updated');
+  assert.equal(attempts, 2);
+});
+
 for (const invalidate of ['context', 'files']) {
-  for (const staleError of [false, true]) {
-    test(`${invalidate} changes cancel updates and ignore late ${staleError ? 'errors' : 'results'} after a new run`, async () => {
+  for (const outcome of ['success', 'network error', 'application error']) {
+    test(`${invalidate} changes cancel updates and ignore a late ${outcome} after a new run`, async () => {
       let settle: () => void = () => {};
       let updateSignal: AbortSignal | undefined;
       const { tests } = await state(async (body, signal) => {
         if (body.operation === 'update') {
           updateSignal = signal;
           return new Promise((resolve, reject) => {
-            settle = () => staleError ? reject(new Error('Old update failed')) : resolve({ result: result(a, 'updated') });
+            settle = () => outcome === 'network error' ? reject(new Error('Old update failed'))
+              : resolve({ success: true, result: result(a, outcome === 'application error' ? 'error' : 'updated') });
           });
         }
         return body.operation === 'discover' ? { identifiers: [b], catalog: [a, b] } : { result: result(b) };

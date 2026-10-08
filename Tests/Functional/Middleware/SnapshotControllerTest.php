@@ -34,6 +34,38 @@ final class SnapshotControllerTest extends FunctionalTestCase
         'typo3conf/ext/frontend_studio/Tests/Functional/Fixtures/Sites' => 'typo3conf/sites',
     ];
 
+    #[DataProvider('modulePermissions')]
+    public function testAllOperationsRequireFrontendStudioModuleAccess(int $userId, string $operation, bool $authorized): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
+        $this->importCSVDataSet(__DIR__ . '/../Fixtures/SnapshotBackendUsers.csv');
+        $this->setUpBackendUser($userId);
+        $response = $this->dispatch(['operation' => $operation]);
+        self::assertSame($authorized ? 200 : 403, $response->getStatusCode(), (string)$response->getBody());
+        $payload = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame($authorized, $payload['success']);
+        if (!$authorized) {
+            self::assertSame('Frontend Studio module access is required.', $payload['message']);
+        }
+
+        if (isset($payload['result'])) {
+            self::assertNotSame('error', $payload['result']['status'], $payload['result']['message']);
+            $path = Environment::getProjectPath() . '/' . $payload['result']['path'];
+            unlink($path);
+            rmdir(dirname($path));
+        }
+    }
+
+    /** @return iterable<string, array{int, string, bool}> */
+    public static function modulePermissions(): iterable
+    {
+        foreach (['discover', 'run', 'update'] as $operation) {
+            yield 'administrator can ' . $operation => [1, $operation, true];
+            yield 'authorized developer can ' . $operation => [2, $operation, true];
+            yield 'user without module access cannot ' . $operation => [3, $operation, false];
+        }
+    }
+
     #[DataProvider('guiSettings')]
     public function testBackendSettingsExposeTheCheckboxAndProductionWritePolicy(?string $enabled, string $context, bool $expectedEnabled, bool $readOnly): void
     {
@@ -210,17 +242,27 @@ final class SnapshotControllerTest extends FunctionalTestCase
         }
     }
 
-    public function testTestErrorsExposeReadableTechnicalDetailsWithoutExceptionObjects(): void
+    #[DataProvider('executingOperations')]
+    public function testTestErrorsExposeReadableTechnicalDetailsWithoutExceptionObjects(string $operation): void
     {
         $this->login();
-        $response = $this->dispatch(['operation' => 'run', 'scope' => 'site:missingTransformer:Default']);
+        $response = $this->dispatch(['operation' => $operation, 'scope' => 'site:missingTransformer:Default']);
         self::assertSame(200, $response->getStatusCode());
-        $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
+        $payload = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($payload['success'], 'Transport success does not imply that the snapshot operation succeeded.');
+        $result = $payload['result'];
         self::assertSame('error', $result['status']);
         self::assertNotEmpty($result['message']);
         self::assertNotEmpty($result['trace']);
         self::assertSame([], $result['diff']);
         self::assertNull($result['exception']);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function executingOperations(): iterable
+    {
+        yield 'run failure' => ['run'];
+        yield 'application-level update failure' => ['update'];
     }
 
     public function testBackendLoginIsRequiredAndGetCannotRun(): void

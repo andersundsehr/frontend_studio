@@ -68,7 +68,8 @@ they do not create missing snapshots and reject updates.
 
 ## Running HTML tests from the component tree
 
-GUI testing is enabled by default. To hide its controls and disable backend test
+Backend tests require access to the Frontend Studio module. GUI testing is enabled by default.
+To hide its controls and disable backend test
 requests, clear **Enable GUI snapshot testing** in **Settings → Extension Configuration → frontend_studio**,
 then reload the backend. CLI tests and CI remain available.
 
@@ -79,9 +80,10 @@ the toolbar shows the passed/total count. A scope receives a checkmark only afte
 every descendant has passed. Missing/new baselines, errors and mismatches show a
 red **✕** button that opens the failure details. The toolbar's **✕ Results (N)**
 button shows the number of failures and opens all their details.
-Row action buttons appear on hover; green checkmarks and red failure buttons stay visible.
+Row action buttons appear on hover or keyboard focus; use the arrow keys to select a row,
+then Tab to its test action and Enter to run it. Green checkmarks and red failure buttons stay visible.
 Starting another run clears the previous results for that scope immediately,
-including when discovery fails. Partial runs retain results outside their scope;
+including when discovery fails. Partial runs retain results and discovery errors outside their scope;
 **Test all** clears all previous results.
 The popup starts with a colored result summary and site/language cards,
 followed by the available actions. Red identifies mismatches and errors;
@@ -102,7 +104,11 @@ baseline for the displayed site and language. Other snapshots stay unchanged.
 Updates use the saved fixture, including its dynamic markers, and ignore unsaved form edits.
 Review and commit the changed file, then run the test again. An updated snapshot
 stays yellow in its details and does not count as a passed test.
-If the update request fails, the mismatch stays available so you can inspect it and retry.
+If an update fails, its error appears separately and the original mismatch and diff stay available.
+**Update snapshot** stays available for another attempt, including after rendering or file errors.
+
+![A failed update keeps the original mismatch available](html-snapshot-update-error.png)
+
 The project-relative snapshot file path and any error stack trace are always visible;
 full output is expandable beneath them.
 Newly created snapshots still require review and a commit before another test run.

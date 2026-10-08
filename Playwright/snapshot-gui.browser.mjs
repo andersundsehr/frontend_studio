@@ -97,12 +97,14 @@ try{
  await page.unroute('**/snapshots',holdFirstRun);
  assert.equal(await page.getByRole('button',{name:/✕ Results/}).count(),0);
  await page.mouse.move(980,10);
+ await page.getByRole('button',{name:'Test all',exact:true}).focus();
  assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),1);
  assert.equal(await row('Default').getByRole('img',{name:'All tests passed'}).isVisible(),true);
  assert.equal(await actions('Default').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display==='none')),true);
  await row('Nested').hover();
  await page.getByRole('button',{name:'Test Nested',exact:true}).click();
  await page.mouse.move(980,10);
+ await page.getByRole('button',{name:'Test all',exact:true}).focus();
  await page.getByRole('button',{name:'Inspect snapshot failures for Nested',exact:true}).waitFor();
  await assertFailureButton(page.getByRole('button',{name:'Inspect snapshot failures for Nested',exact:true}));
  await assertFailureButton(resultsButton(1));
@@ -212,6 +214,23 @@ try{
  assert.equal(await details.locator('.fs-snapshot-diff').count(),1);
  assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isEnabled(),true);
  await page.unroute('**/snapshots',failUpdate);
+ const applicationError=async(route)=>{
+  await route.fulfill({json:{success:true,result:{identifier:ids[1],status:'error',message:'Cannot write baseline.',trace:'#0 <img src=x onerror="window.injected=true">',diff:[],expected:'',actual:''}}});
+ };
+ await page.route('**/snapshots',applicationError);
+ await page.getByRole('button',{name:'Update snapshot',exact:true}).click();
+ const updateError=details.getByRole('alert',{name:'Snapshot update error',exact:true});
+ await updateError.getByRole('heading',{name:'Snapshot update failed',exact:true}).waitFor();
+ await updateError.getByText('Cannot write baseline.',{exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Snapshot mismatch',exact:true}).waitFor();
+ assert.equal(await details.locator('.fs-snapshot-diff').count(),1);
+ assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isEnabled(),true);
+ await updateError.getByText('Update error stack trace',{exact:true}).click();
+ await updateError.getByText('#0 <img src=x onerror="window.injected=true">',{exact:true}).waitFor();
+ assert.equal(await updateError.locator('img,script').count(),0);
+ assert.equal(await page.evaluate(()=>document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.results.get('site:nested.card:Second').status),'failed');
+ await page.screenshot({path:path.join(evidence,'update-error.png')});
+ await page.unroute('**/snapshots',applicationError);
  let releaseUpdate;
  const updateGate=new Promise(resolve=>{releaseUpdate=resolve;});
  const holdUpdate=async(route)=>{await updateGate;await route.continue();};
@@ -285,5 +304,39 @@ try{
  await page.getByText('Discovery unavailable',{exact:true}).waitFor();
  await page.waitForTimeout(350);
  await page.screenshot({path:path.join(evidence,'discovery-error.png')});
- console.log('PASS real TYPO3 tree/Lit/modal: GUI setting hides testing only, isolated updates and errors, disabled pending/Production updates, colored structured details, bordered failure buttons, live failure counts, hover-only actions, stale discovery, focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
+ // Navigate to and activate snapshot actions without a mouse or programmatic focus.
+ const keyboard=await browser.newPage({viewport:{width:1000,height:780}});
+ await keyboard.goto(`http://127.0.0.1:${server.address().port}/`);
+ await keyboard.waitForFunction(()=>window.ready);
+ await keyboard.getByText('Default',{exact:true}).waitFor();
+ for(let index=0;index<15;index++) {
+  if(await keyboard.evaluate(()=>document.activeElement?.classList.contains('node'))) break;
+  await keyboard.keyboard.press('Tab');
+ }
+ assert.equal(await keyboard.evaluate(()=>document.activeElement?.classList.contains('node')),true);
+ for(let index=0;index<10;index++) {
+  if(await keyboard.evaluate(()=>document.activeElement?.dataset.id==='site:nested.card:Default')) break;
+  await keyboard.keyboard.press('ArrowDown');
+ }
+ assert.equal(await keyboard.evaluate(()=>document.activeElement?.dataset.id),'site:nested.card:Default');
+ assert.equal(await keyboard.getByRole('button',{name:'Test Default',exact:true}).isVisible(),true);
+ await keyboard.keyboard.press('Tab');
+ assert.equal(await keyboard.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Test Default');
+ await keyboard.keyboard.press('Enter');
+ await keyboard.getByRole('status').filter({hasText:'1/2 passed'}).waitFor();
+ await keyboard.keyboard.press('Shift+Tab');
+ await keyboard.keyboard.press('ArrowDown');
+ assert.equal(await keyboard.evaluate(()=>document.activeElement?.dataset.id),'site:nested.card:Second');
+ await keyboard.keyboard.press('Tab');
+ assert.equal(await keyboard.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Test Second');
+ await keyboard.keyboard.press('Enter');
+ await keyboard.getByRole('button',{name:'Inspect snapshot failures for Second',exact:true}).waitFor();
+ await keyboard.keyboard.press('Tab');
+ assert.equal(await keyboard.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Inspect snapshot failures for Second');
+ await keyboard.keyboard.press('Enter');
+ await keyboard.getByRole('heading',{name:'Snapshot mismatch',exact:true}).waitFor();
+ assert.equal(await keyboard.evaluate(()=>window.selections),0);
+ await keyboard.screenshot({path:path.join(evidence,'keyboard.png')});
+ await keyboard.close();
+ console.log('PASS real TYPO3 tree/Lit/modal: GUI setting, isolated updates, retryable HTTP and application errors, escaped update traces, pending/Production restrictions, colored details, persistent status buttons, hover/focus actions, stale discovery, focused diff, navigation, copy/open actions, keyboard-only testing and failure inspection, and 390px layout; AJAX and shell mocked.');
 }finally{await browser.close();server.close();}

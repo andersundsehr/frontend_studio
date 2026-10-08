@@ -772,7 +772,8 @@ class FrontendStudioComponentTreeContainer extends LitElement {
           display: none;
         }
 
-        andersundsehr-frontend-studio-component-tree .node:hover .node-action > button:not(.snapshot-status):not([hidden]) {
+        andersundsehr-frontend-studio-component-tree .node:hover .node-action > button:not(.snapshot-status):not([hidden]),
+        andersundsehr-frontend-studio-component-tree .node:focus-within .node-action > button:not(.snapshot-status):not([hidden]) {
           display: inline-flex;
         }
       </style>

@@ -97,6 +97,7 @@ export async function showSnapshotDiff(results, options = {}) {
   let selected = 0;
   let feedback = '';
   let feedbackError = false;
+  let updateError = null;
   let updating = false;
   let closed = false;
   let modal;
@@ -153,7 +154,7 @@ export async function showSnapshotDiff(results, options = {}) {
     <div class="fs-snapshot-view ${results.length > 1 ? 'fs-snapshot-multiple' : ''}">
       ${results.length > 1 ? html`<nav aria-label="Failed variants">${results.map((result, index) => html`
         <button type="button" class=${`btn btn-default fs-snapshot-nav-${failureSummary(result).tone}`} aria-current=${index === selected ? 'true' : 'false'}
-          @click=${() => { selected = index; feedback = ''; feedbackError = false; update(); }}><span>${result.identifier}</span><small class=${`text-${failureSummary(result).tone}`}>${failureSummary(result).title}</small></button>
+          @click=${() => { selected = index; feedback = ''; feedbackError = false; updateError = null; update(); }}><span>${result.identifier}</span><small class=${`text-${failureSummary(result).tone}`}>${failureSummary(result).title}</small></button>
       `)}</nav>` : ''}
       <section aria-label="Failure details">
         <p class="text-muted" role="status" aria-live="polite">Result ${selected + 1} of ${results.length}</p>
@@ -172,6 +173,7 @@ export async function showSnapshotDiff(results, options = {}) {
                 updating = true;
                 feedback = '';
                 feedbackError = false;
+                updateError = null;
                 update();
                 try {
                   const result = await options.updateSnapshot(results[index].identifier);
@@ -184,8 +186,7 @@ export async function showSnapshotDiff(results, options = {}) {
                   }
                 } catch (error) {
                   if (index === selected) {
-                    feedback = error?.message || 'Could not update the snapshot.';
-                    feedbackError = true;
+                    updateError = { message: error?.message || 'Could not update the snapshot.', trace: error?.trace || '' };
                   }
                 } finally {
                   updating = false;
@@ -207,6 +208,10 @@ export async function showSnapshotDiff(results, options = {}) {
           ${options.readOnly ? html`<span class="text-warning">Production: snapshot files are read-only.</span>` : ''}
           <span class=${feedbackError ? 'text-danger' : results[selected].status === 'updated' ? 'text-warning' : 'text-success'} role="status" aria-live="polite">${feedback}</span>
         </div>
+        ${updateError ? html`<aside class="alert alert-danger" role="alert" aria-label="Snapshot update error">
+          <h4>Snapshot update failed</h4><p class="mb-0 text-break">${updateError.message}</p>
+          ${updateError.trace ? html`<details class="mt-2"><summary>Update error stack trace</summary><pre class="mt-2">${updateError.trace}</pre></details>` : ''}
+        </aside>` : ''}
         ${unsafeHTML(renderSnapshotDiff([results[selected]], options.readOnly, false))}
       </section>
     </div>`;
