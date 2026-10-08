@@ -24,6 +24,9 @@ Run Playwright from your TYPO3 project against a running site.
 and `getUrlForVariant()` supports focused tests.
 The sections below show how to set this up and review intentional changes.
 
+This directory is the public `@frontend_studio/test` package for use in your TYPO3 project.
+For contributing to Frontend Studio itself, see [test placement and JavaScript checks](../Tests/browser/README.md).
+
 ## Requirements
 
 Install Frontend Studio through Composer before adding its Playwright package.
@@ -37,6 +40,8 @@ npm install --save-dev @playwright/test@^1.63.0 ./vendor/andersundsehr/frontend_
 
 The helper uses the project's Playwright Test instance.
 It installs its accessibility dependencies.
+The `Playwright/` directory is the complete consumer package; it can be installed directly from `vendor/` or linked with Yarn.
+The helpers are supplied as TypeScript and need no separate package build.
 Start TYPO3 and register the component collections before running browser tests.
 Set `DDEV_PRIMARY_URL` to an address the Playwright process can reach.
 The examples use `http://web` inside the DDEV Playwright container.

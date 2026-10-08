@@ -1,0 +1,8 @@
+ARG NODE_VERSION=24.19.0
+FROM node:${NODE_VERSION}-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends chromium fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CHROMIUM_PATH=/usr/bin/chromium

@@ -6,8 +6,9 @@ namespace Andersundsehr\FrontendStudio\Service;
 
 final class HtmlSourceHighlighter
 {
+    // Possessive text chunks avoid backtracking exhaustion on unfinished nested expressions.
     private const string FLUID_EXPRESSION_PATTERN = <<<'REGEX'
-        (?<fluid>\{(?:[^{}'"]+|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?&fluid))*\})
+        (?<fluid>\{(?:[^{}'"]++|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?&fluid))*\})
         REGEX;
 
     public function highlight(string $html): string

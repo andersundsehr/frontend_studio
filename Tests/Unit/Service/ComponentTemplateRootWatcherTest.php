@@ -8,6 +8,7 @@ use Andersundsehr\FrontendStudio\Service\ComponentDiscoveryProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentResolverDelegateProvider;
 use Andersundsehr\FrontendStudio\Service\ComponentTemplateRootWatcher;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use TYPO3\CMS\Core\Core\Environment;
@@ -43,7 +44,10 @@ final class ComponentTemplateRootWatcherTest extends TestCase
         @unlink($this->templateRoot . '/Card/_slots/Default__slot__default.fluid.html');
         @rmdir($this->templateRoot . '/Card/_slots');
         @unlink($this->templateRoot . '/Card/Card.html');
+        @unlink($this->templateRoot . '/Card/Card.fluid.html');
+        @unlink($this->templateRoot . '/Card/Card.md');
         @unlink($this->templateRoot . '/Teaser/Teaser.html');
+        @unlink($this->templateRoot . '/Teaser/Teaser.md');
         @rmdir($this->templateRoot . '/Card');
         @rmdir($this->templateRoot . '/Teaser');
         @rmdir($this->templateRoot);
@@ -72,6 +76,52 @@ final class ComponentTemplateRootWatcherTest extends TestCase
 
         $deletedSnapshot = $watcher->createSnapshot();
         self::assertSame(['test:Card'], $watcher->getChangedComponentIdentifiers($changedSnapshot, $deletedSnapshot));
+    }
+
+    #[DataProvider('documentationTemplateFormats')]
+    public function testDocumentationLifecycleRefreshesOnlyDocumentationIncludingSameSizeEdits(bool $fluidTemplate): void
+    {
+        if ($fluidTemplate) {
+            rename($this->templateRoot . '/Card/Card.html', $this->templateRoot . '/Card/Card.fluid.html');
+        }
+
+        $watcher = $this->createWatcher();
+        $path = $this->templateRoot . '/Card/Card.md';
+        $initial = $watcher->createSnapshot();
+        file_put_contents($path, 'First');
+        touch($path, 1700000000);
+        $created = $watcher->createSnapshot();
+        self::assertSame(['test:Card'], $watcher->getChangedDocumentationComponentIdentifiers($initial, $created));
+        self::assertSame([], $watcher->getChangedComponentIdentifiers($initial, $created));
+
+        file_put_contents($path, 'Other');
+        touch($path, 1700000000);
+        $edited = $watcher->createSnapshot();
+        self::assertSame(['test:Card'], $watcher->getChangedDocumentationComponentIdentifiers($created, $edited));
+        self::assertSame([], $watcher->getChangedComponentIdentifiers($created, $edited));
+
+        unlink($path);
+        $deleted = $watcher->createSnapshot();
+        self::assertSame(['test:Card'], $watcher->getChangedDocumentationComponentIdentifiers($edited, $deleted));
+        self::assertSame([], $watcher->getChangedComponentIdentifiers($edited, $deleted));
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function documentationTemplateFormats(): iterable
+    {
+        yield 'HTML template' => [false];
+        yield 'Fluid HTML template' => [true];
+    }
+
+    public function testMixedChangesKeepDocumentationAndTemplateComponentsSeparate(): void
+    {
+        $watcher = $this->createWatcher();
+        $initial = $watcher->createSnapshot();
+        file_put_contents($this->templateRoot . '/Card/Card.md', 'Card documentation');
+        file_put_contents($this->templateRoot . '/Teaser/Teaser.html', '<p>Changed teaser template</p>');
+        $changed = $watcher->createSnapshot();
+        self::assertSame(['test:Card'], $watcher->getChangedDocumentationComponentIdentifiers($initial, $changed));
+        self::assertSame(['test:Teaser'], $watcher->getChangedComponentIdentifiers($initial, $changed));
     }
 
     private function createWatcher(): ComponentTemplateRootWatcher

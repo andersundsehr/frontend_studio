@@ -48,15 +48,7 @@
     </f:then>
     <f:else>
       <div class="frontend-studio-variant-values-actions">
-        <button
-          type="button"
-          class="btn btn-default btn-sm"
-          data-frontend-studio-variant-reset
-          disabled
-        >
-          <core:icon identifier="actions-undo"/>
-          Reset
-        </button>
+        <frontend.studio:variant.resetButton data="{frontend-studio-variant-reset: ''}"/>
         <f:if condition="{selectedComponentMetadata.readOnly}">
           <f:then>
             <span class="text-body-secondary">Production: fixture files are read-only.</span>
@@ -70,15 +62,7 @@
               <core:icon identifier="actions-edit-copy"/>
               Save as new
             </button>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              data-frontend-studio-variant-save
-              disabled
-            >
-              <core:icon identifier="actions-save"/>
-              Save
-            </button>
+            <frontend.studio:variant.saveButton data="{frontend-studio-variant-save: ''}"/>
             <span
               class="frontend-studio-variant-save-state"
               data-frontend-studio-variant-save-state

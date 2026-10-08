@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+
 import { chromium } from '@playwright/test';
 
 const resources = new URL('../../Resources/', import.meta.url);

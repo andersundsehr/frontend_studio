@@ -1,0 +1,9 @@
+"be_groups"
+,"uid","pid","title","groupMods"
+,1,0,"Frontend Studio editors","admin_frontendstudio"
+,2,0,"Other module editors","web_layout"
+
+"be_users"
+,"uid","pid","username","admin","disable","usergroup"
+,2,0,"documentation-editor",0,0,"1"
+,3,0,"unprivileged-editor",0,0,"2"

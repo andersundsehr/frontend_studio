@@ -7,6 +7,9 @@ export default class VariantFileWatcher extends VariantFeature {
     this.suspended = false;
     this.listen(view, 'suspend', () => { this.suspended = true; });
     this.listen(view, 'resume', () => { this.suspended = false; });
+    this.listen(top.document, 'frontend-studio:component-documentation-changed', (event) => {
+      if (!this.suspended && this.isCurrentComponentAffected(event)) this.view.changed('documentation');
+    });
     this.listen(top.document, 'frontend-studio:component-files-changed', (event) => this.handleComponentFilesChanged(event));
   }
 
@@ -22,7 +25,7 @@ export default class VariantFileWatcher extends VariantFeature {
     }
     this.view.changed('files');
 
-    if (!this.view.hasUnsavedChanges) {
+    if (!this.view.hasUnsavedChanges && !this.view.documentationDirty) {
       window.location.reload();
     }
   }

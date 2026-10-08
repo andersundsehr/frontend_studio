@@ -239,8 +239,9 @@ final class OwnComponentsTest extends FunctionalTestCase
             'selectedVariantIdentifier' => $identifier,
             'selectedComponentMetadata' => $metadata,
         ]);
-        self::assertSame(4, substr_count($html, 'data-component-identifier="site:card"'));
+        self::assertSame(5, substr_count($html, 'data-component-identifier="site:card"'));
         self::assertSame(4, substr_count($html, 'data-variant-identifier="' . $identifier . '"'));
+        self::assertMatchesRegularExpression('/data-component-documentation\s+data-component-identifier="site:card"/', $html);
         self::assertStringContainsString('Colon variant from fixture', $this->renderPreview($identifier));
         $nodes = $this->get(ComponentTreeDataProvider::class)->getTreeNodes();
         self::assertNotNull(array_find($nodes, static fn(array $node): bool => $node['identifier'] === $identifier));
@@ -348,6 +349,8 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertSame([
             'frontend.studio:variant.controls',
             'frontend.studio:variant.header',
+            'frontend.studio:variant.resetButton',
+            'frontend.studio:variant.saveButton',
             'frontend.studio:variant.sidebar',
             'frontend.studio:variant.valueField',
         ], $this->getOwnComponentIdentifiers());
@@ -501,6 +504,42 @@ final class OwnComponentsTest extends FunctionalTestCase
 
             self::assertStringStartsWith('/subdirectory/typo3/ajax/frontend-studio/', $matches[1]);
         }
+    }
+
+    public function testDocumentationLoadsInlineEditorAndSharedMarkdownStyles(): void
+    {
+        $html = $this->renderPreview('frontend.studio:variant.sidebar:Default');
+        $imports = $this->getPreviewImports($html);
+        self::assertArrayHasKey('@andersundsehr/frontend-studio/vendor/inline-documentation-editor', $imports);
+        self::assertStringContainsString('/Contrib/inline-documentation-editor.js', $imports['@andersundsehr/frontend-studio/vendor/inline-documentation-editor']);
+        self::assertArrayHasKey('@andersundsehr/frontend-studio/vendor/code-highlighting', $imports);
+        self::assertStringContainsString('/Contrib/code-highlighting.js', $imports['@andersundsehr/frontend-studio/vendor/code-highlighting']);
+        self::assertStringContainsString('class="frontend-studio-markdown" data-doc-rich', $html);
+        self::assertStringContainsString('/Css/Backend/component-markdown.css', $html);
+        self::assertStringNotContainsString('/rte_ckeditor/Resources/Public/Css/editor.css', $html);
+    }
+
+    public function testDocumentationAndControlsRenderTheSameResetAndSaveButtons(): void
+    {
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        $html = $this->renderVariantView(['selectedVariantIdentifier' => 'site:card:Default', 'selectedComponentMetadata' => $metadata]);
+        foreach (['reset' => ['default', 'actions-undo', 'Reset'], 'save' => ['primary', 'actions-save', 'Save']] as $action => [$style, $icon, $label]) {
+            foreach (['data-doc-', 'data-frontend-studio-variant-'] as $prefix) {
+                if (preg_match('/<button([^>]*' . $prefix . $action . '[^>]*)>(.*?)<\/button>/s', $html, $matches) !== 1) {
+                    self::fail('The shared ' . $action . ' button is missing.');
+                }
+
+                self::assertStringContainsString('class="btn btn-' . $style . ' btn-sm"', $matches[1]);
+                self::assertStringContainsString('disabled', $matches[1]);
+                self::assertStringContainsString($icon, $matches[2]);
+                self::assertStringContainsString($label, $matches[2]);
+            }
+        }
+
+        self::assertStringContainsString('data-doc-save-state', $html);
+        self::assertStringContainsString('data-doc-file', $html);
+        self::assertStringContainsString(htmlspecialchars($metadata->template->documentationPath ?? ''), $html);
     }
 
     public function testModuleUrlsRespectTheInstallationSubdirectory(): void
@@ -862,6 +901,40 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringNotContainsString('data-frontend-studio-variant-save', $html);
         self::assertStringNotContainsString('data-frontend-studio-variant-copy', $html);
         self::assertStringContainsString('data-frontend-studio-variant-reset', $html);
+        foreach (['actions', 'save', 'reset', 'mode', 'source', 'preview'] as $element) {
+            self::assertStringNotContainsString('data-doc-' . $element, $html);
+        }
+
+        self::assertStringNotContainsString('data-doc-rich', $html);
+        self::assertStringNotContainsString('data-frontend-studio-variant-tab="doc"', $html);
+    }
+
+    public function testProductionShowsDocumentationOnlyWhenItsFileExists(): void
+    {
+        $provider = $this->get(ComponentMetadataProvider::class);
+        $metadata = $provider->getComponentMetadataForVariantIdentifier('site:card:Default');
+        self::assertNotNull($metadata);
+        self::assertNotNull($metadata->template->absolutePath);
+        $path = dirname($metadata->template->absolutePath) . '/Card.md';
+        self::assertFalse($metadata->template->documentationExists);
+        self::assertStringEndsWith('/Card.md', $metadata->template->documentationPath ?? '');
+        file_put_contents($path, '# Documentation');
+        try {
+            $metadata = $provider->getComponentMetadataForVariantIdentifier('site:card:Default');
+            self::assertNotNull($metadata);
+            self::assertTrue($metadata->template->documentationExists);
+            $metadata = new ComponentMetadata(...array_replace(get_object_vars($metadata), ['readOnly' => true]));
+            $html = $this->renderVariantView(['selectedVariantIdentifier' => 'site:card:Default', 'selectedComponentMetadata' => $metadata]);
+            self::assertStringContainsString('data-frontend-studio-variant-tab="doc"', $html);
+            self::assertStringContainsString('data-doc-rich', $html);
+            foreach (['actions', 'save', 'reset', 'file'] as $element) {
+                self::assertStringNotContainsString('data-doc-' . $element, $html);
+            }
+
+            self::assertStringNotContainsString('Documentation is read-only in Production.', $html);
+        } finally {
+            unlink($path);
+        }
     }
 
     #[DataProvider('ajaxPreviewFormats')]
