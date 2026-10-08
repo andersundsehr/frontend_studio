@@ -38,14 +38,20 @@ export default class ComponentDocumentation extends VariantFeature {
       }
     }, { capture: true });
     this.listen(window, 'beforeunload', (event) => {
-      // Reuse discard approval for this unload unless another navigation guard cancelled it.
-      if (this.dirty && (!this.approvedNavigation || this.approvedNavigation.defaultPrevented)) {
+      // Approval covers only the destination actually opened by this attempt.
+      const navigation = this.approvedNavigation;
+      const destination = window.frameElement?.src;
+      const approved = navigation && !navigation.defaultPrevented
+        && navigation.detail?.url && navigation.detail.url === destination;
+      if (this.dirty && !approved) {
+        navigation?.preventDefault();
         event.preventDefault(); event.returnValue = '';
       }
       this.approvedNavigation = null;
     });
     // TYPO3 navigation replaces the content frame without necessarily unloading the top window.
     this.navigationGuard = (event) => {
+      this.approvedNavigation?.preventDefault();
       this.approvedNavigation = null;
       if (!this.dirty) return;
       if (!window.confirm('Discard unsaved documentation changes?')) event.preventDefault();
@@ -63,6 +69,7 @@ export default class ComponentDocumentation extends VariantFeature {
   get dirty() { return this.loaded && this.markdown !== this.baseline; }
 
   changed() {
+    this.approvedNavigation?.preventDefault();
     this.approvedNavigation = null;
     if (this.saveButton) this.saveButton.disabled = !this.loaded || this.readOnly || this.pending || !this.dirty;
     if (this.resetButton) this.resetButton.disabled = !this.loaded || this.pending || !this.dirty;

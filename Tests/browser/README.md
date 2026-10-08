@@ -29,6 +29,10 @@ on the first run and caches it in `var/.cache/typo3-tree/`.
 The initial run needs network access to `raw.githubusercontent.com`; cached runs work offline.
 Only unrelated backend chrome and HTTP endpoint responses are stubbed.
 The tests click real Overview links in a content iframe and edit the actual documentation editor.
+Controlled request gates exercise pending and overlapping filters, stale responses,
+deleted or renamed variants, failed reloads and rejected navigation.
+After unsuccessful navigation, the tests attempt an unrelated browser navigation,
+dismiss its native unload warning and verify that the same edited document remains mounted.
 
 The consumer package exports TypeScript directly and has no separate compilation step.
 Keep its manifest, TypeScript configuration and source unchanged when working on extension UI or contributor tooling.

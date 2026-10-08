@@ -52,11 +52,38 @@ class FrontendStudioComponentTree extends Tree {
       tooltip: '',
     };
     this.pendingNodeSelectionTimeout = null;
+    this.filterGeneration = 0;
+    this.filterComplete = Promise.resolve();
+    this.dataLoadComplete = Promise.resolve();
   }
 
   disconnectedCallback() {
     this.clearPendingNodeSelection();
     super.disconnectedCallback();
+  }
+
+  get currentFilterRequest() {
+    return this.pendingFilterRequest ?? null;
+  }
+
+  set currentFilterRequest(request) {
+    this.pendingFilterRequest = request;
+    // Core's void filter() rethrows failures without finishing its pipeline.
+    // Report them through its notification API, then let its abort handler
+    // finish normally. Configure only this request through Ajax's public API.
+    request?.addMiddleware(async (input, next) => {
+      try {
+        const response = await next(input);
+        if (!response.ok) throw new Error(`Tree search failed (${response.status}).`);
+        await response.clone().json();
+        return response;
+      } catch (error) {
+        if (!input.signal.aborted && !(error instanceof DOMException && error.name === 'AbortError')) {
+          this.errorNotification(error);
+        }
+        throw new DOMException('Tree search was interrupted.', 'AbortError');
+      }
+    });
   }
 
   getNodeStatus(node) {
@@ -442,18 +469,55 @@ class FrontendStudioComponentTree extends Tree {
 
   async refreshOrFilterTree() {
     if (this.searchTerm !== null && this.searchTerm !== '') {
-      this.filter(this.searchTerm);
-      await this.waitForRefreshToFinish();
+      await this.filter(this.searchTerm);
       return;
     }
 
     await this.loadData();
   }
 
+  filter(searchTerm) {
+    const generation = ++this.filterGeneration;
+    this.currentFilterRequest?.abort();
+    // Core's old request can clear currentFilterRequest while a newer one is
+    // running. Serialize its pipelines and skip queries superseded by reset.
+    this.filterComplete = this.filterComplete.then(async () => {
+      await this.dataLoadComplete;
+      if (generation !== this.filterGeneration) return;
+      super.filter(searchTerm);
+      await this.waitForRefreshToFinish();
+    });
+    return this.filterComplete;
+  }
+
+  loadData() {
+    this.dataLoadComplete = super.loadData();
+    return this.dataLoadComplete;
+  }
+
   async waitForRefreshToFinish() {
+    await this.dataLoadComplete;
     while (this.loading === true || this.currentFilterRequest != null) {
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      await new Promise((resolve) => this.addEventListener('frontend-studio:tree:idle', resolve, { once: true }));
     }
+  }
+
+  updated(changedProperties) {
+    super.updated(changedProperties);
+    if (this.loading !== true && this.currentFilterRequest == null) {
+      this.dispatchEvent(new Event('frontend-studio:tree:idle'));
+    }
+  }
+
+  async resetFilterForNavigation() {
+    // Core resetFilter() does not cancel or join its filter response pipeline.
+    ++this.filterGeneration;
+    this.currentFilterRequest?.abort();
+    await this.filterComplete;
+    await this.waitForRefreshToFinish();
+    await this.resetFilter();
+    // TYPO3 13's resetFilter() can start a reload without returning its promise.
+    await this.waitForRefreshToFinish();
   }
 }
 
@@ -572,38 +636,57 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     await this.navigateToNode(node);
   };
 
-  async navigateToNode(node, navigationApproved = false) {
-    const moduleMenu = top.TYPO3.ModuleMenu.App;
-    const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
-    const currentContentUrl = Viewport.ContentContainer.get()?.location?.href || Viewport.ContentContainer.getUrl();
-    const currentQueryParams = currentContentUrl !== null
-      ? new URL(currentContentUrl, window.location.origin).searchParams
-      : null;
-    const contentParameters = {
-      [node.nodeType === 'component' ? 'component' : 'componentVariant']: node.identifier,
-    };
-    ['site', 'language'].forEach((parameter) => {
-      const value = currentQueryParams?.get(parameter);
-      if (value !== null && value !== undefined) {
-        contentParameters[parameter] = value;
-      }
-    });
-    const contentUrl = createUrl(moduleConfiguration.link, contentParameters);
-    contentUrl.searchParams.delete(node.nodeType === 'component' ? 'componentVariant' : 'component');
+  async navigateToNode(node, navigation = null) {
+    const alreadyConfirmed = navigation !== null;
+    navigation ??= new CustomEvent('frontend-studio:before-navigate', { cancelable: true, detail: { url: null } });
+    let navigated = false;
+    try {
+      const moduleMenu = top.TYPO3.ModuleMenu.App;
+      const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
+      const currentContentUrl = Viewport.ContentContainer.get()?.location?.href || Viewport.ContentContainer.getUrl();
+      const currentQueryParams = currentContentUrl !== null
+        ? new URL(currentContentUrl, window.location.origin).searchParams
+        : null;
+      const contentParameters = {
+        [node.nodeType === 'component' ? 'component' : 'componentVariant']: node.identifier,
+      };
+      ['site', 'language'].forEach((parameter) => {
+        const value = currentQueryParams?.get(parameter);
+        if (value !== null && value !== undefined) {
+          contentParameters[parameter] = value;
+        }
+      });
+      const contentUrl = createUrl(moduleConfiguration.link, contentParameters);
+      contentUrl.searchParams.delete(node.nodeType === 'component' ? 'componentVariant' : 'component');
 
-    if (!navigationApproved && !top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) {
-      const previousNode = this.getNodeFromCurrentContentUrl()
-        ?? this.getNodeFromStoredState(ModuleStateStorage.current(componentTreeModuleStateType));
-      if (previousNode !== null) {
-        await this.selectNode(previousNode, false);
-      } else {
-        this.tree.resetSelectedNodes();
+      if (navigation.defaultPrevented || (!alreadyConfirmed && !top.document.dispatchEvent(navigation))) {
+        return false;
       }
-      return;
+
+      navigation.detail.url = contentUrl.href;
+      await Viewport.ContentContainer.setUrl(contentUrl);
+      navigated = true;
+      ModuleStateStorage.updateWithTreeIdentifier(componentTreeModuleStateType, node.identifier, node.__treeIdentifier);
+      return true;
+    } catch (error) {
+      Notification.error('Variant navigation failed', error?.message || 'The variant could not be opened.');
+      return false;
+    } finally {
+      if (!navigated) {
+        navigation.preventDefault();
+        if (!alreadyConfirmed) await this.restoreSelection();
+      }
     }
+  }
 
-    ModuleStateStorage.updateWithTreeIdentifier(componentTreeModuleStateType, node.identifier, node.__treeIdentifier);
-    Viewport.ContentContainer.setUrl(contentUrl);
+  async restoreSelection() {
+    const previousNode = this.getNodeFromCurrentContentUrl()
+      ?? this.getNodeFromStoredState(ModuleStateStorage.current(componentTreeModuleStateType));
+    if (previousNode !== null) {
+      await this.selectNode(previousNode, false);
+    } else {
+      this.tree.resetSelectedNodes();
+    }
   }
 
   async selectVariant(identifier) {
@@ -611,16 +694,25 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     let node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
     if (!node) {
       // Confirm before changing the filter; a cancelled Docs link must leave the tree untouched.
-      if (!top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) return;
-      await this.tree.resetFilter();
-      // TYPO3 13's resetFilter() can start a reload without returning its promise.
-      await this.tree.waitForRefreshToFinish();
-      const searchInput = this.toolbar?.querySelector(this.toolbar.settings.searchInput);
-      if (searchInput) searchInput.value = '';
-      node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
-      if (node) {
-        await this.selectNode(node, false);
-        await this.navigateToNode(node, true);
+      const navigation = new CustomEvent('frontend-studio:before-navigate', { cancelable: true, detail: { url: null } });
+      if (!top.document.dispatchEvent(navigation)) return;
+      let navigated = false;
+      try {
+        await this.tree.resetFilterForNavigation();
+        node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
+        if (node && !navigation.defaultPrevented) {
+          await this.selectNode(node, false);
+          navigated = await this.navigateToNode(node, navigation);
+        }
+      } catch (error) {
+        Notification.error('Variant navigation failed', error?.message || 'The variant could not be opened.');
+      } finally {
+        const searchInput = this.toolbar?.querySelector(this.toolbar.settings.searchInput);
+        if (searchInput) searchInput.value = this.tree.searchTerm ?? '';
+        if (!navigated) {
+          navigation.preventDefault();
+          await this.restoreSelection();
+        }
       }
       return;
     }

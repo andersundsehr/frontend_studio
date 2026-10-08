@@ -82,7 +82,7 @@ test('component selection opens overview while variant links and site/language r
   assert.equal(ui.navigations[0].searchParams.get('site'), 'preview');
   assert.equal(ui.navigations[0].searchParams.get('language'), 'de-DE');
   assert.equal(ui.container.getNodeFromCurrentContentUrl(), ui.component);
-  assert.deepEqual(ui.order, ['confirm', 'persist', 'navigate']);
+  assert.deepEqual(ui.order, ['confirm', 'navigate', 'persist']);
   assert.equal(ui.stored().identifier, ui.component.identifier);
   await ui.select(ui.variant);
   assert.equal(ui.navigations[1].searchParams.get('componentVariant'), 'site:card:Default');
@@ -109,7 +109,7 @@ for (const firstComponentHasVariants of [true, false]) {
     assert.equal(ui.navigations[0].searchParams.get('site'), 'preview');
     assert.equal(ui.navigations[0].searchParams.get('language'), 'de-DE');
     assert.equal(ui.stored().identifier, ui.component.identifier);
-    assert.deepEqual(ui.order, ['confirm', 'persist', 'navigate']);
+    assert.deepEqual(ui.order, ['confirm', 'navigate', 'persist']);
   });
 }
 
