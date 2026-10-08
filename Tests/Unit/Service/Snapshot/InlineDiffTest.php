@@ -53,6 +53,20 @@ final class InlineDiffTest extends TestCase
         self::assertSame('<fg=gray>  snapshot | actual</>', new InlineDiff()->render($expected, $actual));
     }
 
+    public function testReusedLayoutAndMetadataKeepAccuratePhysicalFileLineNumbers(): void
+    {
+        $formatter = new HtmlFormatter();
+        $expected = $formatter->format("<div>\r\n\t<p>Hello old world</p>\r\n\r\n</div>\r\n");
+        $actual = $formatter->format("<div>\n  <p>Hello new world</p>\n\n</div>\n");
+        $plain = new OutputFormatter()->format(new InlineDiff()->render($expected, $actual));
+        self::assertNotNull($plain);
+        self::assertStringContainsString('- 3 | -    <p>Hello old ', $plain);
+        self::assertStringContainsString('+ - | 3    <p>Hello new ', $plain);
+        self::assertStringNotContainsString('snapshot-whitespace', $plain);
+        self::assertStringNotContainsString('snapshot-format', $plain);
+        self::assertTrue(new Comparison()->matches($expected, $formatter->format("<div>\n <p>Hello old world</p>\n\n</div>\n")));
+    }
+
     public function testInlineDiffShowsColoredEditsAndEscapesConsoleMarkup(): void
     {
         $diff = new InlineDiff()->render('<p>Café: old word</p><error>text</error>', '<p>Café: new word</p><error>text</error>');

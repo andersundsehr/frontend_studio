@@ -770,7 +770,8 @@ final class SnapshotRunnerTest extends FunctionalTestCase
 
             $baseline = file_get_contents($path);
             self::assertNotFalse($baseline);
-            $spacedBaseline = HtmlFormatter::HEADER . str_replace(' ', " \t ", substr($baseline, strlen(HtmlFormatter::HEADER)));
+            $formatter = new HtmlFormatter();
+            $spacedBaseline = $formatter->format(str_replace(' ', " \t ", $formatter->original($baseline)));
             file_put_contents($path, $spacedBaseline);
             self::assertSame(0, $tester->execute($arguments));
             self::assertSame($spacedBaseline, file_get_contents($path));

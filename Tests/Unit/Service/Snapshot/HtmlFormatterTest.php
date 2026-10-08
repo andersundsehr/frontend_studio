@@ -36,9 +36,56 @@ final class HtmlFormatterTest extends TestCase
         yield 'malformed fragment stays literal' => ["<div><p>text\n\t</div>\n"];
         yield 'plain text keeps final newlines' => ["text\n\n"];
         yield 'empty content' => [''];
+        yield 'attribute whitespace and self-closing padding' => ["<div\t title = 'a > b'\r\n hidden   ><img src=x \t/></div>\r\n"];
+        yield 'long attributes preserve their original separators' => ['<p title="' . str_repeat('x', 90) . '"  hidden>Text</p>'];
         foreach (['pre', 'textarea', 'script', 'style'] as $tag) {
             yield $tag . ' contents remain exact' => ["<div><" . $tag . ">\n\t<span>raw</span>\n  </" . $tag . "></div>\n"];
         }
+    }
+
+    #[DataProvider('cleanFormatting')]
+    public function testReusesExistingLineBreaksWithExactRoundTrip(string $html, string $expected): void
+    {
+        $formatter = new HtmlFormatter();
+        $formatted = $formatter->format($html);
+        self::assertSame(HtmlFormatter::HEADER . $expected, preg_replace('~<!-- frontend-studio:snapshot-whitespace:[A-Za-z0-9+/=]+ -->\n$~', '', $formatted));
+        self::assertSame($html, $formatter->original($formatted));
+        self::assertSame($formatted, $formatter->format($formatted));
+        self::assertSame($formatted, $formatter->format($html));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function cleanFormatting(): iterable
+    {
+        $clean = "<div>\n  <p>Hello\n  </p>\n</div>\n";
+        yield 'already indented HTML' => ["<div>\n  <p>Hello</p>\n</div>", $clean];
+        yield 'minified HTML' => ['<div><p>Hello</p></div>', $clean];
+        yield 'mixed original and inserted layout' => ["<div>\n\t<p>Hello</p></div>\r\n", $clean];
+        yield 'CRLF and tabs' => ["<div>\r\n\t\t<p>Hello</p>\r\n</div>\r\n", $clean];
+        yield 'already formatted closing tags' => [$clean, $clean];
+        yield 'intentional blank lines' => ["<div>\n\t\n  <p>Hello</p>\n \t\n</div>\n\n", "<div>\n\n  <p>Hello\n  </p>\n\n</div>\n\n"];
+        yield 'text before an existing tag line break' => ["<p>Hello \t\r\n    <strong>world</strong>!</p>", "<p>Hello\n  <strong>world\n  </strong>!\n</p>\n"];
+        yield 'space stays distinct from no space' => ['<p>Hello <strong>world</strong></p>', "<p>Hello \n  <strong>world\n  </strong>\n</p>\n"];
+        yield 'no space before inline tag' => ['<p>Hello<strong>world</strong></p>', "<p>Hello\n  <strong>world\n  </strong>\n</p>\n"];
+        yield 'existing break between inline roots' => ["<strong>Hello</strong>\r\n \t<em>world</em>", "<strong>Hello\n</strong>\n<em>world\n</em>\n"];
+        yield 'leading indentation without a break' => [" \t <p>Hello</p>", "<p>Hello\n</p>\n"];
+        foreach (['pre', 'textarea', 'script', 'style'] as $tag) {
+            $raw = "\r\n\t\tA < B\r\n\r\n  last";
+            yield $tag . ' preserves raw contents while reusing surrounding layout' => [
+                "<div>\r\n\t<" . $tag . '>' . $raw . '</' . $tag . ">\r\n  <p>Hello</p>\r\n</div>\r\n",
+                "<div>\n  <" . $tag . '>' . $raw . '</' . $tag . ">\n  <p>Hello\n  </p>\n</div>\n",
+            ];
+        }
+    }
+
+    public function testEditingTextAndDynamicValuesDoesNotInvalidateWhitespaceRecovery(): void
+    {
+        $formatter = new HtmlFormatter();
+        $html = "<div>\r\n\t<p title=\"" . str_repeat('x', 90) . "\"  hidden>Hello</p>\r\n</div>\r\n";
+        $formatted = $formatter->format($html);
+        $edited = str_replace(['Hello', str_repeat('x', 90)], ['Hello world', '{{frontend-studio:dynamic}}'], $formatted);
+        self::assertSame(str_replace(['Hello', str_repeat('x', 90)], ['Hello world', '{{frontend-studio:dynamic}}'], $html), $formatter->original($edited));
+        self::assertSame($formatter->format($formatter->original($edited)), $formatter->format($edited));
     }
 
     #[DataProvider('formattedFragments')]
@@ -46,7 +93,8 @@ final class HtmlFormatterTest extends TestCase
     {
         $formatter = new HtmlFormatter();
         $formatted = $formatter->format($html);
-        self::assertSame(HtmlFormatter::HEADER . $expected, $formatted);
+        self::assertSame(HtmlFormatter::HEADER . $expected, preg_replace('~<!-- frontend-studio:snapshot-whitespace:[A-Za-z0-9+/=]+ -->\n$~', '', $formatted));
+        self::assertSame($html, $formatter->original($formatted), 'Readable layout must preserve the exact original source.');
         self::assertSame($formatted, $formatter->format($formatted), 'Formatting an existing snapshot must not change it again.');
     }
 
@@ -59,7 +107,7 @@ final class HtmlFormatterTest extends TestCase
         ];
         yield 'existing irregular structural indentation' => [
             "\n\t<div>\n       <section>\n <p>Content</p>\n    </section>\n </div>\n\n",
-            "\n\t\n<div>\n       \n  <section>\n \n    <p>Content\n    </p>\n    \n  </section>\n \n</div>\n\n\n",
+            "\n<div>\n  <section>\n    <p>Content\n    </p>\n  </section>\n</div>\n\n",
         ];
         yield 'text-only element has a separate closing tag' => ['<p>Short text</p>', "<p>Short text\n</p>\n"];
         yield 'empty element has a separate closing tag' => ['<div></div>', "<div>\n</div>\n"];
@@ -83,12 +131,12 @@ final class HtmlFormatterTest extends TestCase
         yield 'SVG text and tspan tags each start on new lines' => ['<svg><text>Hello<tspan>world</tspan>!</text></svg>', "<svg>\n  <text>Hello\n    <tspan>world\n    </tspan>!\n  </text>\n</svg>\n"];
         yield 'namespaced SVG elements' => ['<svg><svg:g><svg:path/></svg:g></svg>', "<svg>\n  <svg:g>\n    <svg:path/>\n  </svg:g>\n</svg>\n"];
         yield 'CDATA stays opaque inside SVG text' => ['<svg><text><![CDATA[A<B & C]]></text></svg>', "<svg>\n  <text><![CDATA[A<B & C]]>\n  </text>\n</svg>\n"];
-        yield 'comments are indented without interpreting their tags' => ["<div><!-- <i> -->\n<section><!-- note --><p>Content</p></section></div>", "<div>\n  <!-- <i> -->\n\n  <section>\n    <!-- note -->\n    <p>Content\n    </p>\n  </section>\n</div>\n"];
+        yield 'comments are indented without interpreting their tags' => ["<div><!-- <i> -->\n<section><!-- note --><p>Content</p></section></div>", "<div>\n  <!-- <i> -->\n  <section>\n    <!-- note -->\n    <p>Content\n    </p>\n  </section>\n</div>\n"];
         yield 'multiline comments retain their contents' => ["<div><!-- first\n <tag> second --><p>Text</p></div>", "<div>\n  <!-- first\n <tag> second -->\n  <p>Text\n  </p>\n</div>\n"];
         yield 'doctype stays outside the document indentation' => ['<!DOCTYPE html><html><body><p>Content</p></body></html>', "<!DOCTYPE html>\n<html>\n  <body>\n    <p>Content\n    </p>\n  </body>\n</html>\n"];
         yield 'quoted angles are not tag boundaries' => ['<div><p title="a > b and < c">Text</p></div>', "<div>\n  <p title=\"a > b and < c\">Text\n  </p>\n</div>\n"];
         yield 'single-quoted attributes and value whitespace remain literal' => ["<div><p title='a > b  < c'>Text</p></div>", "<div>\n  <p title='a > b  < c'>Text\n  </p>\n</div>\n"];
-        yield 'already split short opening tag is canonicalized' => ["<div>\n  <p\n    class=\"card\"\n  >Text</p>\n</div>\n", "<div>\n  \n  <p class=\"card\">Text\n  </p>\n\n</div>\n\n"];
+        yield 'already split short opening tag is canonicalized' => ["<div>\n  <p\n    class=\"card\"\n  >Text</p>\n</div>\n", "<div>\n  <p class=\"card\">Text\n  </p>\n</div>\n"];
         yield 'mismatched closing tags are not repaired' => ['<div><p>Text</div>', "<div><p>Text</div>\n"];
         yield 'omitted closing tags are not inferred' => ['<ul><li>First<li>Second</ul>', "<ul><li>First<li>Second</ul>\n"];
         yield 'unclosed fragment stays literal' => ['<div><p>Text', "<div><p>Text\n"];

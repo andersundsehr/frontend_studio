@@ -151,14 +151,24 @@ final class InlineDiff extends Renderer
         $lines = [];
         $line = 1;
         $offset = 0;
+        $whitespace = false;
         $layout = new HtmlFormatter()->layoutRanges($html);
         $layout[] = ['offset' => strlen($html), 'length' => 0];
         foreach ($layout as $range) {
-            preg_match_all('/\s+|[^\s]/u', substr($html, $offset, $range['offset'] - $offset), $matches);
-            foreach ($matches[0] as $part) {
-                $text .= Comparison::normalizeWhitespace($part);
-                $lines[] = $line;
-                $line += substr_count($part, "\n");
+            foreach ([substr($html, $offset, $range['offset'] - $offset), $range['original'] ?? ''] as $index => $part) {
+                foreach (mb_str_split($part) as $character) {
+                    $isWhitespace = preg_match('/\s/u', $character) === 1;
+                    if (!$whitespace || !$isWhitespace) {
+                        $text .= $isWhitespace ? ' ' : $character;
+                        $lines[] = $line;
+                    }
+
+                    $whitespace = $isWhitespace;
+                    // Restored original line breaks have no extra physical file lines.
+                    if ($index === 0 && $character === "\n") {
+                        $line++;
+                    }
+                }
             }
 
             $line += substr_count(substr($html, $range['offset'], $range['length']), "\n");
