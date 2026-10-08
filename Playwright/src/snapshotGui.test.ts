@@ -48,6 +48,52 @@ test('test all runs every server identifier even when no rows are visible', asyn
   assert.equal(tests.passed, 3);
 });
 
+for (const invalidate of ['files', 'context']) {
+  for (const [change, nextCatalog] of [
+    ['deleted variant', [a, c]],
+    ['added variant', [a, b, c, 'site:other:Added']],
+  ] as const) {
+    test(`${invalidate} invalidation clears the catalog before rediscovering a ${change}`, async () => {
+      let catalog: readonly string[] = [a, b, c];
+      let releaseDiscovery: () => void = () => {};
+      let discoveryGate: Promise<void> | undefined;
+      const { tests } = await state(async (body) => {
+        if (body.operation === 'discover') {
+          await discoveryGate;
+          return { catalog: [...catalog], identifiers: catalog.filter((id) => !body.scope || id === body.scope) };
+        }
+        return { result: result(body.scope) };
+      });
+      await tests.run();
+      assert.equal(tests.passed, 3);
+      tests.errors.set('site:old', 'Previous discovery error');
+      const counts: string[] = [];
+      tests.changed = () => counts.push(`${tests.passed}/${tests.catalog.length} passed`);
+      if (invalidate === 'context') tests.setContext({ site: 'preview', language: 'en' });
+      else tests.invalidate();
+      assert.deepEqual([...tests.catalog], []);
+      assert.equal(tests.results.size, 0);
+      assert.equal(tests.errors.size, 0);
+      assert.equal(tests.completed, 0);
+      assert.equal(tests.total, 0);
+      assert.equal(tests.active, false);
+      assert.equal(counts[0], '0/0 passed', 'The first UI notification must already exclude the stale catalog.');
+      catalog = nextCatalog;
+      discoveryGate = new Promise((resolve) => { releaseDiscovery = resolve; });
+      const run = tests.run(a);
+      assert.equal(counts.at(-1), '0/0 passed', 'Totals must stay empty until discovery completes.');
+      releaseDiscovery();
+      await run;
+      assert.deepEqual([...tests.catalog], [...nextCatalog], 'Partial rediscovery must restore the complete changed catalog.');
+      assert.deepEqual([...tests.results.keys()], [a]);
+      assert.equal(counts.at(-1), `1/${nextCatalog.length} passed`);
+      await tests.run();
+      assert.deepEqual([...tests.results.keys()], [...nextCatalog]);
+      assert.equal(counts.at(-1), `${nextCatalog.length}/${nextCatalog.length} passed`);
+    });
+  }
+}
+
 const similarComponent = 'site:folder.cardExtra:Default';
 const colonVariant = a + ':Extra';
 const otherNamespace = 'other:card:Default';
@@ -124,6 +170,7 @@ for (const staleFailure of [false, true]) {
     const cancelled = tests.run(a);
     tests.invalidate();
     assert.equal(oldSignal?.aborted, true);
+    assert.equal(tests.catalog.length, 0);
     await tests.run(b);
     settleDiscovery();
     await cancelled;
@@ -160,18 +207,24 @@ test('duplicate clicks are ignored and context changes discard in-flight results
 test('file invalidation ignores stale variant results and clears old passes', async () => {
   let release: (value: any) => void = () => {};
   let started: () => void = () => {};
+  let signal: AbortSignal | undefined;
   const pending = new Promise<void>((resolve) => { started = resolve; });
-  const { tests } = await state(async (body) => {
+  const { tests } = await state(async (body, requestSignal) => {
     if (body.operation === 'discover') return { identifiers: [a], catalog: [a] };
+    signal = requestSignal;
     started();
     return new Promise((resolve) => { release = resolve; });
   });
   const run = tests.run();
   await pending;
+  assert.deepEqual([...tests.catalog], [a]);
   tests.invalidate();
+  assert.equal(signal?.aborted, true);
+  assert.equal(tests.catalog.length, 0);
   release({ result: result(a) });
   await run;
   assert.equal(tests.results.size, 0);
+  assert.equal(tests.catalog.length, 0);
   assert.equal(tests.status(), 'not-run');
 });
 

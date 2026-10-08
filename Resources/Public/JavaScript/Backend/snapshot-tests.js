@@ -46,6 +46,7 @@ export default class SnapshotTests {
     this.active = false;
     this.results.clear();
     this.errors.clear();
+    this.catalog = [];
     this.completed = this.total = 0;
     this.changed();
   }

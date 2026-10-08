@@ -278,11 +278,12 @@ try{
  await page.keyboard.press('Escape');
  // A failed rediscovery must remove every old green result from the rendered tree.
  let failDiscovery=false;
+ let discoveryCatalog=ids;
  await page.route('**/snapshots',async(route)=>{
   const body=route.request().postData()||'';
   if(body.includes('discover')) {
    if(failDiscovery) await route.fulfill({status:503,json:{success:false,message:'Discovery unavailable'}});
-   else await route.fulfill({json:{success:true,catalog:ids,identifiers:ids}});
+   else await route.fulfill({json:{success:true,catalog:discoveryCatalog,identifiers:body.includes('Default')?[ids[0]]:discoveryCatalog}});
   } else {
    const identifier=body.includes('Second')?ids[1]:ids[0];
    await route.fulfill({json:{success:true,result:{identifier,status:'passed',message:'Both samples match.',expected:'',actual:''}}});
@@ -304,6 +305,24 @@ try{
  await page.getByText('Discovery unavailable',{exact:true}).waitFor();
  await page.waitForTimeout(350);
  await page.screenshot({path:path.join(evidence,'discovery-error.png')});
+ // A file change clears stale totals until partial discovery rebuilds the complete catalog.
+ await page.keyboard.press('Escape');
+ await page.evaluate(()=>document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed',{detail:{ownAction:true}})));
+ await page.getByRole('status').filter({hasText:'0/0 passed'}).waitFor();
+ assert.equal(await page.getByRole('button',{name:/✕ Results/}).count(),0);
+ await page.screenshot({path:path.join(evidence,'invalidated-catalog.png')});
+ failDiscovery=false;
+ discoveryCatalog=[ids[0]];
+ await row('Default').hover();
+ await page.getByRole('button',{name:'Test Default',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'1/1 passed'}).waitFor();
+ assert.deepEqual(await page.evaluate(()=>document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.catalog),[ids[0]]);
+ discoveryCatalog=ids;
+ await page.evaluate(()=>document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed',{detail:{ownAction:true}})));
+ await page.getByRole('status').filter({hasText:'0/0 passed'}).waitFor();
+ await page.getByRole('button',{name:'Test all',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'2/2 passed'}).waitFor();
+ assert.deepEqual(await page.evaluate(()=>document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.catalog),ids);
  // Navigate to and activate snapshot actions without a mouse or programmatic focus.
  const keyboard=await browser.newPage({viewport:{width:1000,height:780}});
  await keyboard.goto(`http://127.0.0.1:${server.address().port}/`);
@@ -338,5 +357,5 @@ try{
  assert.equal(await keyboard.evaluate(()=>window.selections),0);
  await keyboard.screenshot({path:path.join(evidence,'keyboard.png')});
  await keyboard.close();
- console.log('PASS real TYPO3 tree/Lit/modal: GUI setting, isolated updates, retryable HTTP and application errors, escaped update traces, pending/Production restrictions, colored details, persistent status buttons, hover/focus actions, stale discovery, focused diff, navigation, copy/open actions, keyboard-only testing and failure inspection, and 390px layout; AJAX and shell mocked.');
+ console.log('PASS real TYPO3 tree/Lit/modal: GUI setting, isolated updates, retryable HTTP and application errors, escaped update traces, pending/Production restrictions, colored details, persistent status buttons, hover/focus actions, stale discovery, catalog invalidation and changed totals after rediscovery, focused diff, navigation, copy/open actions, keyboard-only testing and failure inspection, and 390px layout; AJAX and shell mocked.');
 }finally{await browser.close();server.close();}
