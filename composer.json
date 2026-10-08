@@ -11,6 +11,7 @@
   ],
   "require": {
     "php": "~8.4.0 || ~8.5.0",
+    "lolli42/finediff": "^1.1",
     "typo3/cms-core": "^14.3.0",
     "typo3/cms-frontend": "^14.3.0",
     "typo3/cms-rte-ckeditor": "^14.3.0"

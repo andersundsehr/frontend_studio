@@ -1,5 +1,11 @@
-[site("identifier") == "preview" && siteLanguage("hreflang") == "de" && page == [] && tree.rootLineIds == [] && request.getQueryParams()["previewTest"] == "yes"]
+[site("identifier") == "preview" && siteLanguage("hreflang") == "de" && page == [] && tree.rootLineIds == [] && traverse(request.getQueryParams(), "previewTest") == "yes"]
   page = PAGE
   page.10 = TEXT
   page.10.value = site-set-preview
+[end]
+
+lib.snapshotContext = TEXT
+lib.snapshotContext.value = wrong-context
+[site("identifier") == "preview" && siteLanguage("hreflang") == "de"]
+  lib.snapshotContext.value = german-site-context
 [end]

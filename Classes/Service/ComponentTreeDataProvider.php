@@ -38,9 +38,17 @@ final readonly class ComponentTreeDataProvider
     }
 
     /**
+     * Build the component and fixture variant tree.
+     *
+     * @param bool $strict Throw on fixture metadata errors instead of keeping the
+     *                     component visible without its invalid variants. The UI
+     *                     uses false to keep the tree available; snapshot discovery
+     *                     uses true so invalid fixtures cannot silently skip tests.
+     *                     Validation covers the entire tree before scope selection.
      * @return list<array<string, mixed>>
+     * @throws RuntimeException When strict discovery encounters a fixture error.
      */
-    public function getTreeNodes(): array
+    public function getTreeNodes(bool $strict = false): array
     {
         $nodes = [];
         $componentsByNamespace = [];
@@ -95,9 +103,14 @@ final readonly class ComponentTreeDataProvider
 
                 $componentIdentifier = $namespace . ':' . $component;
                 $componentDepth = count($folderFragments) + 1;
-                $variants = $resolverDelegate instanceof ComponentTemplateResolverInterface
-                    ? $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $component)->variants
-                    : [];
+                $fixture = $resolverDelegate instanceof ComponentTemplateResolverInterface
+                    ? $this->componentFixtureProvider->getFixtureMetadata($resolverDelegate, $component)
+                    : null;
+                if ($strict && $fixture?->error !== null) {
+                    throw new RuntimeException($componentIdentifier . ': ' . $fixture->error, 6712648841);
+                }
+
+                $variants = $fixture->variants ?? [];
 
                 $nodes[] = $this->createNode($componentIdentifier, $componentIdentifier, $componentDepth, $variants !== [], 'component');
 

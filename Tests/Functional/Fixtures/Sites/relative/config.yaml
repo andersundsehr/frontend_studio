@@ -1,0 +1,13 @@
+rootPageId: 98765433
+base: '/'
+websiteTitle: Frontend Studio relative base test
+dependencies:
+  - acme/frontend-studio-preview-test
+languages:
+  -
+    title: English
+    enabled: true
+    languageId: 0
+    locale: en-US
+    hreflang: en-us
+    base: '/en/'

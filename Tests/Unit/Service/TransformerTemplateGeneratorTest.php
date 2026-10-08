@@ -64,7 +64,7 @@ final class TransformerTemplateGeneratorTest extends TestCase
         yield 'normal argument' => ['bodytext'];
         yield 'underscore and digit' => ['_payload2'];
         yield 'keyword' => ['class'];
-        yield 'non-ASCII identifier' => ['Grüße'];
+        yield 'non-ASCII identifier' => ['Café'];
     }
 
     #[DataProvider('nonIdentifierNames')]
