@@ -63,7 +63,17 @@ final readonly class ComponentMetadataProvider
             : null;
     }
 
+    public function getComponentMetadataForIdentifier(string $componentIdentifier): ?ComponentMetadata
+    {
+        return $this->getComponentMetadata($componentIdentifier, true);
+    }
+
     public function getComponentMetadataForVariantIdentifier(string $variantIdentifier): ?ComponentMetadata
+    {
+        return $this->getComponentMetadata($variantIdentifier, false);
+    }
+
+    private function getComponentMetadata(string $variantIdentifier, bool $overview): ?ComponentMetadata
     {
         $variantIdentifier = trim($variantIdentifier);
         if ($variantIdentifier === '') {
@@ -71,12 +81,12 @@ final readonly class ComponentMetadataProvider
         }
 
         $identifierParts = explode(':', $variantIdentifier, 3);
-        if (count($identifierParts) !== 3) {
+        if (count($identifierParts) !== ($overview ? 2 : 3)) {
             return null;
         }
 
-        [$namespace, $componentName, $variantName] = $identifierParts;
-        if ($namespace === '' || $componentName === '' || $variantName === '') {
+        [$namespace, $componentName, $variantName] = [...$identifierParts, ''];
+        if ($namespace === '' || $componentName === '' || (!$overview && $variantName === '')) {
             return null;
         }
 
@@ -124,7 +134,7 @@ final readonly class ComponentMetadataProvider
         $fixture = $this->getFixtureMetadata($resolverDelegate, $componentName, $variantName);
         if ($fixture->error !== null) {
             $errors[] = 'Fixture file could not be loaded: ' . $fixture->error;
-        } elseif ($fixture->variants !== [] && $fixture->selectedVariant === null) {
+        } elseif (!$overview && $fixture->variants !== [] && $fixture->selectedVariant === null) {
             $errors[] = 'Selected variant was not found in the fixture file.';
         }
 

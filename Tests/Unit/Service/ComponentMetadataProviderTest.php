@@ -69,6 +69,24 @@ final class ComponentMetadataProviderTest extends TestCase
         @rmdir(dirname($this->templatePath));
     }
 
+    public function testComponentOverviewResolvesWithoutSelectingOrInventingAVariant(): void
+    {
+        $fixturePath = dirname($this->templatePath) . '/Card.fixture.yaml';
+        file_put_contents($fixturePath, "variants:\n  Zebra: []\n  Alpha: []\n");
+        $provider = $this->createProvider([]);
+        $metadata = $provider->getComponentMetadataForIdentifier('test:Card');
+        self::assertNotNull($metadata);
+        self::assertSame('', $metadata->variantName);
+        self::assertNull($metadata->fixture?->selectedVariant);
+        self::assertSame(['Zebra', 'Alpha'], array_column($metadata->fixture->variants ?? [], 'name'));
+        self::assertNotContains('Selected variant was not found in the fixture file.', $metadata->errors);
+        self::assertNull($provider->getComponentMetadataForVariantIdentifier('test:Card'));
+        self::assertNotNull($provider->getComponentMetadataForVariantIdentifier('test:Card:Alpha')?->fixture?->selectedVariant);
+        unlink($fixturePath);
+        self::assertSame([], $provider->getComponentMetadataForIdentifier('test:Card')?->fixture?->variants);
+        self::assertFileDoesNotExist($fixturePath);
+    }
+
     #[DataProvider('fixtureValuesDataProvider')]
     public function testInitialUsageMatchesTypedControlUpdates(string $type, string $fixtureValue, int|float|string $expected, string $inlineValue): void
     {

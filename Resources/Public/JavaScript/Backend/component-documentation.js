@@ -38,11 +38,18 @@ export default class ComponentDocumentation extends VariantFeature {
       }
     }, { capture: true });
     this.listen(window, 'beforeunload', (event) => {
-      if (this.dirty) { event.preventDefault(); event.returnValue = ''; }
+      // Reuse discard approval for this unload unless another navigation guard cancelled it.
+      if (this.dirty && (!this.approvedNavigation || this.approvedNavigation.defaultPrevented)) {
+        event.preventDefault(); event.returnValue = '';
+      }
+      this.approvedNavigation = null;
     });
     // TYPO3 navigation replaces the content frame without necessarily unloading the top window.
     this.navigationGuard = (event) => {
-      if (this.dirty && !window.confirm('Discard unsaved documentation changes?')) event.preventDefault();
+      this.approvedNavigation = null;
+      if (!this.dirty) return;
+      if (!window.confirm('Discard unsaved documentation changes?')) event.preventDefault();
+      else this.approvedNavigation = event;
     };
     this.listen(top.document, 'frontend-studio:before-navigate', this.navigationGuard);
     this.listen(view, 'documentation', () => {
@@ -56,6 +63,7 @@ export default class ComponentDocumentation extends VariantFeature {
   get dirty() { return this.loaded && this.markdown !== this.baseline; }
 
   changed() {
+    this.approvedNavigation = null;
     if (this.saveButton) this.saveButton.disabled = !this.loaded || this.readOnly || this.pending || !this.dirty;
     if (this.resetButton) this.resetButton.disabled = !this.loaded || this.pending || !this.dirty;
     if (this.saveState) this.saveState.hidden = !this.dirty;
