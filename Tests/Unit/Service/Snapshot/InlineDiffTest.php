@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Service\Snapshot;
 
 use Andersundsehr\FrontendStudio\Service\Snapshot\Comparison;
+use Andersundsehr\FrontendStudio\Service\Snapshot\HtmlFormatter;
 use Andersundsehr\FrontendStudio\Service\Snapshot\InlineDiff;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -12,6 +13,46 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final class InlineDiffTest extends TestCase
 {
+    #[DataProvider('inlineWhitespaceChanges')]
+    public function testFormattedDiffShowsWhitespaceChangesAtSavedFileLineNumbers(string $withoutSpace, string $withSpace): void
+    {
+        $formatter = new HtmlFormatter();
+        $diff = new InlineDiff();
+        foreach ([[$withoutSpace, $withSpace], [$withSpace, $withoutSpace]] as [$before, $after]) {
+            $expected = $formatter->format($before);
+            $actual = $formatter->format($after);
+            $plain = new OutputFormatter()->format($diff->render($expected, $actual));
+            self::assertNotNull($plain);
+            self::assertMatchesRegularExpression('/^- \d+ \| - /m', $plain);
+            self::assertMatchesRegularExpression('/^\+ - \| \d+ /m', $plain);
+            self::assertStringNotContainsString('snapshot-format', $plain);
+            preg_match_all('/^[+-] (\d+|-) \| (\d+|-) /m', $plain, $lines, PREG_SET_ORDER);
+            foreach ($lines as $line) {
+                foreach ([1 => $expected, 2 => $actual] as $side => $source) {
+                    if ($line[$side] !== '-') {
+                        self::assertGreaterThan(1, (int)$line[$side], 'The format header is not rendered as HTML in the diff.');
+                        self::assertLessThanOrEqual(substr_count($source, "\n"), (int)$line[$side]);
+                    }
+                }
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function inlineWhitespaceChanges(): iterable
+    {
+        yield 'text before inline tag' => ['<p>Hello<strong>world</strong></p>', '<p>Hello <strong>world</strong></p>'];
+        yield 'adjacent inline elements' => ['<strong>Hello</strong><em>world</em>', '<strong>Hello</strong> <em>world</em>'];
+    }
+
+    public function testFormattedDiffIgnoresWhitespaceRunLengthAndLayout(): void
+    {
+        $formatter = new HtmlFormatter();
+        $expected = $formatter->format('<p>Hello <strong>world</strong></p>');
+        $actual = $formatter->format("<p>Hello\n\t<strong>world</strong></p>");
+        self::assertSame('<fg=gray>  snapshot | actual</>', new InlineDiff()->render($expected, $actual));
+    }
+
     public function testInlineDiffShowsColoredEditsAndEscapesConsoleMarkup(): void
     {
         $diff = new InlineDiff()->render('<p>Café: old word</p><error>text</error>', '<p>Café: new word</p><error>text</error>');

@@ -7,22 +7,81 @@ namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 /** @phpstan-type Element array{name: string, end: int} */
 final readonly class HtmlFormatter
 {
+    public const string HEADER = "<!-- frontend-studio:snapshot-format:1 -->\n";
+
     private const string INDENT = '  ';
 
     private const int LINE_LENGTH = 80;
 
     private const array VOID_ELEMENTS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
 
+    // Quoted angles, comments, CDATA and whitespace-sensitive bodies stay opaque.
+    private const string TOKENS = '~<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(script|style|pre|textarea)\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>[\s\S]*?</\1\s*>|</?[a-zA-Z][^<>"\']*(?:(?:"[^"]*"|\'[^\']*\')[^<>"\']*)*>|<![^>]*>|[^<]+|<~i';
+
+    private const string OPENING_TAG = '~^<([a-zA-Z][\w:-]*)(\s(?:[^>"\']|"[^"]*"|\'[^\']*\')*?)(/?)>~';
+
     public function format(string $html): string
     {
-        // Keep quoted angles, comments, CDATA and whitespace-sensitive bodies opaque.
-        preg_match_all('~<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(script|style|pre|textarea)\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>[\s\S]*?</\1\s*>|</?[a-zA-Z][^<>"\']*(?:(?:"[^"]*"|\'[^\']*\')[^<>"\']*)*>|<![^>]*>|[^<]+|<~i', $html, $matches);
+        $html = $this->original($html);
+        preg_match_all(self::TOKENS, $html, $matches);
         $tokens = $matches[0];
         $elements = $this->elements($tokens);
         // Do not repair malformed fragments or HTML with omitted closing tags.
         $formatted = $elements === null ? $html : $this->formatTokens($tokens, $elements);
 
-        return rtrim($formatted, "\r\n") . "\n";
+        return self::HEADER . $formatted . "\n";
+    }
+
+    /** Remove only layout added by this formatter, retaining original text whitespace. */
+    public function original(string $html): string
+    {
+        $output = '';
+        $offset = 0;
+        foreach ($this->layoutRanges($html) as $range) {
+            $output .= substr($html, $offset, $range['offset'] - $offset);
+            $offset = $range['offset'] + $range['length'];
+        }
+
+        return $output . substr($html, $offset);
+    }
+
+    /**
+     * Source ranges let comparisons ignore presentation whitespace while diffs
+     * still refer to the line numbers in the saved snapshot file.
+     * The header distinguishes formatted snapshots from literal template newlines.
+     *
+     * @return list<array{offset: int, length: int}>
+     */
+    public function layoutRanges(string $html): array
+    {
+        if (!str_starts_with($html, self::HEADER)) {
+            return [];
+        }
+
+        $headerLength = strlen(self::HEADER);
+        $ranges = [['offset' => 0, 'length' => $headerLength]];
+        preg_match_all(self::TOKENS, substr($html, $headerLength), $matches, PREG_OFFSET_CAPTURE);
+        $tokens = array_column($matches[0], 0);
+        $elements = $this->elements($tokens);
+        if ($elements !== null) {
+            foreach ($matches[0] as $index => [$token, $offset]) {
+                $markup = isset($elements[$index]) || preg_match('~^</[\w:-]+\s*>$~', $token) === 1
+                    || (str_starts_with($token, '<!') && !str_starts_with($token, '<![CDATA['));
+                if ($markup && preg_match('/\n[\t ]*\z/', $tokens[$index - 1] ?? '', $padding) === 1) {
+                    $ranges[] = ['offset' => $headerLength + $offset - strlen($padding[0]), 'length' => strlen($padding[0])];
+                }
+
+                if (preg_match(self::OPENING_TAG, $token, $opening) === 1 && preg_match('/\n[\t ]*(?=\/?>$)/', $opening[0], $padding, PREG_OFFSET_CAPTURE) === 1) {
+                    $ranges[] = ['offset' => $headerLength + $offset + $padding[0][1], 'length' => strlen($padding[0][0])];
+                }
+            }
+        }
+
+        if (strlen($html) > $headerLength && str_ends_with($html, "\n")) {
+            $ranges[] = ['offset' => strlen($html) - 1, 'length' => 1];
+        }
+
+        return $ranges;
     }
 
     /**
@@ -77,9 +136,7 @@ final readonly class HtmlFormatter
             $closing = preg_match('~^</[\w:-]+\s*>$~', $token) === 1;
             $markup = isset($elements[$index]) || $closing || (str_starts_with($token, '<!') && !str_starts_with($token, '<![CDATA['));
             if (!$markup) {
-                // Remove existing presentation indentation before the next tag only.
-                // Retain text, entities, punctuation and literal spaces within values.
-                $output .= preg_replace('/(?:\r?\n[\t ]*)+$/', '', $token) ?? $token;
+                $output .= $token;
                 continue;
             }
 
@@ -103,7 +160,7 @@ final readonly class HtmlFormatter
 
     private function formatOpeningTag(string $token, string $indent): string
     {
-        if (!preg_match('~^<([a-zA-Z][\w:-]*)(\s(?:[^>"\']|"[^"]*"|\'[^\']*\')*?)(/?)>~', $token, $tag)) {
+        if (!preg_match(self::OPENING_TAG, $token, $tag)) {
             return $token;
         }
 

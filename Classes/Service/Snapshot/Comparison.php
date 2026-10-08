@@ -42,7 +42,7 @@ final readonly class Comparison
             }
         }
 
-        return $output;
+        return str_starts_with($first, HtmlFormatter::HEADER) ? new HtmlFormatter()->format($output) : $output;
     }
 
     public function matches(string $expected, string $actual): bool
@@ -108,7 +108,8 @@ final readonly class Comparison
             }
         }
 
-        return implode('', array_column($b, 'value'));
+        $output = implode('', array_column($b, 'value'));
+        return str_starts_with($actual, HtmlFormatter::HEADER) ? new HtmlFormatter()->format($output) : $output;
     }
 
     /**
@@ -127,6 +128,7 @@ final readonly class Comparison
     /** @return list<array{value: string, type: string, name: string}> */
     private function tokens(string $html): array
     {
+        $html = new HtmlFormatter()->original($html);
         if (preg_match_all('~<!--[\s\S]*?-->|<![^>]*>|</?[a-zA-Z](?:[^>"\']|"[^"]*"|\'[^\']*\')*>|[^<]+|<~u', $html, $matches) === false) {
             throw new RuntimeException('Snapshot HTML is not valid UTF-8.', 1791270101);
         }

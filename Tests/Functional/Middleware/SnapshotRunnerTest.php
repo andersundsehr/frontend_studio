@@ -104,6 +104,56 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
     }
 
+    #[DataProvider('inlineWhitespaceTemplates')]
+    public function testInlineWhitespaceChangesFailRunnerAndCliUntilUpdated(string $before, string $after): void
+    {
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $original = file_get_contents($template);
+        self::assertNotFalse($original);
+        $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
+        try {
+            $this->replaceTemplate($template, $original . $before);
+            $runner = $this->get(Runner::class);
+            $created = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('missing', $created['status'], $created['message']);
+            self::assertStringStartsWith(HtmlFormatter::HEADER, $created['expected']);
+            self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
+            $this->replaceTemplate($template, $original . $after);
+            $failed = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+            self::assertSame('failed', $failed['status'], $failed['message']);
+            self::assertNull($failed['exception']);
+            self::assertSame($created['expected'], file_get_contents($path));
+            $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
+            $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard:Default'];
+            self::assertSame(1, $tester->execute($arguments));
+            self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
+            self::assertMatchesRegularExpression('/^- [ 0-9]+ \| [ -]+ /m', $tester->getDisplay());
+            self::assertMatchesRegularExpression('/^\+ [ -]+ \| [ 0-9]+ /m', $tester->getDisplay());
+            self::assertSame(2, $tester->execute([...$arguments, '-u' => true]));
+            self::assertSame(0, $tester->execute($arguments));
+        } finally {
+            $this->replaceTemplate($template, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function inlineWhitespaceTemplates(): iterable
+    {
+        foreach (
+            [
+                'text before inline tag' => ['<p>Hello<strong>world</strong></p>', '<p>Hello <strong>world</strong></p>'],
+                'adjacent inline tags' => ['<strong>Hello</strong><em>world</em>', '<strong>Hello</strong> <em>world</em>'],
+            ] as $name => [$withoutSpace, $withSpace]
+        ) {
+            yield $name . ' adds whitespace' => [$withoutSpace, $withSpace];
+            yield $name . ' removes whitespace' => [$withSpace, $withoutSpace];
+        }
+    }
+
     #[DataProvider('dynamicDateFormats')]
     public function testDateViewHelperCreatesOneInlineMarkerWithStableSurroundingText(string $format): void
     {
@@ -720,13 +770,12 @@ final class SnapshotRunnerTest extends FunctionalTestCase
 
             $baseline = file_get_contents($path);
             self::assertNotFalse($baseline);
-            $spacedBaseline = str_replace(' ', " \t ", $baseline);
+            $spacedBaseline = HtmlFormatter::HEADER . str_replace(' ', " \t ", substr($baseline, strlen(HtmlFormatter::HEADER)));
             file_put_contents($path, $spacedBaseline);
             self::assertSame(0, $tester->execute($arguments));
             self::assertSame($spacedBaseline, file_get_contents($path));
             self::assertStringNotContainsString('Dynamic markers used.', $tester->getDisplay());
-            $lines = explode("\n", $baseline);
-            $lines[1] = str_replace('Wrapped', Comparison::MARKER, $lines[1]);
+            $lines = explode("\n", str_replace('Wrapped', Comparison::MARKER, $baseline));
             file_put_contents($path, implode("\n", $lines));
             self::assertSame(0, $tester->execute($arguments));
             self::assertSame("PASSED site:wrappedCard:Default\n1/1 passed.\n", $tester->getDisplay());

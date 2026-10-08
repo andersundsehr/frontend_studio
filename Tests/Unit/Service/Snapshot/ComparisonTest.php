@@ -123,6 +123,73 @@ final class ComparisonTest extends TestCase
         self::assertFalse($comparison->matches('<p>onetwo</p>', '<p>one two</p>'));
     }
 
+    #[DataProvider('inlineWhitespace')]
+    public function testFormattingPreservesWhitespacePresence(string $withoutSpace, string $withSpace, string $withWhitespaceRun): void
+    {
+        $formatter = new HtmlFormatter();
+        $comparison = new Comparison();
+        $baseline = $formatter->format($withoutSpace);
+        $actual = $formatter->format($withSpace);
+        $multiple = $formatter->format($withWhitespaceRun);
+        self::assertFalse($comparison->matches($baseline, $actual), 'Adding original whitespace must fail.');
+        self::assertFalse($comparison->matches($actual, $baseline), 'Removing original whitespace must fail.');
+        self::assertTrue($comparison->matches($actual, $multiple), 'Original whitespace runs still compare as one space.');
+        self::assertTrue($comparison->matches($multiple, $actual));
+        self::assertTrue($comparison->matches($withoutSpace, $baseline), 'Presentation whitespace must not change the original HTML.');
+        self::assertTrue($comparison->matches($withSpace, $actual));
+        foreach ([$baseline, $actual, $multiple] as $formatted) {
+            self::assertSame($formatted, $formatter->format($formatted));
+        }
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function inlineWhitespace(): iterable
+    {
+        foreach ([' ', "\n", "\r\n", "\t\n\r\n  "] as $whitespace) {
+            yield 'before opening inline tag ' . json_encode($whitespace) => [
+                '<p>Hello<strong>world</strong></p>', '<p>Hello <strong>world</strong></p>',
+                '<p>Hello' . $whitespace . '<strong>world</strong></p>',
+            ];
+            yield 'between adjacent inline elements ' . json_encode($whitespace) => [
+                '<strong>Hello</strong><em>world</em>', '<strong>Hello</strong> <em>world</em>',
+                '<strong>Hello</strong>' . $whitespace . '<em>world</em>',
+            ];
+            yield 'before closing inline tag ' . json_encode($whitespace) => [
+                '<p><strong>Hello</strong>world</p>', '<p><strong>Hello </strong>world</p>',
+                '<p><strong>Hello' . $whitespace . '</strong>world</p>',
+            ];
+            yield 'after closing inline tag ' . json_encode($whitespace) => [
+                '<p><strong>Hello</strong>world</p>', '<p><strong>Hello</strong> world</p>',
+                '<p><strong>Hello</strong>' . $whitespace . 'world</p>',
+            ];
+            yield 'empty inline content ' . json_encode($whitespace) => [
+                '<span></span>', '<span> </span>', '<span>' . $whitespace . '</span>',
+            ];
+        }
+    }
+
+    public function testLongTagLayoutAndDynamicMarkersPreserveOriginalWhitespace(): void
+    {
+        $formatter = new HtmlFormatter();
+        $comparison = new Comparison();
+        $prefix = '<p title="' . str_repeat('long', 25) . '" disabled>Hello';
+        $first = $formatter->format($prefix . ' <strong id="c123">world</strong></p>');
+        $second = $formatter->format($prefix . ' <strong id="c124">world</strong></p>');
+        self::assertTrue($comparison->matches($prefix . ' <strong id="c123">world</strong></p>', $first));
+        $baseline = $comparison->create($first, $second);
+        self::assertStringStartsWith(HtmlFormatter::HEADER, $baseline);
+        self::assertStringContainsString('id="c' . Comparison::MARKER . '"', $baseline);
+        self::assertSame($baseline, $formatter->format($baseline));
+        self::assertTrue($comparison->matches($baseline, $formatter->format($prefix . "\t\n<strong id=\"c125\">world</strong></p>")));
+        $withoutSpace = $formatter->format($prefix . '<strong id="c125">world</strong></p>');
+        self::assertFalse($comparison->matches($baseline, $withoutSpace));
+        $masked = $comparison->maskForDiff($baseline, $withoutSpace, $formatter->format($prefix . '<strong id="c126">world</strong></p>'));
+        self::assertStringStartsWith(HtmlFormatter::HEADER, $masked);
+        self::assertSame($formatter->format($prefix . '<strong id="c' . Comparison::MARKER . '">world</strong></p>'), $masked);
+        self::assertStringNotContainsString('125', $masked);
+        self::assertSame($masked, $formatter->format($masked));
+    }
+
     public function testWhitespaceLengthChangesDoNotCreateMarkers(): void
     {
         $first = "<p>one  two</p>\n\n";
@@ -210,7 +277,7 @@ final class ComparisonTest extends TestCase
     {
         $html = '<span title="a > b"> text </span><script>if (x < 1) { x = "<b>"; }</script><pre>  a\nb </pre><!-- <i> -->';
         $formatted = new HtmlFormatter()->format($html);
-        self::assertSame('<span title="a > b"> text ' . "\n</span>\n"
+        self::assertSame(HtmlFormatter::HEADER . '<span title="a > b"> text ' . "\n</span>\n"
             . '<script>if (x < 1) { x = "<b>"; }</script>' . "\n"
             . '<pre>  a\\nb </pre>' . "\n<!-- <i> -->\n", $formatted);
     }
@@ -218,14 +285,14 @@ final class ComparisonTest extends TestCase
     public function testLongStartTagsSplitEveryAttribute(): void
     {
         $value = str_repeat('x', 70);
-        self::assertSame('<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi\n</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
+        self::assertSame(HtmlFormatter::HEADER . '<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi\n</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
     }
 
     public function testLongRawTextOpeningTagFormatsWithoutChangingItsContents(): void
     {
         $value = str_repeat('x', 70);
         $body = 'if (a > b) { alert("<span>"); }';
-        self::assertSame('<script' . "\n  " . 'data-long="' . $value . '"' . "\n  defer\n>" . $body . "</script>\n", new HtmlFormatter()->format('<script data-long="' . $value . '" defer>' . $body . '</script>'));
+        self::assertSame(HtmlFormatter::HEADER . '<script' . "\n  " . 'data-long="' . $value . '"' . "\n  defer\n>" . $body . "</script>\n", new HtmlFormatter()->format('<script data-long="' . $value . '" defer>' . $body . '</script>'));
     }
 
     /** @param list<array{status: string}> $results */

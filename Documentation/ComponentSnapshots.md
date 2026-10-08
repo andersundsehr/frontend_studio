@@ -177,6 +177,7 @@ Opening and closing tags start on separate lines, including inline tags such as
 on its own indented line. The CLI diff keeps this indentation:
 
 ```html
+<!-- frontend-studio:snapshot-format:1 -->
 <div class="card">
   <section>
     <h2>Title
@@ -190,6 +191,13 @@ on its own indented line. The CLI diff keeps this indentation:
 ```
 
 Text, entities, spaces and punctuation stay in their original order.
+Original whitespace runs compare as one space, but adding or removing whitespace
+around inline elements fails the test: `Hello<strong>world</strong>` differs from
+`Hello <strong>world</strong>`, as does spacing between adjacent inline elements.
+The generated indentation and tag line breaks do not count as original whitespace.
+Keep the first format comment when editing a snapshot.
+To expect a space before a tag, add it after the preceding text or closing tag,
+before the formatter's line break; removing that space expects adjacent content.
 The contents of `pre`, `textarea`, `script` and `style` keep their exact original whitespace;
 their closing tags also stay in place, even when they share the final content line.
 This avoids changing preformatted text, textarea values or embedded code.

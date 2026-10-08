@@ -147,14 +147,22 @@ final class InlineDiff extends Renderer
             $indents[$index + 1] = $indent[0] ?? '';
         }
 
-        preg_match_all('/\s+|[^\s]/u', $html, $matches);
         $text = '';
         $lines = [];
         $line = 1;
-        foreach ($matches[0] as $part) {
-            $text .= Comparison::normalizeWhitespace($part);
-            $lines[] = $line;
-            $line += substr_count($part, "\n");
+        $offset = 0;
+        $layout = new HtmlFormatter()->layoutRanges($html);
+        $layout[] = ['offset' => strlen($html), 'length' => 0];
+        foreach ($layout as $range) {
+            preg_match_all('/\s+|[^\s]/u', substr($html, $offset, $range['offset'] - $offset), $matches);
+            foreach ($matches[0] as $part) {
+                $text .= Comparison::normalizeWhitespace($part);
+                $lines[] = $line;
+                $line += substr_count($part, "\n");
+            }
+
+            $line += substr_count(substr($html, $range['offset'], $range['length']), "\n");
+            $offset = $range['offset'] + $range['length'];
         }
 
         return [$text, $lines, $indents];
