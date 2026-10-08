@@ -25,7 +25,20 @@ export function focusedRows(rows, context = 2) {
   const visible = new Set();
   rows.forEach((row, index) => {
     if (row.changed) {
-      for (let neighbor = Math.max(0, index - context); neighbor <= Math.min(rows.length - 1, index + context); neighbor++) visible.add(neighbor);
+      visible.add(index);
+      for (const direction of [-1, 1]) {
+        const expected = new Set();
+        const actual = new Set();
+        for (let neighbor = index + direction; neighbor >= 0 && neighbor < rows.length; neighbor += direction) {
+          if (expected.size >= context && actual.size >= context) break;
+          visible.add(neighbor);
+          const surrounding = rows[neighbor];
+          if (!surrounding.changed) {
+            if (surrounding.expected !== null && surrounding.expected !== row.expected) expected.add(surrounding.expected);
+            if (surrounding.actual !== null && surrounding.actual !== row.actual) actual.add(surrounding.actual);
+          }
+        }
+      }
     }
   });
   const output = [];
@@ -56,7 +69,7 @@ export function renderDiffRows(rows) {
 
 export function renderSnapshotSummary(result) {
   const summary = failureSummary(result);
-  return `<header class="fs-snapshot-summary fs-snapshot-tone-${summary.tone}"><span class="fs-snapshot-state" aria-hidden="true">${summary.icon}</span><div><h3>${escapeHtml(summary.title)}</h3><dl><dt>Variant</dt><dd><code>${escapeHtml(result.identifier)}</code></dd></dl>${result.message ? `<p class="text-break mb-0">${escapeHtml(result.message)}</p>` : ''}</div></header>`;
+  return `<header class="fs-snapshot-summary fs-snapshot-tone-${summary.tone}"><span class="fs-snapshot-state text-${summary.tone}" aria-hidden="true">${summary.icon}</span><div><h3>${escapeHtml(summary.title)}</h3><dl><dt>Variant</dt><dd><code>${escapeHtml(result.identifier)}</code></dd></dl>${result.message ? `<p class="text-break mb-0">${escapeHtml(result.message)}</p>` : ''}</div></header>`;
 }
 
 export function renderSnapshotDiff(results, readOnly = false, includeSummary = true) {
@@ -66,19 +79,18 @@ export function renderSnapshotDiff(results, readOnly = false, includeSummary = t
       ? 'Review the changed words and lines. Update the snapshot outside Production, review and commit the file, then rerun the test.'
       : summary.next;
     const rows = Array.isArray(result.diff) ? result.diff : [];
+    const guidance = `<aside class="fs-snapshot-next" aria-label="Next step"><h4>Next step</h4><p>${escapeHtml(next)}</p></aside>`;
     const diff = result.status === 'failed' && rows.length > 0
       ? `<section class="fs-snapshot-section" aria-label="HTML changes"><h4>HTML changes</h4>
-        <p class="text-muted">− snapshot · + current output · highlighted words changed. Dynamic values are masked using the snapshot rules.</p>
-        <div class="fs-snapshot-diff" tabindex="0" role="region" aria-label="Snapshot changes"><table><colgroup><col style="width:1.5rem"><col style="width:5rem"><col style="width:4.5rem"><col></colgroup><thead><tr><th aria-label="Change"></th><th>Snapshot</th><th>Actual</th><th>HTML</th></tr></thead><tbody>${renderDiffRows(focusedRows(rows))}</tbody></table></div></section>`
+        ${guidance}
+        <div class="fs-snapshot-diff" tabindex="0" role="region" aria-label="Snapshot changes"><table><colgroup><col style="width:1.5rem"><col style="width:4.5rem"><col style="width:4rem"><col></colgroup><thead><tr><th aria-label="Change"></th><th>Should</th><th>Got</th><th>HTML</th></tr></thead><tbody>${renderDiffRows(focusedRows(rows))}</tbody></table></div></section>`
       : '';
     const fullOutput = result.expected || result.actual
       ? `<details class="fs-snapshot-section"><summary>Show full output</summary><h4 class="mt-3">Snapshot</h4><pre>${escapeHtml(result.expected)}</pre><h4>Current output</h4><pre>${escapeHtml(result.actual)}</pre></details>` : '';
-    const file = result.path
-      ? `<section class="fs-snapshot-section" aria-label="Snapshot file"><h4>Snapshot file</h4><p class="fs-snapshot-file"><code>${escapeHtml(result.path)}</code></p></section>` : '';
     const trace = result.trace
       ? `<section class="fs-snapshot-section" aria-label="Stack trace"><h4>Stack trace</h4><pre>${escapeHtml(result.trace)}</pre></section>` : '';
     return `${includeSummary ? renderSnapshotSummary(result) : ''}
-      <aside class="fs-snapshot-next alert alert-info" aria-label="Next step"><h4>Next step</h4><p class="mb-0">${escapeHtml(next)}</p></aside>${diff}${file}${trace}${fullOutput}`;
+      ${diff || guidance}${trace}${fullOutput}`;
   }).join('<hr>');
 }
 
@@ -103,14 +115,16 @@ export async function showSnapshotDiff(results, options = {}) {
   let modal;
   const content = () => html`
     <style>
-      .fs-snapshot-view {display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
+      .fs-snapshot-modal .modal-body {overflow:hidden}
+      .fs-snapshot-view {display:grid;flex:1;min-height:0;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:1rem}
       .fs-snapshot-view.fs-snapshot-multiple {grid-template-columns:minmax(9rem,25%) minmax(0,1fr)}
-      .fs-snapshot-view nav {display:flex;flex-direction:column;gap:.5rem;max-height:60vh;overflow:auto}
-      .fs-snapshot-view nav button {display:flex;flex-direction:column;align-items:stretch;gap:.25rem;text-align:left;white-space:normal;overflow-wrap:anywhere;border-left:3px solid var(--typo3-state-danger-border-color,#c83c3c);padding:.75rem}
+      .fs-snapshot-view nav {display:flex;flex-direction:column;gap:.5rem;min-height:0;overflow:auto;overscroll-behavior:contain}
+      .fs-snapshot-view nav button {display:flex;flex-shrink:0;flex-direction:column;align-items:stretch;gap:.25rem;text-align:left;white-space:normal;overflow-wrap:anywhere;border-left:3px solid var(--typo3-state-danger-border-color,#c83c3c);padding:.75rem}
       .fs-snapshot-view nav button.fs-snapshot-nav-warning {border-left-color:var(--typo3-state-warning-border-color,#b87a00)}
       .fs-snapshot-view nav button.fs-snapshot-nav-success {border-left-color:var(--typo3-state-success-border-color,#338449)}
       .fs-snapshot-view nav button[aria-current="true"] {background:var(--typo3-surface-container-info,#e0f1f7);color:var(--typo3-surface-container-info-text,#005c80);outline:2px solid var(--typo3-state-info-border-color,#0078a8);outline-offset:-2px;font-weight:bold}
       .fs-snapshot-view section {min-width:0}
+      .fs-snapshot-view > section {min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
       .fs-snapshot-overview {display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:.75rem}
       .fs-snapshot-summary {display:flex;align-items:flex-start;gap:1rem;padding:1rem;border:1px solid;border-radius:var(--typo3-component-border-radius,.25rem)}
       .fs-snapshot-summary > div {min-width:0;display:grid;gap:.5rem}
@@ -122,11 +136,10 @@ export async function showSnapshotDiff(results, options = {}) {
       .fs-snapshot-summary h3,.fs-snapshot-summary dl,.fs-snapshot-summary dd {margin:0}
       .fs-snapshot-summary dt {font-size:.8rem;font-weight:normal}
       .fs-snapshot-summary code {color:inherit;overflow-wrap:anywhere}
-      .fs-snapshot-next {margin:1rem 0 0;padding:.75rem}
+      .fs-snapshot-next {margin:0 0 1rem}
+      .fs-snapshot-next p {margin:0}
       .fs-snapshot-next h4,.fs-snapshot-section h4 {font-size:1rem;font-weight:bold;margin:0 0 .5rem}
       .fs-snapshot-section {margin-top:1rem;padding:1rem;border:1px solid var(--typo3-component-border-color);border-radius:var(--typo3-component-border-radius,.25rem)}
-      .fs-snapshot-file {margin:0;padding:.75rem;background:var(--typo3-surface-container-low,#f4f4f4);overflow-wrap:anywhere}
-      .fs-snapshot-file code {color:inherit}
       .fs-snapshot-context {display:grid;grid-template-columns:minmax(0,1fr);gap:.75rem;margin:0}
       .fs-snapshot-context > div {padding:.5rem .75rem;background:var(--typo3-surface-container-lowest,#fff);border:1px solid var(--typo3-component-border-color);border-radius:var(--typo3-component-border-radius,.25rem)}
       .fs-snapshot-context dt {font-size:.8rem;font-weight:normal;color:var(--typo3-text-color-secondary)}
@@ -145,10 +158,9 @@ export async function showSnapshotDiff(results, options = {}) {
       .fs-snapshot-removed {background:var(--typo3-state-danger-bg,#fce8e8);color:var(--typo3-state-danger-color,#b00020);text-decoration:line-through;font-weight:bold}
       .fs-snapshot-added {background:var(--typo3-state-success-bg,#e4f4e8);color:var(--typo3-state-success-color,#006b35);text-decoration:underline;font-weight:bold}
       @media (max-width:600px) {
-        .fs-snapshot-view.fs-snapshot-multiple {grid-template-columns:minmax(0,1fr)}
+        .fs-snapshot-view.fs-snapshot-multiple {grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,10rem) minmax(0,1fr)}
         .fs-snapshot-overview {grid-template-columns:minmax(0,1fr)}
         .fs-snapshot-context {grid-template-columns:repeat(2,minmax(0,1fr))}
-        .fs-snapshot-view nav {max-height:10rem}
       }
     </style>
     <div class="fs-snapshot-view ${results.length > 1 ? 'fs-snapshot-multiple' : ''}">
@@ -194,7 +206,17 @@ export async function showSnapshotDiff(results, options = {}) {
                 }
               }}>Update snapshot</button>` : ''}
           ${options.openComponent && options.variantIdentifiers?.includes(results[selected].identifier) ? html`
-            <button type="button" class="btn btn-default" @click=${() => { const identifier = results[selected].identifier; modal.hideModal(); options.openComponent(identifier, options.context); }}>Open component</button>` : ''}
+            <button type="button" class="btn btn-default" @click=${() => { const identifier = results[selected].identifier; modal.hideModal(); options.openComponent(identifier, options.context); }}>Go to Component</button>` : ''}
+          ${results[selected].path ? html`<button type="button" class="btn btn-default" @click=${async () => {
+            const index = selected;
+            try {
+              await navigator.clipboard.writeText(results[index].path);
+              if (selected === index) { feedback = 'Snapshot file location copied.'; feedbackError = false; }
+            } catch {
+              if (selected === index) { feedback = 'Could not copy snapshot file location.'; feedbackError = true; }
+            }
+            update();
+          }}>Copy Snapshot file location</button>` : ''}
           <button type="button" class="btn btn-default" @click=${async () => {
             const index = selected;
             try {
@@ -224,6 +246,7 @@ export async function showSnapshotDiff(results, options = {}) {
     title: `${failureSummary(results[0]).title}: ${results[0].identifier}`,
     content: content(),
     size: Modal.sizes.large,
+    additionalCssClasses: ['fs-snapshot-modal'],
     buttons: [{ text: 'Close', active: true, btnClass: 'btn-default', trigger: () => modal.hideModal() }],
   });
   modal.addEventListener('typo3-modal-hidden', () => { closed = true; trigger?.focus(); }, { once: true });

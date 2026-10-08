@@ -87,18 +87,22 @@ including when discovery fails. Partial runs retain results and discovery errors
 **Test all** clears all previous results.
 The popup starts with a colored result summary and site/language cards,
 followed by the available actions. Red identifies mismatches and errors;
-yellow identifies missing or updated snapshots. A separate panel explains the
-next step. HTML changes, the snapshot file and any stack trace have their own sections.
+yellow identifies missing or updated snapshots. The HTML changes section explains
+the next step above the diff. Any stack trace has its own section.
 When several variants fail, select one in the list to inspect its result.
+The list fills the available height and scrolls independently of the details;
+on small screens it sits above them.
 
 For mismatches, the popup uses the CLI's word diff and dynamic-value masking,
-showing changed sections with surrounding lines and separate snapshot/actual
-line numbers. Removed words are struck through; added words are underlined.
+showing changed sections with two HTML lines above and below each change,
+when available. **Should** and **Got** show line numbers in the saved snapshot and
+current output. Removed words are struck through; added words are underlined.
 Expand **Show full output** to inspect the complete saved snapshot and current HTML.
 HTML is displayed as escaped text.
 
-Use **Open component** to open the failed variant with the current preview site
-and language, or **Copy details** to copy its message, context and output.
+Use **Go to Component** to open the failed variant with the current preview site
+and language. Use **Copy Snapshot file location** to copy its project-relative path,
+or **Copy details** to copy its message, context and output.
 For an intentional mismatch, use **Update snapshot** to replace that variant's
 baseline for the displayed site and language. Other snapshots stay unchanged.
 Updates use the saved fixture, including its dynamic markers, and ignore unsaved form edits.
@@ -109,8 +113,8 @@ If an update fails, its error appears separately and the original mismatch and d
 
 ![A failed update keeps the original mismatch available](html-snapshot-update-error.png)
 
-The project-relative snapshot file path and any error stack trace are always visible;
-full output is expandable beneath them.
+The copy-location button is available whenever the result includes a snapshot path.
+Error stack traces are visible; full output is expandable beneath the details.
 Newly created snapshots still require review and a commit before another test run.
 Production never creates them.
 The same baseline creation and Production restrictions apply as in the CLI;

@@ -43,7 +43,7 @@ const server=createServer(async(req,res)=>{
   res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:'updated',message:'Updated snapshot. Review and commit the changes.',path:'Card.html-snapshots/html-Second@preview@de.snapshot.html',expected:'<article>New title</article>',actual:'<article>New title</article>',diff:[]}}));return;
  }
  if(updated.has(data.scope)){res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:'passed',message:'',expected:'',actual:'',diff:[]}}));return;}
- await new Promise(r=>setTimeout(r,80));res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:data.scope.endsWith('Default')?'passed':'failed',message:'Rendered HTML differs from the saved baseline.',path:'Card.html-snapshots/html-Second@preview@de.snapshot.html',diff:[{expected:1,actual:1,expectedSegments:[{text:'<article>',changed:false}],actualSegments:[{text:'<article>',changed:false}],changed:false},{expected:2,actual:2,expectedSegments:[{text:'Old title',changed:true}],actualSegments:[{text:'<img src=x onerror="window.injected=true">',changed:true}],changed:true},{expected:3,actual:3,expectedSegments:[{text:'</article>',changed:false}],actualSegments:[{text:'</article>',changed:false}],changed:false}],expected:'<article>\nOld title\n</article>',actual:'<article>\n<img src=x onerror="window.injected=true">\n</article>'}}));return;
+ await new Promise(r=>setTimeout(r,80));res.end(JSON.stringify({success:true,result:{identifier:data.scope,status:data.scope.endsWith('Default')?'passed':'failed',message:'Rendered HTML differs from the saved baseline.',path:'Card.html-snapshots/html-Second@preview@de.snapshot.html',diff:Array.from({length:7},(_,index)=>({expected:index+1,actual:index+1,expectedSegments:[{text:['<section>','  <article>','    <h2>Before</h2>','    Old title','    <p>After</p>','  </article>','</section>'][index],changed:index===3}],actualSegments:[{text:['<section>','  <article>','    <h2>Before</h2>','    <img src=x onerror="window.injected=true">','    <p>After</p>','  </article>','</section>'][index],changed:index===3}],changed:index===3})),expected:'<section>\n  <article>\n    <h2>Before</h2>\n    Old title\n    <p>After</p>\n  </article>\n</section>',actual:'<section>\n  <article>\n    <h2>Before</h2>\n    <img src=x onerror="window.injected=true">\n    <p>After</p>\n  </article>\n</section>' }}));return;
  }
  if(url.pathname==='/'||url.pathname==='/module'){
  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/vendor/typo3/cms-backend/Resources/Public/Css/backend.css"><script type="importmap">${JSON.stringify({imports})}</script><style>body{padding:20px;background:#f4f4f4}.demo-tree{width:min(440px,100%);height:620px;background:white;border:1px solid #aaa}h1{font-size:24px}</style></head><body><h1>Frontend Studio · HTML tests</h1><div data-frontend-studio-variant-header data-selected-site-identifier="preview" data-selected-language-hreflang="de">Preview / German</div><div class="demo-tree"><andersundsehr-frontend-studio-component-tree-container></andersundsehr-frontend-studio-component-tree-container></div><script>window.selections=0;window.TYPO3={settings:{frontendStudio:{snapshotTestingEnabled:${url.searchParams.get('gui')!=='off'},snapshotReadOnly:${url.searchParams.has('production')}},ajaxUrls:{frontend_studio_component_tree_data:'/tree',frontend_studio_component_tree_filter:'/tree',frontend_studio_snapshot:'/snapshots'},ContextHelp:{},formEngine:{}},lang:{},ModuleMenu:{App:{getCurrentModule:()=> 'admin_frontendstudio'}},Backend:{NavigationContainer:{}}};</script><script type="module">await import('@andersundsehr/frontend-studio/backend/component-tree-container.js');window.ready=true;</script></body></html>`);return;
@@ -126,7 +126,17 @@ try{
  assert.deepEqual(await details.locator('.fs-snapshot-context dd').allTextContents(),['preview','de']);
  await details.getByRole('heading',{name:'Next step',exact:true}).waitFor();
  await details.getByRole('region',{name:'HTML changes',exact:true}).waitFor();
- await details.getByRole('region',{name:'Snapshot file',exact:true}).waitFor();
+ assert.equal(await details.getByRole('region',{name:'Snapshot file',exact:true}).count(),0);
+ await details.getByRole('button',{name:'Copy Snapshot file location',exact:true}).waitFor();
+ assert.deepEqual(await details.locator('thead th').allTextContents(),['','Should','Got','HTML']);
+ assert.deepEqual(await details.locator('tbody tr:not(.fs-snapshot-line-removed):not(.fs-snapshot-line-added) td:last-child code').allTextContents(),['  <article>','    <h2>Before</h2>','    <p>After</p>','  </article>']);
+ const nextStep=details.getByRole('complementary',{name:'Next step',exact:true});
+ assert.equal(await nextStep.evaluate(el=>el.closest('[aria-label="HTML changes"]')!==null),true);
+ assert.equal(await nextStep.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+ assert.equal(await details.getByText('− snapshot · + current output · highlighted words changed. Dynamic values are masked using the snapshot rules.',{exact:true}).count(),0);
+ const iconColor=await details.locator('.fs-snapshot-state').evaluate(el=>getComputedStyle(el).color);
+ const dangerColor=await details.locator('.fs-snapshot-line-removed .text-danger').evaluate(el=>getComputedStyle(el).color);
+ assert.equal(iconColor,dangerColor);
  assert.equal(await details.getByRole('button',{name:'Update snapshot',exact:true}).isEnabled(),true);
  assert.equal(await details.evaluate(details=>{
   const summary=details.querySelector('.fs-snapshot-summary');
@@ -143,12 +153,15 @@ try{
  assert.equal(await page.evaluate(()=>window.injected),undefined);
  assert.equal(await page.locator('.fs-snapshot-added').count(),1);
  assert.equal(await page.locator('details[open]').count(),0);
- await page.getByText('Card.html-snapshots/html-Second@preview@de.snapshot.html',{exact:true}).waitFor();
+ assert.equal(await details.getByText('Card.html-snapshots/html-Second@preview@de.snapshot.html',{exact:true}).count(),0);
  assert.equal(await page.getByText('Technical details',{exact:true}).count(),0);
  await page.setViewportSize({width:1000,height:1150});
  await page.locator('.t3js-modal-body').evaluate(body=>{body.scrollTop=0;});
  await page.screenshot({path:path.join(evidence,'diff.png')});
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+ await page.getByRole('button',{name:'Copy Snapshot file location',exact:true}).click();
+ await page.getByText('Snapshot file location copied.',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'Card.html-snapshots/html-Second@preview@de.snapshot.html');
  await page.getByRole('button',{name:'Copy details',exact:true}).click();
  await page.getByText('Details copied.',{exact:true}).waitFor();
  assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/Site: preview · Language: de/);
@@ -196,7 +209,7 @@ try{
  await page.getByRole('heading',{name:'Snapshot mismatch',exact:true}).waitFor();
  assert.equal(await navigation.getByRole('button',{name:/site:nested.card:Second/}).getAttribute('aria-current'),'true');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
- await page.getByRole('button',{name:'Open component',exact:true}).click();
+ await page.getByRole('button',{name:'Go to Component',exact:true}).click();
  await page.waitForFunction(()=>window.selections===1);
  assert.match(await page.evaluate(()=>window.openedComponentUrl),/componentVariant=site%3Anested.card%3ASecond/);
  assert.match(await page.evaluate(()=>window.openedComponentUrl),/site=preview&language=de/);
@@ -357,5 +370,69 @@ try{
  assert.equal(await keyboard.evaluate(()=>window.selections),0);
  await keyboard.screenshot({path:path.join(evidence,'keyboard.png')});
  await keyboard.close();
- console.log('PASS real TYPO3 tree/Lit/modal: GUI setting, isolated updates, retryable HTTP and application errors, escaped update traces, pending/Production restrictions, colored details, persistent status buttons, hover/focus actions, stale discovery, catalog invalidation and changed totals after rediscovery, focused diff, navigation, copy/open actions, keyboard-only testing and failure inspection, and 390px layout; AJAX and shell mocked.');
+ // A long failure list fills the dialog without sharing the details' scroll position.
+ const layout=await browser.newPage({viewport:{width:1280,height:900}});
+ await layout.goto(`http://127.0.0.1:${server.address().port}/`);
+ await layout.waitForFunction(()=>window.ready);
+ await layout.evaluate(async()=>{
+  document.documentElement.dataset.bsTheme='dark';
+  document.documentElement.dataset.colorScheme='dark';
+  const {showSnapshotDiff}=await import('@andersundsehr/frontend-studio/backend/snapshot-diff.js');
+  const failures=Array.from({length:33},(_,index)=>({
+   identifier:`site:nested.card:Variant ${index+1}`,status:'failed',message:'Rendered HTML differs from the saved baseline.',
+   path:`Card.html-snapshots/html-Variant%20${index+1}@preview@de.snapshot.html`,
+   expected:'<div>\n  <article>\n    <h2>Title</h2>\n    Old title\n    <p>After</p>\n  </article>\n</div>',
+   actual:'<div>\n  <article>\n    <h2>Title</h2>\n    New title\n    <p>After</p>\n  </article>\n</div>',
+   trace:Array.from({length:40},(_,line)=>`#${line} Example rendering frame`).join('\n'),
+   diff:Array.from({length:7},(_,line)=>({expected:line+1,actual:line+1,changed:line===3,
+    expectedSegments:[{text:['<div>','  <article>','    <h2>Title</h2>','    Old title','    <p>After</p>','  </article>','</div>'][line],changed:line===3}],
+    actualSegments:[{text:['<div>','  <article>','    <h2>Title</h2>','    New title','    <p>After</p>','  </article>','</div>'][line],changed:line===3}]})),
+  }));
+  await showSnapshotDiff(failures,{context:{site:'preview',language:'de'},variantIdentifiers:failures.map(result=>result.identifier),openComponent:()=>{},canUpdate:()=>true,updateSnapshot:async()=>null});
+ });
+ const failureList=layout.getByRole('navigation',{name:'Failed variants'});
+ const failureDetails=layout.getByRole('region',{name:'Failure details',exact:true});
+ await failureList.waitFor();
+ await layout.waitForTimeout(350);
+ const listBounds=await failureList.boundingBox();
+ const detailBounds=await failureDetails.boundingBox();
+ assert.ok(Math.abs(listBounds.height-detailBounds.height)<2,'Both columns must fill the available dialog height.');
+ assert.ok(await failureList.evaluate(el=>el.scrollHeight>el.clientHeight));
+ assert.ok(await failureDetails.evaluate(el=>el.scrollHeight>el.clientHeight));
+ const listTop=listBounds.y;
+ await failureDetails.hover();
+ await layout.mouse.wheel(0,350);
+ await layout.waitForFunction(()=>document.querySelector('[aria-label="Failure details"]').scrollTop>0);
+ const detailScroll=await failureDetails.evaluate(el=>el.scrollTop);
+ assert.equal(await failureList.evaluate(el=>el.scrollTop),0);
+ assert.equal((await failureList.boundingBox()).y,listTop);
+ assert.equal(await layout.locator('.t3js-modal-body').evaluate(el=>el.scrollTop),0);
+ await failureList.hover();
+ await layout.mouse.wheel(0,350);
+ await layout.waitForFunction(()=>document.querySelector('[aria-label="Failed variants"]').scrollTop>0);
+ assert.equal(await failureDetails.evaluate(el=>el.scrollTop),detailScroll);
+ await failureList.evaluate(el=>{el.scrollTop=0;});
+ await failureDetails.evaluate(el=>{el.scrollTop=0;});
+ const [red,green,blue]=await failureDetails.locator('.fs-snapshot-state').evaluate(el=>{
+  const canvas=document.createElement('canvas');
+  const context=canvas.getContext('2d');
+  context.fillStyle=getComputedStyle(el).color;
+  context.fillRect(0,0,1,1);
+  return Array.from(context.getImageData(0,0,1,1).data.slice(0,3));
+ });
+ assert.ok(red>green&&red>blue,'The mismatch icon must stay red in the dark theme.');
+ await layout.screenshot({path:path.join(evidence,'multiple-diff.png')});
+ // Clipboard denial reports a separate error and keeps the snapshot available.
+ await layout.evaluate(()=>{navigator.clipboard.writeText=async()=>{throw Error('Clipboard denied');};});
+ await failureDetails.getByRole('button',{name:'Copy Snapshot file location',exact:true}).click();
+ await failureDetails.getByText('Could not copy snapshot file location.',{exact:true}).waitFor();
+ assert.equal(await failureDetails.getByRole('button',{name:'Copy Snapshot file location',exact:true}).isEnabled(),true);
+ assert.equal(await failureDetails.locator('.fs-snapshot-diff').count(),1);
+ await layout.setViewportSize({width:390,height:780});
+ assert.ok((await failureList.boundingBox()).height<=160);
+ assert.ok((await failureDetails.boundingBox()).height>200);
+ assert.equal(await layout.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await layout.screenshot({path:path.join(evidence,'multiple-narrow-diff.png')});
+ await layout.close();
+ console.log('PASS real TYPO3 tree/Lit/modal: GUI setting, isolated updates, retryable HTTP and application errors, escaped update traces, pending/Production restrictions, colored details, persistent status buttons, hover/focus actions, stale discovery, catalog invalidation and changed totals after rediscovery, two-line diff context, independent full-height failure navigation, light/dark themes, copy-location success/denial, component navigation, keyboard-only testing and failure inspection, and 390px layout; AJAX and shell mocked.');
 }finally{await browser.close();server.close();}

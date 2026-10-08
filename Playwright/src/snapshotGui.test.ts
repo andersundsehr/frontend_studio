@@ -463,6 +463,45 @@ test('focused diffs show only nearby changes and retain separate source line num
   assert.ok(!output.includes('<p>same'));
 });
 
+test('diff context counts HTML source lines when one line spans several diff rows', async () => {
+  const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+  const { focusedRows } = await modules.import('snapshot-diff.js');
+  const rows = [
+    [1, 1], [2, 2], [3, 3], [3, 4], [4, 4], [5, 5], [5, 6], [6, 7], [7, 8],
+  ].map(([expected, actual], index) => ({ expected, actual, changed: index === 4 }));
+  assert.deepEqual(Array.from(focusedRows(rows)), [null, ...rows.slice(1, 8), null]);
+});
+
+for (const side of ['expected', 'actual'] as const) {
+  test(`inserted or removed HTML retains two context lines on both sides (${side})`, async () => {
+    const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+    const { focusedRows } = await modules.import('snapshot-diff.js');
+    const rows: { expected: number | null; actual: number | null; changed: boolean }[] = Array.from({ length: 7 }, (_, index) => ({
+      expected: index + 1, actual: index + 1, changed: index === 3,
+    }));
+    rows[3][side] = null;
+    assert.deepEqual(Array.from(focusedRows(rows)), [null, ...rows.slice(1, 6), null]);
+  });
+}
+
+test('mismatches put plain next-step guidance above the diff and use Should/Got headings', async () => {
+  const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+  const { renderSnapshotDiff } = await modules.import('snapshot-diff.js');
+  const output = renderSnapshotDiff([{
+    ...result(a, 'failed'), path: 'Card.snapshot.html',
+    diff: [{ expected: 1, actual: 1, changed: true,
+      expectedSegments: [{ text: 'old', changed: true }], actualSegments: [{ text: 'new', changed: true }] }],
+  }]);
+  assert.ok(output.indexOf('<h4>HTML changes</h4>') < output.indexOf('<h4>Next step</h4>'));
+  assert.ok(output.indexOf('<h4>Next step</h4>') < output.indexOf('<table>'));
+  assert.ok(output.includes('<th>Should</th><th>Got</th>'));
+  assert.ok(output.includes('fs-snapshot-state text-danger'));
+  assert.ok(!output.includes('alert-info'));
+  assert.ok(!output.includes('Dynamic values are masked'));
+  assert.ok(!output.includes('highlighted words changed'));
+  assert.ok(!output.includes('Card.snapshot.html'));
+});
+
 test('missing snapshots and errors offer the appropriate next step without a fake diff', async () => {
   const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
   const { failureSummary, renderSnapshotDiff, copyDetails } = await modules.import('snapshot-diff.js');
@@ -471,7 +510,7 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   const failure = { identifier: a, status: 'error', message: '<script>bad</script>', trace: '<img onerror=bad>', path: '/html-Default@preview@en.snapshot.html' };
   const output = renderSnapshotDiff([failure]);
   assert.ok(output.includes('Test error'));
-  assert.ok(output.includes('<h4>Snapshot file</h4>'));
+  assert.ok(!output.includes('<h4>Snapshot file</h4>'));
   assert.ok(output.includes('Stack trace'));
   assert.ok(!output.includes('<summary>Technical details</summary>'));
   assert.ok(!output.includes('<table>'));
@@ -484,7 +523,7 @@ test('missing snapshots and errors offer the appropriate next step without a fak
 });
 
 for (const status of ['failed', 'missing', 'error', 'updated', 'passed']) {
-  test(`${status} details separate the result, next step, snapshot file and trace`, async () => {
+  test(`${status} details separate the result, next step and trace`, async () => {
     const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
     const { renderSnapshotDiff } = await modules.import('snapshot-diff.js');
     const output = renderSnapshotDiff([{
@@ -494,8 +533,8 @@ for (const status of ['failed', 'missing', 'error', 'updated', 'passed']) {
     }]);
     assert.ok(output.includes('<dt>Variant</dt>'));
     assert.ok(output.indexOf('<h4>Next step</h4>') > output.indexOf(`<dd><code>${a}</code></dd>`));
-    assert.ok(output.indexOf('<h4>Snapshot file</h4>') > output.indexOf('<h4>Next step</h4>'));
-    assert.ok(output.indexOf('<h4>Stack trace</h4>') > output.indexOf('<h4>Snapshot file</h4>'));
+    assert.ok(!output.includes('<h4>Snapshot file</h4>'));
+    assert.ok(output.indexOf('<h4>Stack trace</h4>') > output.indexOf('<h4>Next step</h4>'));
     assert.equal(output.includes('<h4>HTML changes</h4>'), status === 'failed');
     assert.ok(output.includes(`fs-snapshot-tone-${status === 'passed' ? 'success' : status === 'missing' || status === 'updated' ? 'warning' : 'danger'}`));
   });
