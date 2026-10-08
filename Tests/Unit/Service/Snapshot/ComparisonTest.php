@@ -322,6 +322,12 @@ final class ComparisonTest extends TestCase
         yield 'render error' => [[['status' => 'error']], 1];
         yield 'mismatch' => [[['status' => 'failed']], 1];
         yield 'missing snapshot' => [[['status' => 'missing']], 2];
+        yield 'created snapshot' => [[['status' => 'created']], 2];
+        yield 'created and unchanged' => [[['status' => 'created'], ['status' => 'passed']], 2];
+        yield 'created and updated' => [[['status' => 'created'], ['status' => 'updated']], 2];
+        yield 'created and missing' => [[['status' => 'created'], ['status' => 'missing']], 2];
+        yield 'created and mismatch' => [[['status' => 'created'], ['status' => 'failed']], 3];
+        yield 'created and render error' => [[['status' => 'created'], ['status' => 'error']], 3];
         yield 'updated snapshot' => [[['status' => 'updated']], 2];
         yield 'updated and unchanged' => [[['status' => 'updated'], ['status' => 'passed']], 2];
         yield 'updated and missing' => [[['status' => 'updated'], ['status' => 'missing']], 2];
