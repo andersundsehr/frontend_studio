@@ -55,14 +55,18 @@ export function renderSnapshotDiff(results) {
     const summary = failureSummary(result);
     const rows = Array.isArray(result.diff) ? result.diff : [];
     const diff = result.status === 'failed' && rows.length > 0
-      ? `<p class="text-muted">− snapshot · + current output · highlighted words changed. Dynamic values are masked using the snapshot rules.</p>
-        <div class="fs-snapshot-diff" tabindex="0" role="region" aria-label="Snapshot changes"><table><colgroup><col style="width:1.5rem"><col style="width:5rem"><col style="width:4.5rem"><col></colgroup><thead><tr><th aria-label="Change"></th><th>Snapshot</th><th>Actual</th><th>HTML</th></tr></thead><tbody>${renderDiffRows(focusedRows(rows))}</tbody></table></div>`
+      ? `<section class="fs-snapshot-section" aria-label="HTML changes"><h4>HTML changes</h4>
+        <p class="text-muted">− snapshot · + current output · highlighted words changed. Dynamic values are masked using the snapshot rules.</p>
+        <div class="fs-snapshot-diff" tabindex="0" role="region" aria-label="Snapshot changes"><table><colgroup><col style="width:1.5rem"><col style="width:5rem"><col style="width:4.5rem"><col></colgroup><thead><tr><th aria-label="Change"></th><th>Snapshot</th><th>Actual</th><th>HTML</th></tr></thead><tbody>${renderDiffRows(focusedRows(rows))}</tbody></table></div></section>`
       : '';
     const fullOutput = result.expected || result.actual
-      ? `<details class="mt-3"><summary>Show full output</summary><h4 class="mt-3">Snapshot</h4><pre>${escapeHtml(result.expected)}</pre><h4>Current output</h4><pre>${escapeHtml(result.actual)}</pre></details>` : '';
-    const technical = result.path || result.trace
-      ? `<div class="mt-3">${result.path ? `<p class="mt-2">Snapshot file: <code class="text-break">${escapeHtml(result.path)}</code></p>` : ''}${result.trace ? `<h4>Stack trace</h4><pre>${escapeHtml(result.trace)}</pre>` : ''}</div>` : '';
-    return `<h3>${escapeHtml(summary.title)}</h3><p class="text-break"><strong>${escapeHtml(result.identifier)}</strong></p><p class="text-break">${escapeHtml(result.message)}</p><p>${escapeHtml(summary.next)}</p>${diff}${fullOutput}${technical}`;
+      ? `<details class="fs-snapshot-section"><summary>Show full output</summary><h4 class="mt-3">Snapshot</h4><pre>${escapeHtml(result.expected)}</pre><h4>Current output</h4><pre>${escapeHtml(result.actual)}</pre></details>` : '';
+    const file = result.path
+      ? `<section class="fs-snapshot-section" aria-label="Snapshot file"><h4>Snapshot file</h4><p class="fs-snapshot-file"><code>${escapeHtml(result.path)}</code></p></section>` : '';
+    const trace = result.trace
+      ? `<section class="fs-snapshot-section" aria-label="Stack trace"><h4>Stack trace</h4><pre>${escapeHtml(result.trace)}</pre></section>` : '';
+    return `<header class="fs-snapshot-summary"><h3>${escapeHtml(summary.title)}</h3><dl><dt>Variant</dt><dd><code>${escapeHtml(result.identifier)}</code></dd></dl><p class="text-break mb-0">${escapeHtml(result.message)}</p></header>
+      <aside class="fs-snapshot-next" aria-label="Next step"><h4>Next step</h4><p class="mb-0">${escapeHtml(summary.next)}</p></aside>${diff}${fullOutput}${file}${trace}`;
   }).join('<hr>');
 }
 
@@ -89,6 +93,18 @@ export async function showSnapshotDiff(results, options = {}) {
       .fs-snapshot-view nav button {text-align:left;white-space:normal;overflow-wrap:anywhere}
       .fs-snapshot-view nav button[aria-current="true"] {outline:2px solid var(--typo3-component-border-color);outline-offset:-2px;font-weight:bold}
       .fs-snapshot-view section {min-width:0}
+      .fs-snapshot-summary {display:grid;gap:.75rem}
+      .fs-snapshot-summary h3,.fs-snapshot-summary dl,.fs-snapshot-summary dd {margin:0}
+      .fs-snapshot-summary code {color:inherit;overflow-wrap:anywhere}
+      .fs-snapshot-next {margin-top:1rem;padding:1rem;border-left:3px solid var(--typo3-state-info-border-color,#0078a8);background:var(--typo3-surface-container-low,#f4f4f4)}
+      .fs-snapshot-next h4,.fs-snapshot-section h4 {font-size:1rem;font-weight:bold;margin:0 0 .5rem}
+      .fs-snapshot-section {margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--typo3-component-border-color)}
+      .fs-snapshot-file {margin:0;padding:.75rem;background:var(--typo3-surface-container-low,#f4f4f4);overflow-wrap:anywhere}
+      .fs-snapshot-file code {color:inherit}
+      .fs-snapshot-context {display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin-bottom:1rem}
+      .fs-snapshot-context dt {font-weight:normal;color:var(--typo3-text-color-secondary)}
+      .fs-snapshot-context dd {margin:0;overflow-wrap:anywhere}
+      .fs-snapshot-actions {margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--typo3-component-border-color)}
       .fs-snapshot-view pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:45vh;overflow:auto}
       .fs-snapshot-diff {max-height:45vh;overflow:auto;border:1px solid var(--typo3-component-border-color)}
       .fs-snapshot-diff table {width:100%;font-family:monospace;font-size:.85rem;border-collapse:collapse;table-layout:fixed}
@@ -109,9 +125,10 @@ export async function showSnapshotDiff(results, options = {}) {
           @click=${() => { selected = index; feedback = ''; update(); }}>${result.identifier}<br><small>${failureSummary(result).title}</small></button>
       `)}</nav>` : ''}
       <section aria-label="Failure details">
-        <p class="text-muted" role="status" aria-live="polite">Failure ${selected + 1} of ${results.length}${options.context?.site ? ` · ${options.context.site} / ${options.context.language}` : ''}</p>
+        <p class="text-muted" role="status" aria-live="polite">Failure ${selected + 1} of ${results.length}</p>
+        ${options.context?.site ? html`<dl class="fs-snapshot-context"><div><dt>Site</dt><dd>${options.context.site}</dd></div><div><dt>Language</dt><dd>${options.context.language}</dd></div></dl>` : ''}
         ${unsafeHTML(renderSnapshotDiff([results[selected]]))}
-        <div class="d-flex gap-2 flex-wrap mt-3">
+        <div class="fs-snapshot-actions d-flex gap-2 flex-wrap">
           ${options.openComponent && options.variantIdentifiers?.includes(results[selected].identifier) ? html`
             <button type="button" class="btn btn-default" @click=${() => { const identifier = results[selected].identifier; modal.hideModal(); options.openComponent(identifier, options.context); }}>Open component</button>` : ''}
           <button type="button" class="btn btn-default" @click=${async () => {

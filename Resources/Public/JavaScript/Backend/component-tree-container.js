@@ -98,7 +98,7 @@ class FrontendStudioComponentTree extends Tree {
         @click=${(event) => { event.preventDefault(); event.stopImmediatePropagation(); this.clearPendingNodeSelection(); this.runSnapshots(node.identifier); }}
       >▶</button>
       ${status === 'passed' ? html`<span class="snapshot-status text-success" role="img" aria-label="All tests passed">✓</span>` : ''}
-      ${status === 'failed' ? html`<button type="button" class="snapshot-status btn btn-sm btn-borderless text-danger"
+      ${status === 'failed' ? html`<button type="button" class="snapshot-status btn btn-default btn-sm btn-icon text-danger"
         title="Inspect snapshot failures" aria-label=${`Inspect snapshot failures for ${node.name}`}
         @keydown=${(event) => event.stopPropagation()}
         @dblclick=${(event) => event.stopPropagation()}
@@ -531,8 +531,8 @@ class FrontendStudioComponentTreeToolbar extends TreeToolbar {
       <div class="p-2 d-flex align-items-center gap-2 flex-wrap" aria-label="HTML snapshot tests">
         <button type="button" class="btn btn-default btn-sm" ?disabled=${!tests || tests.active}
           @click=${() => this.tree.runSnapshots()}>Test all</button>
-        <span role="status" aria-live="polite">${tests?.passed || 0}/${tests?.catalog.length || 0} passed${tests?.active ? ` · Running ${tests.completed}/${tests.total}` : ''}</span>
-        ${tests?.status() === 'failed' ? html`<button type="button" class="btn btn-sm text-danger" @click=${() => tests.showFailures()}>✕ Results</button>` : ''}
+        <span role="status" aria-live="polite">${tests?.passed || 0}/${tests?.catalog.length || 0} passed</span>
+        ${tests?.status() === 'failed' ? html`<button type="button" class="btn btn-default btn-sm text-danger" @click=${() => tests.showFailures()}>✕ Results (${tests.failures().length})</button>` : ''}
       </div>`;
   }
 

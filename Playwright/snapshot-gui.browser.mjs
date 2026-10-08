@@ -57,12 +57,39 @@ try{
  await page.waitForFunction(()=>window.ready, null, {timeout:10000});
  const row=(name)=>page.locator('.node').filter({has:page.getByText(name,{exact:true})});
  const actions=(name)=>row(name).locator('.node-action > button:not(.snapshot-status)');
+ const resultsButton=(count)=>page.getByRole('button',{name:`✕ Results (${count})`,exact:true});
+ const assertFailureButton=async(button)=>{
+  assert.equal(await button.isVisible(),true);
+  const border=await button.evaluate(button=>{
+   const style=getComputedStyle(button);
+   return {color:style.borderTopColor,style:style.borderTopStyle,width:parseFloat(style.borderTopWidth)};
+  });
+  assert.notEqual(border.color,'rgba(0, 0, 0, 0)');
+  assert.equal(border.style,'solid');
+  assert.ok(border.width>0);
+ };
  await row('Default').waitFor();
  assert.equal(await actions('Default').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display==='none')),true);
  await row('Default').hover();
  assert.equal(await actions('Default').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display!=='none')),true);
+ let releaseFirstRun;
+ const firstRunGate=new Promise(resolve=>{releaseFirstRun=resolve;});
+ const holdFirstRun=async(route)=>{
+  if(!(route.request().postData()||'').includes('discover')) await firstRunGate;
+  await route.continue();
+ };
+ await page.route('**/snapshots',holdFirstRun);
  await page.getByRole('button',{name:'Test Default',exact:true}).click();
+ await page.waitForFunction(()=>{
+  const tests=document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots;
+  return tests.active&&tests.total===1;
+ });
+ assert.equal(await page.getByRole('status').textContent(),'0/2 passed');
+ assert.equal(await page.getByRole('button',{name:'Test all',exact:true}).isDisabled(),true);
+ releaseFirstRun();
  await page.getByRole('status').filter({hasText:'1/2 passed'}).waitFor();
+ await page.unroute('**/snapshots',holdFirstRun);
+ assert.equal(await page.getByRole('button',{name:/✕ Results/}).count(),0);
  await page.mouse.move(980,10);
  assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),1);
  assert.equal(await row('Default').getByRole('img',{name:'All tests passed'}).isVisible(),true);
@@ -71,6 +98,8 @@ try{
  await page.getByRole('button',{name:'Test Nested',exact:true}).click();
  await page.mouse.move(980,10);
  await page.getByRole('button',{name:'Inspect snapshot failures for Nested',exact:true}).waitFor();
+ await assertFailureButton(page.getByRole('button',{name:'Inspect snapshot failures for Nested',exact:true}));
+ await assertFailureButton(resultsButton(1));
  assert.equal(await actions('Nested').evaluateAll(buttons=>buttons.every(button=>getComputedStyle(button).display==='none')),true);
  await page.evaluate(()=>{const tree=document.querySelector('andersundsehr-frontend-studio-component-tree');tree.hideChildren(tree.nodes.find(node=>node.nodeType==='folder'));});
  await page.getByRole('button',{name:'Test all',exact:true}).click();
@@ -84,6 +113,12 @@ try{
  await page.getByRole('button',{name:'Inspect snapshot failures for Card',exact:true}).click();
  await page.getByText('Snapshot mismatch: site:nested.card:Second',{exact:true}).waitFor();
  await page.getByRole('heading',{name:'Snapshot mismatch',exact:true}).waitFor();
+ const details=page.getByRole('region',{name:'Failure details',exact:true});
+ assert.deepEqual(await details.locator('.fs-snapshot-context dt').allTextContents(),['Site','Language']);
+ assert.deepEqual(await details.locator('.fs-snapshot-context dd').allTextContents(),['preview','de']);
+ await details.getByRole('heading',{name:'Next step',exact:true}).waitFor();
+ await details.getByRole('region',{name:'HTML changes',exact:true}).waitFor();
+ await details.getByRole('region',{name:'Snapshot file',exact:true}).waitFor();
  await page.waitForTimeout(350);
  assert.equal(await page.evaluate(()=>window.injected),undefined);
  assert.equal(await page.locator('.fs-snapshot-added').count(),1);
@@ -94,7 +129,10 @@ try{
  await page.getByRole('button',{name:'Copy details',exact:true}).click();
  await page.getByText('Details copied.',{exact:true}).waitFor();
  assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/Site: preview · Language: de/);
+ await page.setViewportSize({width:1000,height:1000});
+ await page.locator('.t3js-modal-body').evaluate(body=>{body.scrollTop=0;});
  await page.screenshot({path:path.join(evidence,'diff.png')});
+ await page.setViewportSize({width:1000,height:780});
  await page.getByRole('button',{name:'Close',exact:true}).last().click();
  await page.getByRole('button',{name:'Inspect snapshot failures for Card',exact:true}).focus();
  await page.keyboard.press('Enter');
@@ -121,7 +159,7 @@ try{
   tests.results.set(identifier,{identifier,status:'error',message:'Transformer failed: <script>bad()</script>',trace:'#0 <img src=x onerror=bad()>',expected:'',actual:''});
   tests.changed();
  });
- await page.getByRole('button',{name:'✕ Results',exact:true}).click();
+ await resultsButton(3).click();
  const navigation=page.getByRole('navigation',{name:'Failed variants'});
  await navigation.getByRole('button',{name:/site:nested.card:Default/}).click();
  await page.getByRole('heading',{name:'Missing snapshot',exact:true}).waitFor();
@@ -129,6 +167,7 @@ try{
  assert.equal(await page.locator('.fs-snapshot-diff').count(),0);
  await navigation.getByRole('button',{name:/site:nested.card:Broken/}).click();
  await page.getByRole('heading',{name:'Test error',exact:true}).waitFor();
+ await page.getByRole('region',{name:'Stack trace',exact:true}).waitFor();
  await page.getByText('#0 <img src=x onerror=bad()>',{exact:true}).waitFor();
  assert.equal(await page.locator('.fs-snapshot-view img,.fs-snapshot-view script').count(),0);
  await navigation.getByRole('button',{name:/site:nested.card:Second/}).click();
@@ -156,14 +195,16 @@ try{
  await page.getByRole('button',{name:'Test all',exact:true}).click();
  await page.getByRole('status').filter({hasText:'2/2 passed'}).waitFor();
  assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),5);
+ assert.equal(await page.getByRole('button',{name:/✕ Results/}).count(),0);
  failDiscovery=true;
  await page.getByRole('button',{name:'Test all',exact:true}).click();
  await page.waitForFunction(()=>!document.querySelector('andersundsehr-frontend-studio-component-tree').snapshots.active);
  await page.getByRole('status').filter({hasText:'0/2 passed'}).waitFor();
  assert.equal(await page.getByRole('img',{name:'All tests passed'}).count(),0);
- await page.getByRole('button',{name:'✕ Results',exact:true}).click();
+ await resultsButton(1).click();
  await page.getByRole('heading',{name:'Test error',exact:true}).waitFor();
  await page.getByText('Discovery unavailable',{exact:true}).waitFor();
+ await page.waitForTimeout(350);
  await page.screenshot({path:path.join(evidence,'discovery-error.png')});
- console.log('PASS real TYPO3 tree/Lit/modal: hover-only actions, persistent result icons, failed rediscovery clears old passes, focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
+ console.log('PASS real TYPO3 tree/Lit/modal: bordered failure buttons, live failure counts, no running counter, hover-only actions, persistent results, failed rediscovery clears old passes, focused diff, mixed failures, navigation, copy, open component, escaped HTML, keyboard controls and 390px layout; AJAX and shell mocked.');
 }finally{await browser.close();server.close();}

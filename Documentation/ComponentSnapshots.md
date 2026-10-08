@@ -71,15 +71,18 @@ they do not create missing snapshots and reject updates.
 Select the preview site and language, then hover over a row to test its saved fixtures
 with the ▶ button. Use **Test all** to test the complete catalog, including filtered or
 collapsed rows. Unsaved form edits are not used. Requests run one variant at a time;
-the toolbar separates progress from the passed/total count. A scope receives a
-checkmark only after every descendant has passed. Missing/new baselines, errors
-and mismatches show a clickable red X that opens the failure details.
-Row action buttons appear on hover; green checkmarks and red X results stay visible.
+the toolbar shows the passed/total count. A scope receives a checkmark only after
+every descendant has passed. Missing/new baselines, errors and mismatches show a
+red **✕** button that opens the failure details. The toolbar's **✕ Results (N)**
+button shows the number of failures and opens all their details.
+Row action buttons appear on hover; green checkmarks and red failure buttons stay visible.
 Starting another run clears the previous results for that scope immediately,
 including when discovery fails. Partial runs retain results outside their scope;
 **Test all** clears all previous results.
 The popup identifies a snapshot mismatch, missing snapshot or test error
-and explains the next step.
+and explains the next step in a separate panel. Site, language and variant are
+labeled above the result; HTML changes, the snapshot file and any stack trace
+have their own sections.
 When several variants fail, select one in the list to inspect its result.
 
 For mismatches, the popup uses the CLI's word diff and dynamic-value masking,

@@ -241,7 +241,7 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   const failure = { identifier: a, status: 'error', message: '<script>bad</script>', trace: '<img onerror=bad>', path: '/html-Default@preview@en.snapshot.html' };
   const output = renderSnapshotDiff([failure]);
   assert.ok(output.includes('Test error'));
-  assert.ok(output.includes('Snapshot file:'));
+  assert.ok(output.includes('<h4>Snapshot file</h4>'));
   assert.ok(output.includes('Stack trace'));
   assert.ok(!output.includes('<summary>Technical details</summary>'));
   assert.ok(!output.includes('<table>'));
@@ -252,3 +252,20 @@ test('missing snapshots and errors offer the appropriate next step without a fak
   assert.ok(copy.includes('/html-Default@preview@en.snapshot.html'));
   assert.ok(copy.includes(failure.trace));
 });
+
+for (const status of ['failed', 'missing', 'error']) {
+  test(`${status} details separate the result, next step, snapshot file and trace`, async () => {
+    const modules = backendModules({}, { '@typo3/backend/modal.js': {} });
+    const { renderSnapshotDiff } = await modules.import('snapshot-diff.js');
+    const output = renderSnapshotDiff([{
+      ...result(a, status), path: 'Card.snapshot.html', trace: 'Error trace',
+      diff: [{ expected: 1, actual: 1, changed: true,
+        expectedSegments: [{ text: 'old', changed: true }], actualSegments: [{ text: 'new', changed: true }] }],
+    }]);
+    assert.ok(output.includes('<dt>Variant</dt>'));
+    assert.ok(output.indexOf('<h4>Next step</h4>') > output.indexOf(`<dd><code>${a}</code></dd>`));
+    assert.ok(output.indexOf('<h4>Snapshot file</h4>') > output.indexOf('<h4>Next step</h4>'));
+    assert.ok(output.indexOf('<h4>Stack trace</h4>') > output.indexOf('<h4>Snapshot file</h4>'));
+    assert.equal(output.includes('<h4>HTML changes</h4>'), status === 'failed');
+  });
+}
