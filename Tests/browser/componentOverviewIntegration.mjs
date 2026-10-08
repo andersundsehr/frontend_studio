@@ -176,7 +176,7 @@ for (const version of [13, 14]) {
     await ui.ready(false);
     assert.deepEqual(dialogs, ['confirm', 'confirm'], 'discard confirmation must not be followed by a native unload dialog');
     const state = await page.evaluate(() => ({ order, stored, selected: container.getSelectedNode().identifier, navigations, persisted, streams: streams.map(stream => ({ uri: stream.uri, closed: stream.closed })) }));
-    assert.deepEqual(state.order, ['confirm', 'confirm', 'persist', 'navigate']);
+    assert.deepEqual(state.order, ['confirm', 'confirm', 'navigate', 'persist']);
     assert.equal(state.selected, 'site:card:Mobile:Dark');
     assert.deepEqual(state.stored, { identifier: state.selected, treeIdentifier: 'site_site:card_site:card:Mobile:Dark' });
     assert.equal(state.persisted.length, 1);

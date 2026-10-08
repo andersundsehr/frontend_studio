@@ -14,7 +14,10 @@ async function setup({ deferEditor = false, readOnly = false, initialMarkdown = 
   const bodies: any[] = [];
   const requests: any[] = [];
   const notifications: string[] = [];
-  const window = Object.assign(new EventTarget(), { location: { href: 'https://example.test' }, confirm: (): boolean => true });
+  const window = Object.assign(new EventTarget(), {
+    location: { href: 'https://example.test' }, confirm: (): boolean => true,
+    frameElement: { src: 'https://example.test/current' },
+  });
   const document = new EventTarget();
   const context = createContext({
     Event, EventTarget, AbortController, URL, URLSearchParams, window, top: { document },
@@ -70,7 +73,9 @@ test('approved tree navigation prompts once while cancelled navigation retains u
   assert.equal(unload(), true);
   assert.equal(ui.doc.markdown, 'Unsaved documentation');
   approve = true;
-  assert.equal(ui.document.dispatchEvent(new Event('frontend-studio:before-navigate', { cancelable: true })), true);
+  const navigation = new CustomEvent('frontend-studio:before-navigate', { cancelable: true, detail: { url: null as string | null } });
+  assert.equal(ui.document.dispatchEvent(navigation), true);
+  navigation.detail.url = ui.window.frameElement.src = 'https://example.test/variant';
   assert.equal(unload(), false, 'approved navigation must not display a second prompt');
   assert.equal(unload(), true, 'approval only applies to the next unload');
   assert.equal(confirmations, 2);
