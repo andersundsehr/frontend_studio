@@ -22,6 +22,14 @@ Extension tests that launch Playwright also belong in `Tests/browser/`.
 Existing tests in `Playwright/src/` stay in place, including legacy extension regressions;
 add new extension regressions in `Tests/browser/`.
 
+`componentTreeFiltering.mjs` runs Chromium against the unmodified TYPO3 13.4.35 and 14.3.7
+Tree and TreeToolbar, including each release's Lit, Ajax, debounce and storage implementations.
+It downloads pinned public JavaScript from `TYPO3-CMS/backend` and `TYPO3-CMS/core` on GitHub
+on the first run and caches it in `var/.cache/typo3-tree/`.
+The initial run needs network access to `raw.githubusercontent.com`; cached runs work offline.
+Only unrelated backend chrome and HTTP endpoint responses are stubbed.
+The tests click real Overview links in a content iframe and edit the actual documentation editor.
+
 The consumer package exports TypeScript directly and has no separate compilation step.
 Keep its manifest, TypeScript configuration and source unchanged when working on extension UI or contributor tooling.
 Do not generate `Playwright/dist/` or recreate `Playwright/browser/`.

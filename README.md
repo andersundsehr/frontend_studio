@@ -166,6 +166,25 @@ Document what another frontend developer needs to use the component:
 - Available variants and when to choose each one.
 - Accessibility requirements, expected interactions, and usage limitations.
 
+### Component Docs overview
+
+Selecting a component in the tree opens its Docs overview; selecting an individual variant still opens its inspector.
+The overview shows the shared component Markdown, then the first variant in fixture declaration order with its existing Controls beneath it.
+Outside Production, edit the documentation directly in the overview and save it with **Save**.
+The same documentation is available in each variant's **Documentation** tab; Production displays the rendered text.
+Other variants appear as separate previews with links to their inspectors.
+Live controls affect only the first preview; the remaining examples keep their stored fixture values.
+Long documentation starts collapsed with a fade and an Expand documentation button.
+Short documentation remains fully visible; expanded documentation can be collapsed again.
+Focusing the documentation expands it for editing.
+The overview preserves the current site and language context without showing selectors.
+Controls provide temporary live edits; fixture save and reset actions remain in the variant inspector.
+
+A long first preview can be expanded or collapsed. Preview frames resize when content, images, fonts or layout change;
+when measurement is unavailable, a scrolling frame and variant link remain available.
+Lower previews load lazily. A component without fixtures displays an empty state without creating files.
+Production retains temporary live controls while the existing write restrictions continue to apply.
+
 ## Component Fixtures
 
 Frontend Studio creates and updates fixture files next to component templates.

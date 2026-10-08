@@ -14,9 +14,10 @@ async function setup({ deferEditor = false, readOnly = false, initialMarkdown = 
   const bodies: any[] = [];
   const requests: any[] = [];
   const notifications: string[] = [];
-  const window = Object.assign(new EventTarget(), { location: { href: 'https://example.test' }, confirm: () => true });
+  const window = Object.assign(new EventTarget(), { location: { href: 'https://example.test' }, confirm: (): boolean => true });
+  const document = new EventTarget();
   const context = createContext({
-    Event, EventTarget, AbortController, URL, URLSearchParams, window, top: { document: new EventTarget() },
+    Event, EventTarget, AbortController, URL, URLSearchParams, window, top: { document },
     fetch: async (_url: URL, options: any) => {
       requests.push({ url: _url, ...options });
       bodies.push(options.body ? Object.fromEntries(new URLSearchParams(options.body)) : null);
@@ -50,9 +51,51 @@ async function setup({ deferEditor = false, readOnly = false, initialMarkdown = 
   };
   await respond({ markdown: initialMarkdown, revision: 'r1', readOnly });
   if (!deferEditor && !readOnly) { editors[0].resolve(); await tick(); }
-  return { doc, root, view, bodies, requests, respond, editors, elements, notifications, tick, status: elements.get('[data-doc-status]'),
+  return { doc, root, view, bodies, requests, respond, editors, elements, notifications, tick, window, document, status: elements.get('[data-doc-status]'),
     edit: (markdown: string) => editors.at(-1).change(markdown) };
 }
+
+test('approved tree navigation prompts once while cancelled navigation retains unload protection and unsaved Markdown', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  let confirmations = 0;
+  let approve = false;
+  ui.window.confirm = () => { confirmations++; return approve; };
+  ui.edit('Unsaved documentation');
+  const unload = () => {
+    const event = new Event('beforeunload', { cancelable: true });
+    ui.window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  assert.equal(ui.document.dispatchEvent(new Event('frontend-studio:before-navigate', { cancelable: true })), false);
+  assert.equal(unload(), true);
+  assert.equal(ui.doc.markdown, 'Unsaved documentation');
+  approve = true;
+  assert.equal(ui.document.dispatchEvent(new Event('frontend-studio:before-navigate', { cancelable: true })), true);
+  assert.equal(unload(), false, 'approved navigation must not display a second prompt');
+  assert.equal(unload(), true, 'approval only applies to the next unload');
+  assert.equal(confirmations, 2);
+  assert.equal(ui.doc.dirty, true);
+  assert.equal(ui.view.documentationDirty, true);
+  assert.equal(ui.doc.baseline, 'Original\n');
+});
+
+test('navigation cancelled by another guard and edits after approval retain unload protection', async (t) => {
+  const ui = await setup(); t.after(() => ui.doc.destroy());
+  ui.edit('Unsaved documentation');
+  const cancel = (event: Event) => event.preventDefault();
+  ui.document.addEventListener('frontend-studio:before-navigate', cancel);
+  assert.equal(ui.document.dispatchEvent(new Event('frontend-studio:before-navigate', { cancelable: true })), false);
+  let unload = new Event('beforeunload', { cancelable: true });
+  ui.window.dispatchEvent(unload);
+  assert.equal(unload.defaultPrevented, true);
+  ui.document.removeEventListener('frontend-studio:before-navigate', cancel);
+  ui.document.dispatchEvent(new Event('frontend-studio:before-navigate', { cancelable: true }));
+  ui.edit('New edits after approval');
+  unload = new Event('beforeunload', { cancelable: true });
+  ui.window.dispatchEvent(unload);
+  assert.equal(unload.defaultPrevented, true);
+  assert.equal(ui.doc.markdown, 'New edits after approval');
+});
 
 test('the editor always opens without modifying original Markdown and exposes Controls-style dirty actions', async (t) => {
   const ui = await setup(); t.after(() => ui.doc.destroy());
