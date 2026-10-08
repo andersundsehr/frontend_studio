@@ -88,7 +88,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame('missing', $result['status'], $result['message']);
             self::assertStringEndsWith('WrappedCard.html-snapshots/html-Default@preview@de.snapshot.html', $result['path']);
             self::assertStringContainsString('<section class="wrapper-example">', $result['expected']);
-            self::assertStringContainsString('<article>Wrapped preview', $result['expected']);
+            self::assertStringContainsString("<article>\n    Wrapped preview\n  </article>", $result['expected']);
             self::assertSame($result['expected'], file_get_contents($result['path']));
             self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'de')['status']);
             file_put_contents($result['path'], "changed\n");
@@ -147,6 +147,10 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             [
                 'text before inline tag' => ['<p>Hello<strong>world</strong></p>', '<p>Hello <strong>world</strong></p>'],
                 'adjacent inline tags' => ['<strong>Hello</strong><em>world</em>', '<strong>Hello</strong> <em>world</em>'],
+                'leading paragraph space' => ['<p>Hello</p>', '<p> Hello</p>'],
+                'trailing paragraph space' => ['<p>Hello</p>', '<p>Hello </p>'],
+                'leading container space' => ['<div>Hello</div>', '<div> Hello</div>'],
+                'trailing container space' => ['<div>Hello</div>', '<div>Hello </div>'],
             ] as $name => [$withoutSpace, $withSpace]
         ) {
             yield $name . ' adds whitespace' => [$withoutSpace, $withSpace];
@@ -309,7 +313,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $formatter = new HtmlFormatter();
             $first = $formatter->format($renderer->render('site:wrappedCard:Default', 'preview', 'en', $date));
             $second = $formatter->format($renderer->render('site:wrappedCard:Default', 'preview', 'en', SamplingClock::advance($date)));
-            self::assertStringContainsString("<p>Current\n", $first);
+            self::assertStringContainsString('<p>Current</p>', $first);
             self::assertStringContainsString("Changed\n", $second);
             self::assertStringContainsString('<br>', $second);
             $baseline = $baselineMatchesFirst ? $first : $second;

@@ -95,10 +95,9 @@ with line numbers for the saved snapshot and current output:
 WARNING (MISMATCH) c:element.text:Default: Rendered HTML differs from the saved baseline.
   packages/content_element_text/Components/Element/Text/Text.fluid.html-snapshots/html-Default@main@en-us.snapshot.html
   snapshot | actual
-  1 | 1  <div>
-- 2 | -    <p>Hello world
-+ - | 2    <p>Hello TYPO3
-  3 | 3    </p>
+  2 | 2  <div>
+- 3 | -    <p>Hello world</p>
++ - | 3    <p>Hello TYPO3</p>
   4 | 4  </div>
 ```
 
@@ -172,20 +171,25 @@ Different templates, variants, sites and languages therefore keep independent ba
 An update changes only the selected site, language and scope.
 
 Generated HTML uses two spaces per nesting level, with aligned closing tags.
-Opening and closing tags start on separate lines, including inline tags such as
-`span`, `strong` and `em`. Opening tags longer than 80 characters put every attribute
-on its own indented line. The CLI diff keeps this indentation:
+Layout containers such as `div`, `section` and `footer` put their text and child elements
+on separate indented lines. Text elements such as `p`, headings, `span`, `strong` and `em`
+only break at boundaries where the original HTML already contains whitespace.
+This applies before text, before a closing tag and between inline elements:
+`<p>Content</p>` stays together, while `<p> Content </p>` can use separate lines.
+Spaces, tabs and line breaks allow a break; `&nbsp;` stays literal.
+List items, table cells, SVG text and unknown/custom elements also preserve touching text boundaries.
+Opening tags longer than 80 characters put every attribute on its own indented line.
+The CLI diff keeps this indentation:
 
 ```html
 <!-- frontend-studio:snapshot-format:1 -->
 <div class="card">
   <section>
-    <h2>Title
-    </h2>
+    Before
+    <h2>Title</h2>
     <p>Hello
-      <strong> world
-      </strong>!
-    </p>
+      <strong>world</strong>!</p>
+    After
   </section>
 </div>
 ```
@@ -212,16 +216,17 @@ When a value should change without failing the test,
 replace only that value with `{{frontend-studio:dynamic}}`:
 
 ```html
-<div id="card-{{frontend-studio:dynamic}}" class="card">Hello
+<div id="card-{{frontend-studio:dynamic}}" class="card">
+  Hello
 </div>
-<p>Published: {{frontend-studio:dynamic}}; status ready
-</p>
+<p>Published: {{frontend-studio:dynamic}}; status ready</p>
 ```
 
 For an attribute whose entire value is dynamic, use:
 
 ```html
-<div data-token="{{frontend-studio:dynamic}}" class="card">Hello
+<div data-token="{{frontend-studio:dynamic}}" class="card">
+  Hello
 </div>
 ```
 

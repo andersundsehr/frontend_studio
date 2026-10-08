@@ -6,7 +6,7 @@ namespace Andersundsehr\FrontendStudio\Service\Snapshot;
 
 /**
  * @phpstan-type Element array{name: string, end: int}
- * @phpstan-type Whitespace array{tags: array<int, array{before?: string, attributes?: list<string>}>, end?: string}
+ * @phpstan-type Whitespace array{tags: array<int, array{before?: string, after?: string, attributes?: list<string>}>, end?: string}
  */
 final readonly class HtmlFormatter
 {
@@ -21,6 +21,11 @@ final readonly class HtmlFormatter
     private const int LINE_LENGTH = 80;
 
     private const array VOID_ELEMENTS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+
+    // Unknown/custom elements remain text-sensitive because their display is not known.
+    private const array CONTAINER_ELEMENTS = ['html', 'head', 'body', 'div', 'section', 'article', 'aside', 'header', 'footer', 'main', 'nav', 'form', 'fieldset', 'figure', 'details', 'dialog', 'ul', 'ol', 'menu', 'dl', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup', 'svg', 'g', 'svg:svg', 'svg:g'];
+
+    private const array BLOCK_TEXT_ELEMENTS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'dt', 'dd', 'td', 'th', 'figcaption', 'legend', 'pre', 'textarea', 'script', 'style'];
 
     // Quoted angles, comments, CDATA and whitespace-sensitive bodies stay opaque.
     private const string TOKENS = '~<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(script|style|pre|textarea)\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>[\s\S]*?</\1\s*>|</?[a-zA-Z][^<>"\']*(?:(?:"[^"]*"|\'[^\']*\')[^<>"\']*)*>|<![^>]*>|[^<]+|<~i';
@@ -120,6 +125,11 @@ final readonly class HtmlFormatter
                         $ranges[] = ['offset' => $headerLength + $offset + $padding[0][1], 'length' => strlen($padding[0][0])];
                     }
                 }
+
+                if (isset($saved['after'])) {
+                    preg_match('/^[\t \r\n]*/', $tokens[$index + 1] ?? '', $padding);
+                    $ranges[] = ['offset' => $headerLength + $offset + strlen($token), 'length' => strlen($padding[0] ?? ''), 'original' => $saved['after']];
+                }
             }
         }
 
@@ -187,28 +197,50 @@ final readonly class HtmlFormatter
         $depth = 0;
         $output = '';
         $markupIndex = 0;
+        $stack = [-1];
         foreach ($tokens as $index => $token) {
             $closing = preg_match('~^</[\w:-]+\s*>$~', $token) === 1;
             $markup = isset($elements[$index]) || $closing || (str_starts_with($token, '<!') && !str_starts_with($token, '<![CDATA['));
+            $parent = $elements[$stack[count($stack) - 1]]['name'];
             if (!$markup) {
+                // Text starts its own line in containers, or reuses existing whitespace
+                // at text-sensitive boundaries. Literal comparison angles stay text.
+                $previousMarkup = isset($elements[$index - 1]) || preg_match('~^</[\w:-]+\s*>$~', $tokens[$index - 1] ?? '') === 1
+                    || str_starts_with($tokens[$index - 1] ?? '', '<!--');
+                preg_match('/^[\t \r\n]*/', $token, $padding);
+                $original = $padding[0] ?? '';
+                if ($previousMarkup && trim($token, "\t \r\n") !== '' && (in_array($parent, self::CONTAINER_ELEMENTS, true) || $original !== '')) {
+                    $whitespace['tags'][$markupIndex - 1]['after'] = $original;
+                    $token = str_repeat("\n", max(1, preg_match_all('/\r\n|\r|\n/', $original)))
+                        . str_repeat(self::INDENT, $depth) . substr($token, strlen($original));
+                }
+
                 $output .= $token;
                 continue;
             }
 
             if ($closing) {
                 $depth--;
+                array_pop($stack);
             }
 
             $indent = str_repeat(self::INDENT, $depth);
             preg_match('/[\t \r\n]*\z/', $output, $padding);
             $original = $padding[0] ?? '';
-            if (str_contains($original, "\n") || str_contains($original, "\r") || ($output !== '' && trim($output) === '')) {
-                $whitespace['tags'][$markupIndex]['before'] = $original;
+            preg_match('~^</?([\w:-]+)~', $token, $tag);
+            preg_match('~^</([\w:-]+)~', $tokens[$index - 1] ?? '', $previousClosing);
+            $name = strtolower($tag[1] ?? '');
+            $break = $original !== '' || in_array($parent, self::CONTAINER_ELEMENTS, true) || in_array($name, self::CONTAINER_ELEMENTS, true)
+                || (!$closing && (in_array($name, self::BLOCK_TEXT_ELEMENTS, true) || in_array(strtolower($previousClosing[1] ?? ''), self::BLOCK_TEXT_ELEMENTS, true)))
+                || str_starts_with($token, '<!');
+            if ($break) {
+                if ($original !== '') {
+                    $whitespace['tags'][$markupIndex]['before'] = $original;
+                }
+
                 $output = substr($output, 0, strlen($output) - strlen($original));
                 $breaks = preg_match_all('/\r\n|\r|\n/', $original);
                 $output .= str_repeat("\n", max($output !== '' ? 1 : 0, $breaks));
-            } elseif ($output !== '') {
-                $output .= "\n";
             }
 
             $formatted = $this->formatOpeningTag($token, $indent);
@@ -216,10 +248,11 @@ final readonly class HtmlFormatter
                 $whitespace['tags'][$markupIndex]['attributes'] = array_column($this->attributeGaps($opening[2]), 'value');
             }
 
-            $output .= $indent . $formatted;
+            $output .= ($break || $output === '' ? $indent : '') . $formatted;
             $markupIndex++;
             if (isset($elements[$index]) && $elements[$index]['end'] > $index) {
                 $depth++;
+                $stack[] = $index;
             }
         }
 

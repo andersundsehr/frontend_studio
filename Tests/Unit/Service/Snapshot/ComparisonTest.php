@@ -146,6 +146,17 @@ final class ComparisonTest extends TestCase
     public static function inlineWhitespace(): iterable
     {
         foreach ([' ', "\n", "\r\n", "\t\n\r\n  "] as $whitespace) {
+            foreach (['p', 'div'] as $tag) {
+                yield $tag . ' leading whitespace ' . json_encode($whitespace) => [
+                    '<' . $tag . '>Hello</' . $tag . '>', '<' . $tag . '> Hello</' . $tag . '>',
+                    '<' . $tag . '>' . $whitespace . 'Hello</' . $tag . '>',
+                ];
+                yield $tag . ' trailing whitespace ' . json_encode($whitespace) => [
+                    '<' . $tag . '>Hello</' . $tag . '>', '<' . $tag . '>Hello </' . $tag . '>',
+                    '<' . $tag . '>Hello' . $whitespace . '</' . $tag . '>',
+                ];
+            }
+
             yield 'before opening inline tag ' . json_encode($whitespace) => [
                 '<p>Hello<strong>world</strong></p>', '<p>Hello <strong>world</strong></p>',
                 '<p>Hello' . $whitespace . '<strong>world</strong></p>',
@@ -277,15 +288,16 @@ final class ComparisonTest extends TestCase
     {
         $html = '<span title="a > b"> text </span><script>if (x < 1) { x = "<b>"; }</script><pre>  a\nb </pre><!-- <i> -->';
         $formatted = new HtmlFormatter()->format($html);
-        self::assertSame(HtmlFormatter::HEADER . '<span title="a > b"> text ' . "\n</span>\n"
+        self::assertSame(HtmlFormatter::HEADER . '<span title="a > b">' . "\n  text\n</span>\n"
             . '<script>if (x < 1) { x = "<b>"; }</script>' . "\n"
-            . '<pre>  a\\nb </pre>' . "\n<!-- <i> -->\n", $formatted);
+            . '<pre>  a\\nb </pre>' . "\n<!-- <i> -->\n", preg_replace('~<!-- frontend-studio:snapshot-whitespace:[A-Za-z0-9+/=]+ -->\n$~', '', $formatted));
+        self::assertSame($html, new HtmlFormatter()->original($formatted));
     }
 
     public function testLongStartTagsSplitEveryAttribute(): void
     {
         $value = str_repeat('x', 70);
-        self::assertStringStartsWith(HtmlFormatter::HEADER . '<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi\n</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
+        self::assertStringStartsWith(HtmlFormatter::HEADER . '<span' . "\n  " . 'title="' . $value . '"' . "\n  disabled\n>hi</span>\n", new HtmlFormatter()->format('<span title="' . $value . '" disabled>hi</span>'));
     }
 
     public function testLongRawTextOpeningTagFormatsWithoutChangingItsContents(): void

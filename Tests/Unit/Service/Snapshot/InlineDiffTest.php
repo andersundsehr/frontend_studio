@@ -41,8 +41,42 @@ final class InlineDiffTest extends TestCase
     /** @return iterable<string, array{string, string}> */
     public static function inlineWhitespaceChanges(): iterable
     {
+        yield 'leading paragraph space' => ['<p>Hello</p>', '<p> Hello</p>'];
+        yield 'trailing paragraph space' => ['<p>Hello</p>', '<p>Hello </p>'];
+        yield 'leading container space' => ['<div>Hello</div>', '<div> Hello</div>'];
+        yield 'trailing container space' => ['<div>Hello</div>', '<div>Hello </div>'];
         yield 'text before inline tag' => ['<p>Hello<strong>world</strong></p>', '<p>Hello <strong>world</strong></p>'];
         yield 'adjacent inline elements' => ['<strong>Hello</strong><em>world</em>', '<strong>Hello</strong> <em>world</em>'];
+    }
+
+    #[DataProvider('textLineNumbers')]
+    public function testFormattedTextKeepsPhysicalDiffLineNumbers(string $before, string $after, int $expectedLine, int $actualLine): void
+    {
+        $formatter = new HtmlFormatter();
+        $expected = $formatter->format($before);
+        $actual = $formatter->format($after);
+        self::assertStringContainsString('old', explode("\n", $expected)[$expectedLine - 1]);
+        self::assertStringContainsString('new', explode("\n", $actual)[$actualLine - 1]);
+        $plain = new OutputFormatter()->format(new InlineDiff()->render($expected, $actual));
+        self::assertNotNull($plain);
+        self::assertMatchesRegularExpression('/^- ' . $expectedLine . ' \\| - .*old/m', $plain);
+        self::assertMatchesRegularExpression('/^\\+ - \\| ' . $actualLine . ' .*new/m', $plain);
+        self::assertStringNotContainsString('snapshot-whitespace', $plain);
+        self::assertStringNotContainsString('snapshot-format', $plain);
+    }
+
+    /** @return iterable<string, array{string, string, int, int}> */
+    public static function textLineNumbers(): iterable
+    {
+        yield 'container text' => ['<div>old</div>', '<div>new</div>', 3, 3];
+        yield 'paragraph with no spaces' => ['<p>old</p>', '<p>new</p>', 2, 2];
+        yield 'paragraph with a leading space' => ['<p> old</p>', '<p> new</p>', 3, 3];
+        yield 'paragraph with a trailing space' => ['<p>old </p>', '<p>new </p>', 2, 2];
+        yield 'added leading whitespace changes the text line' => ['<p>old</p>', '<p> new</p>', 2, 3];
+        yield 'removed leading whitespace changes the text line' => ['<p> old</p>', '<p>new</p>', 3, 2];
+        yield 'reused CRLF and tabs' => ["<div>\r\n\told\r\n</div>", "<div>\n  new\n</div>", 3, 3];
+        $value = str_repeat('x', 90);
+        yield 'container with multiline attributes' => ['<div title="' . $value . '">old</div>', '<div title="' . $value . '">new</div>', 5, 5];
     }
 
     public function testFormattedDiffIgnoresWhitespaceRunLengthAndLayout(): void
