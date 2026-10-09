@@ -1,0 +1,4 @@
+"be_users"
+,"uid","pid","username","admin","disable","userMods"
+,2,0,"snapshot-developer",0,0,"admin_frontendstudio"
+,3,0,"snapshot-without-module-access",0,0,""
