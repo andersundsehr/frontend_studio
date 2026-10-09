@@ -192,8 +192,8 @@ Options:
 
     -p <8.4|8.5>
         Specifies the PHP minor version to be used
-            - 8.4: use PHP 8.4 (default)
-            - 8.5: use PHP 8.5
+            - 8.4: use PHP 8.4
+            - 8.5: use PHP 8.5 (default)
 
         JavaScript suites use Node.js ${NODE_VERSION} in pinned Debian Bookworm containers.
         Browser tests use a cached Chromium image built from the same Node.js version.
@@ -245,7 +245,7 @@ TEST_SUITE="cgl"
 DATABASE_DRIVER=""
 DBMS="sqlite"
 DBMS_VERSION=""
-PHP_VERSION="8.4"
+PHP_VERSION="8.5"
 NODE_VERSION="24.19.0"
 PHP_XDEBUG_ON=0
 PHP_XDEBUG_PORT=9003
