@@ -27,6 +27,8 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
       - uses: actions/checkout@v6
+      # CI-only alias until TYPO3 accepts the security-fixed svg-sanitize ^1.0.
+      - run: composer require "enshrined/svg-sanitize:1.0.0 as 0.22.99" --dev --no-update --sort-packages --no-interaction
       - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }}
       - run: ./vendor/bin/grumphp run --ansi
 
@@ -44,6 +46,8 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
       - uses: actions/checkout@v6
+      # CI-only alias until TYPO3 accepts the security-fixed svg-sanitize ^1.0.
+      - run: composer require "enshrined/svg-sanitize:1.0.0 as 0.22.99" --dev --no-update --sort-packages --no-interaction
       - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }}
       - run: CI=true ./Build/Scripts/runTests.sh -p ${{ matrix.php }} -s unit
 
@@ -60,6 +64,8 @@ jobs:
         with:
           php-version: '8.5'
       - uses: actions/checkout@v6
+      # CI-only alias until TYPO3 accepts the security-fixed svg-sanitize ^1.0.
+      - run: composer require "enshrined/svg-sanitize:1.0.0 as 0.22.99" --dev --no-update --sort-packages --no-interaction
       - run: composer update --with typo3/cms-core:^14
       - run: CI=true ./Build/Scripts/runTests.sh -b docker -p 8.5 -s functional -d ${{ matrix.database }}
 
