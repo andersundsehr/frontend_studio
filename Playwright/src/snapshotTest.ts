@@ -51,7 +51,14 @@ function getSettings(inputSettings: SnapshotTestSettings): Settings {
   } satisfies Settings;
 }
 
-// Playwright shares the project settings with every later test in the worker, so callers restore the returned template.
+/**
+ * Sets the snapshot path template of the current Playwright project.
+ *
+ * Playwright shares the project settings with every later test in the worker,
+ * so callers restore the returned template once their snapshots are checked.
+ *
+ * @returns The previous snapshot path template.
+ */
 function setSnapshotPathTemplate(snapshotPathTemplate: string | undefined): string | undefined {
   const project = (test.info() as unknown as { _projectInternal: { snapshotPathTemplate?: string } })._projectInternal;
   const previousSnapshotPathTemplate = project.snapshotPathTemplate;
