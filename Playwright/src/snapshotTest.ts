@@ -55,7 +55,8 @@ function getSettings(inputSettings: SnapshotTestSettings): Settings {
  * Sets the snapshot path template of the current Playwright project.
  *
  * Playwright shares the project settings with every later test in the worker,
- * so callers restore the returned template once their snapshots are checked.
+ * so callers restore the returned template once their snapshots, ignore files
+ * and accessibility reports are resolved.
  *
  * @returns The previous snapshot path template.
  */
@@ -81,13 +82,13 @@ export async function snapshotTest(page: Page, variant: SnapshotTestSettings) {
   try {
     await expect(page.locator(settings.selector)).toMatchAriaSnapshot();
     await expect(page.locator(settings.selector)).toHaveScreenshot();
+
+    await logging.assertEmpty();
+
+    await page.clock.resume();
+
+    await checkAccessibility(page, settings.selector, settings.accessibilityTags, settings.axeFolder);
   } finally {
     setSnapshotPathTemplate(previousSnapshotPathTemplate);
   }
-
-  await logging.assertEmpty();
-
-  await page.clock.resume();
-
-  await checkAccessibility(page, settings.selector, settings.accessibilityTags, settings.axeFolder);
 }
