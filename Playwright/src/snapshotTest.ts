@@ -51,10 +51,6 @@ function getSettings(inputSettings: SnapshotTestSettings): Settings {
   } satisfies Settings;
 }
 
-function setSnapshotPathTemplate(snapshotPathTemplate: string) {
-  (test.info() as unknown as { _projectInternal: { snapshotPathTemplate: string } })._projectInternal.snapshotPathTemplate = snapshotPathTemplate;
-}
-
 export async function snapshotTest(page: Page, variant: SnapshotTestSettings) {
   const logging = consoleLogging(page);
   const settings = getSettings(variant);
@@ -66,10 +62,16 @@ export async function snapshotTest(page: Page, variant: SnapshotTestSettings) {
   const response = await page.goto(settings.variant.url);
   expect(response?.status(), 'Expected a 200 response from the Frontend Studio preview endpoint').toBe(200);
 
-  setSnapshotPathTemplate(`${settings.variant.fileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`);
-
-  await expect(page.locator(settings.selector)).toMatchAriaSnapshot();
-  await expect(page.locator(settings.selector)).toHaveScreenshot();
+  // Playwright shares the project settings with every later test in the worker, so restore the template afterwards.
+  const project = (test.info() as unknown as { _projectInternal: { snapshotPathTemplate?: string } })._projectInternal;
+  const previousSnapshotPathTemplate = project.snapshotPathTemplate;
+  project.snapshotPathTemplate = `${settings.variant.fileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`;
+  try {
+    await expect(page.locator(settings.selector)).toMatchAriaSnapshot();
+    await expect(page.locator(settings.selector)).toHaveScreenshot();
+  } finally {
+    project.snapshotPathTemplate = previousSnapshotPathTemplate;
+  }
 
   await logging.assertEmpty();
 
