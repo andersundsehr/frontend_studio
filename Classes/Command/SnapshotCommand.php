@@ -34,7 +34,7 @@ final class SnapshotCommand extends Command
         $this->addArgument('site', InputArgument::OPTIONAL, 'Site identifier (defaults to the backend module selection)')
             ->addArgument('language', InputArgument::OPTIONAL, "Site language hreflang (defaults to the selected site's first enabled language)")
             ->addOption('scope', null, InputOption::VALUE_REQUIRED, 'Variant, component, folder or namespace identifier', '')
-            ->addOption('update', 'u', InputOption::VALUE_NONE, 'Regenerate snapshots in the selected scope outside Production');
+            ->addOption('update', 'u', InputOption::VALUE_NONE, 'Create or update snapshots in the selected scope outside Production');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -70,6 +70,7 @@ final class SnapshotCommand extends Command
                 'missing' => ['WARNING (MISSING)', 'yellow'],
                 'failed' => ['WARNING (MISMATCH)', 'yellow'],
                 'passed' => ['PASSED', 'green'],
+                'created' => ['CREATED', 'yellow'],
                 'updated' => ['UPDATED', 'yellow'],
                 default => ['ERROR', 'red'],
             };
@@ -77,7 +78,7 @@ final class SnapshotCommand extends Command
             $component = $parts[0] . ':' . $parts[1];
             $variant = $parts[2];
             $message = $this->relativeText($result['message']);
-            if (in_array($result['status'], ['missing', 'updated'], true) && str_contains($result['expected'], Comparison::MARKER)) {
+            if (in_array($result['status'], ['created', 'updated'], true) && str_contains($result['expected'], Comparison::MARKER)) {
                 $message .= ' Dynamic markers used.';
             }
 
@@ -100,14 +101,18 @@ final class SnapshotCommand extends Command
             }
         }
 
-        $passed = count(array_filter($results, static fn(array $result): bool => in_array($result['status'], ['passed', 'updated'], true)));
+        $passed = count(array_filter($results, static fn(array $result): bool => in_array($result['status'], ['passed', 'created', 'updated'], true)));
+        $created = count(array_filter($results, static fn(array $result): bool => $result['status'] === 'created'));
         $updated = count(array_filter($results, static fn(array $result): bool => $result['status'] === 'updated'));
-        $color = $passed === count($results) ? 'green' : (array_any($results, static fn(array $result): bool => $result['status'] === 'error') ? 'red' : 'yellow');
-        $summary = $update ? ' snapshots ready (' . $updated . ' updated).' : ' passed.';
+        $color = array_any($results, static fn(array $result): bool => $result['status'] === 'error') ? 'red' : ($passed === count($results) && $created + $updated === 0 ? 'green' : 'yellow');
+        $summary = $update ? ' snapshots ready (' . ($created > 0 ? $created . ' created, ' : '') . $updated . ' updated).' : ' passed.';
         $output->writeln('<fg=' . $color . ';options=bold>' . $passed . '/' . count($results) . $summary . '</>');
-        if (array_any($results, static fn(array $result): bool => $result['status'] === 'failed')) {
-            $output->writeln('<fg=yellow>To accept these changes, rerun this command with --update outside Production.</>');
-            $output->writeln('<fg=yellow>Review and commit the updated snapshot files, then rerun without --update to verify.</>');
+        $missing = array_any($results, static fn(array $result): bool => $result['status'] === 'missing');
+        $mismatches = array_any($results, static fn(array $result): bool => $result['status'] === 'failed');
+        if ($missing || $mismatches) {
+            $action = $missing ? 'create missing snapshots' . ($mismatches ? ' and accept these changes' : '') : 'accept these changes';
+            $output->writeln('<fg=yellow>To ' . $action . ', rerun this command with --update' . ($missing ? ' (-u)' : '') . ' outside Production.</>');
+            $output->writeln('<fg=yellow>Review and commit the ' . ($missing ? 'created or updated' : 'updated') . ' snapshot files, then rerun without --update to verify.</>');
         }
 
         return Runner::exitCode($results);

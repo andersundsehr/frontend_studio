@@ -22,6 +22,12 @@ Extension tests that launch Playwright also belong in `Tests/browser/`.
 Existing tests in `Playwright/src/` stay in place, including legacy extension regressions;
 add new extension regressions in `Tests/browser/`.
 
+Snapshot GUI checks run as part of the root suite.
+`snapshotGui.test.ts` covers snapshot state and diff rendering;
+`snapshot-gui.browser.mjs` exercises the real TYPO3 component tree and failure dialog.
+The snapshot browser test uses pinned TYPO3 14.3.7 JavaScript and CSS,
+so it also runs without installing Composer dependencies.
+
 `componentTreeFiltering.mjs` runs Chromium against the unmodified TYPO3 13.4.35 and 14.3.7
 Tree and TreeToolbar, including each release's Lit, Ajax, debounce and storage implementations.
 It downloads pinned public JavaScript from `TYPO3-CMS/backend` and `TYPO3-CMS/core` on GitHub

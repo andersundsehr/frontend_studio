@@ -6,6 +6,9 @@ namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
 use ReflectionProperty;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
+use Andersundsehr\FrontendStudio\Service\ComponentPreviewRendererInterface;
+use Andersundsehr\FrontendStudio\Service\PreviewTypoScriptContextBuilderInterface;
+use TYPO3\CMS\Core\Page\AssetCollector;
 use Andersundsehr\FrontendStudio\Service\PreviewContextResolver;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Site\Entity\Site;
@@ -25,8 +28,12 @@ use Andersundsehr\FrontendStudio\Service\Snapshot\FrontendRenderer;
 use DateTimeImmutable;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Cache\CacheManager;
+use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
+use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
+use TYPO3\CMS\Backend\Resource\PublicUrlPrefixer as BackendPublicUrlPrefixer;
 use Andersundsehr\FrontendStudio\Service\Snapshot\SamplingClock;
 use Andersundsehr\FrontendStudio\Service\Snapshot\HtmlFormatter;
+use TYPO3\CMS\Core\Core\ApplicationContext;
 
 final class SnapshotRunnerTest extends FunctionalTestCase
 {
@@ -53,12 +60,18 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         self::assertNotFalse($originalSetup);
         $oldRequest = $GLOBALS['TYPO3_REQUEST'] ?? null;
         try {
-            $this->replaceTemplate($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" />'
+            $this->replaceTemplate($template, $originalTemplate . '<f:image src="EXT:frontend_studio/Resources/Public/Image/FrontendStudioDeveloper.png" alt="Developer" width="100" />'
                 . '<core:icon identifier="actions-chevron-down" />');
             file_put_contents($setup, $originalSetup . "\nconfig.absRefPrefix = auto\nconfig.forceAbsoluteUrls = " . (int)$absolute . "\n");
             $html = $this->get(FrontendRenderer::class)->render('site:wrappedCard:Default', $site, $language);
-            self::assertStringContainsString('src="' . $prefix, $html);
+            self::assertStringContainsString('src="' . $prefix . 'typo3temp/assets/_processed_/', $html);
             self::assertStringContainsString('alt="Developer"', $html);
+            $listeners = $this->get(ListenerProvider::class);
+            $listeners->addListener(GeneratePublicUrlForResourceEvent::class, BackendPublicUrlPrefixer::class, 'prefixWithSitePath');
+            $backendDefinition = $listeners->getAllListenerDefinitions()[GeneratePublicUrlForResourceEvent::class][BackendPublicUrlPrefixer::class];
+            $backendHtml = $this->get(FrontendRenderer::class)->render('site:wrappedCard:Default', $site, $language);
+            self::assertSame($html, $backendHtml, 'Backend snapshots must use the same resource URLs as CLI snapshots.');
+            self::assertSame($backendDefinition, $listeners->getAllListenerDefinitions()[GeneratePublicUrlForResourceEvent::class][BackendPublicUrlPrefixer::class]);
             self::assertStringContainsString('href="' . $prefix, $html);
             self::assertStringContainsString('<svg', $html);
             $valueField = $this->get(FrontendRenderer::class)->render('frontend.studio:variant.valueField:Fallback', $site, $language);
@@ -71,6 +84,33 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         }
     }
 
+    public function testBackendResourceUrlListenerIsRestoredAfterRenderingFailure(): void
+    {
+        $listeners = $this->get(ListenerProvider::class);
+        $listeners->addListener(GeneratePublicUrlForResourceEvent::class, BackendPublicUrlPrefixer::class, 'prefixWithSitePath');
+
+        $definitions = $listeners->getAllListenerDefinitions();
+        $renderer = $this->createMock(ComponentPreviewRendererInterface::class);
+        $renderer->method('renderVariant')->willThrowException(new RuntimeException('Rendering failed.'));
+        $frontend = new FrontendRenderer(
+            $this->get(SiteFinder::class),
+            $this->get(PreviewTypoScriptContextBuilderInterface::class),
+            $renderer,
+            $this->get(AssetCollector::class),
+            $this->get(Context::class),
+            $listeners,
+            $this->get(UriBuilder::class),
+        );
+        try {
+            $frontend->render('site:wrappedCard:Default', 'preview', 'en');
+            self::fail('The rendering failure must propagate.');
+        } catch (RuntimeException $runtimeException) {
+            self::assertSame('Rendering failed.', $runtimeException->getMessage());
+        }
+
+        self::assertSame($definitions, $listeners->getAllListenerDefinitions());
+    }
+
     /** @return iterable<string, array{string, string, bool, string}> */
     public static function resourceUrlContexts(): iterable
     {
@@ -79,13 +119,67 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         yield 'absolute site with forced absolute URLs' => ['preview', 'en', true, 'https://preview.test/'];
     }
 
-    public function testCreatesThenComparesRealFixtureAndWrapperWithoutReplacingBaseline(): void
+    #[DataProvider('missingSnapshotContexts')]
+    public function testMissingSnapshotsAreReadOnlyUntilExplicitlyCreated(string $context, bool $readOnly): void
+    {
+        $property = new ReflectionProperty(Environment::class, 'context');
+        $original = Environment::getContext();
+        $path = '';
+        try {
+            $property->setValue(null, new ApplicationContext($context));
+            $runner = $this->get(Runner::class);
+            $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
+            $arguments = ['site' => 'preview', 'language' => 'de', '--scope' => 'site:wrappedCard:Default'];
+            for ($attempt = 0; $attempt < 2; ++$attempt) {
+                $result = $runner->run('site:wrappedCard:Default', 'preview', 'de');
+                $path = $result['path'];
+                self::assertSame('missing', $result['status'], $result['message']);
+                self::assertSame('', $result['expected']);
+                self::assertStringContainsString('Wrapped preview', $result['actual']);
+                self::assertNull($result['exception']);
+                self::assertSame(2, $tester->execute($arguments));
+                self::assertStringContainsString('WARNING (MISSING)', $tester->getDisplay());
+                self::assertStringContainsString(Path::makeRelative($path, Environment::getProjectPath()), $tester->getDisplay());
+                self::assertStringContainsString('To create missing snapshots, rerun this command with --update', $tester->getDisplay());
+                self::assertStringNotContainsString('Dynamic markers used.', $tester->getDisplay());
+                self::assertFileDoesNotExist($path);
+                self::assertDirectoryDoesNotExist(dirname($path));
+            }
+
+            self::assertSame($readOnly ? 1 : 2, $tester->execute([...$arguments, '-u' => true]));
+            if ($readOnly) {
+                self::assertStringContainsString('ERROR', $tester->getDisplay());
+                self::assertFileDoesNotExist($path);
+                self::assertDirectoryDoesNotExist(dirname($path));
+            } else {
+                self::assertStringContainsString('CREATED site:wrappedCard:Default:', $tester->getDisplay());
+                self::assertSame(0, $tester->execute($arguments));
+            }
+        } finally {
+            $property->setValue(null, $original);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string, bool}> */
+    public static function missingSnapshotContexts(): iterable
+    {
+        yield 'Development' => ['Development', false];
+        yield 'Testing' => ['Testing', false];
+        yield 'Production' => ['Production', true];
+        yield 'Production subcontext' => ['Production/Staging', true];
+    }
+
+    public function testExplicitlyCreatesThenComparesRealFixtureAndWrapperWithoutReplacingBaseline(): void
     {
         $runner = $this->get(Runner::class);
         self::assertSame(['site:wrappedCard:Default'], $runner->discover('site:wrappedCard'));
-        $result = $runner->run('site:wrappedCard:Default', 'preview', 'de');
+        $result = $runner->run('site:wrappedCard:Default', 'preview', 'de', true);
         try {
-            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertSame('created', $result['status'], $result['message']);
             self::assertStringEndsWith('WrappedCard.fluid.html-snapshots/html-Default@preview@de.snapshot.html', $result['path']);
             self::assertStringContainsString('<section class="wrapper-example">', $result['expected']);
             self::assertStringContainsString("<article>\n    Wrapped preview\n  </article>", $result['expected']);
@@ -114,8 +208,8 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         try {
             $this->replaceTemplate($template, $original . $before);
             $runner = $this->get(Runner::class);
-            $created = $runner->run('site:wrappedCard:Default', 'preview', 'en');
-            self::assertSame('missing', $created['status'], $created['message']);
+            $created = $runner->run('site:wrappedCard:Default', 'preview', 'en', true);
+            self::assertSame('created', $created['status'], $created['message']);
             self::assertStringStartsWith(HtmlFormatter::HEADER, $created['expected']);
             self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'en')['status']);
             $this->replaceTemplate($template, $original . $after);
@@ -171,6 +265,10 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
             $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard:Default'];
             self::assertSame(2, $tester->execute($arguments));
+            self::assertStringNotContainsString('Dynamic markers used.', $tester->getDisplay());
+            self::assertFileDoesNotExist($path);
+            self::assertSame(2, $tester->execute([...$arguments, '-u' => true]));
+            self::assertStringContainsString('CREATED site:wrappedCard:Default:', $tester->getDisplay());
             self::assertStringContainsString('Dynamic markers used.', $tester->getDisplay());
             $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
             self::assertSame('passed', $result['status'], $result['message']);
@@ -216,8 +314,8 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         try {
             $this->replaceTemplate($template, $original . $before);
             $runner = $this->get(Runner::class);
-            $created = $runner->run('site:wrappedCard:Default', 'preview', 'en');
-            self::assertSame('missing', $created['status'], $created['message']);
+            $created = $runner->run('site:wrappedCard:Default', 'preview', 'en', true);
+            self::assertSame('created', $created['status'], $created['message']);
             $this->replaceTemplate($template, $original . $after);
             $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
             self::assertSame('failed', $result['status'], $result['message']);
@@ -396,8 +494,8 @@ final class SnapshotRunnerTest extends FunctionalTestCase
                 . $original . '<f:image image="{image}" /><f:debug inline="{true}">{uri}</f:debug>{uri}'
                 . '<f:debug inline="{true}">{link}</f:debug><f:link.typolink parameter="{link}" />');
             $runner = $this->get(Runner::class);
-            $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
-            self::assertSame('missing', $result['status'], $result['message']);
+            $result = $runner->run('site:wrappedCard:Default', 'preview', 'en', true);
+            self::assertSame('created', $result['status'], $result['message']);
             self::assertStringContainsString('extbase-debugger-inline', $result['expected']);
             self::assertStringNotContainsString('<style', $result['expected']);
             self::assertStringContainsString('<img', $result['expected']);
@@ -418,9 +516,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $identifiers = $runner->discover('site:snapshotContext');
         self::assertCount(2, $identifiers);
         foreach ($identifiers as $identifier) {
-            $result = $runner->run($identifier, 'preview', 'de');
+            $result = $runner->run($identifier, 'preview', 'de', true);
             try {
-                self::assertSame('missing', $result['status'], $result['message']);
+                self::assertSame('created', $result['status'], $result['message']);
                 self::assertStringContainsString('german-site-context', $result['actual']);
                 if ($identifier === 'site:snapshotContext:Default') {
                     self::assertStringContainsString('<strong>Saved slot', $result['actual']);
@@ -444,9 +542,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $runner = $this->get(Runner::class);
             foreach (['a/b' => 'First', 'a-b' => 'Second'] as $variant => $title) {
                 $identifier = 'site:wrappedCard:' . $variant;
-                $result = $runner->run($identifier, 'preview', 'de');
+                $result = $runner->run($identifier, 'preview', 'de', true);
                 $paths[] = $result['path'];
-                self::assertSame('missing', $result['status'], $result['message']);
+                self::assertSame('created', $result['status'], $result['message']);
                 self::assertStringContainsString($title, $result['expected']);
                 self::assertSame($result['expected'], file_get_contents($result['path']));
                 self::assertSame('passed', $runner->run($identifier, 'preview', 'de')['status']);
@@ -488,10 +586,10 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $contexts = [['preview', 'de'], ['preview', 'en'], ['other', 'en']];
         try {
             foreach ($contexts as [$site, $language]) {
-                $result = $runner->run($identifier, $site, $language);
+                $result = $runner->run($identifier, $site, $language, true);
                 $paths[] = $result['path'];
                 $baselines[] = $result['expected'];
-                self::assertSame('missing', $result['status'], $result['message']);
+                self::assertSame('created', $result['status'], $result['message']);
                 self::assertStringContainsString($language === 'de' ? 'german-site-context' : 'wrong-context', $result['expected']);
                 self::assertSame($result['expected'], file_get_contents($result['path']));
             }
@@ -529,9 +627,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $runner = $this->get(Runner::class);
         $renderer = $this->get(FrontendRenderer::class);
         $identifier = 'frontend.studio:variant.sidebar:Default';
-        $result = $runner->run($identifier, 'preview', 'en');
+        $result = $runner->run($identifier, 'preview', 'en', true);
         try {
-            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertSame('created', $result['status'], $result['message']);
             self::assertSame(4, substr_count($result['expected'], 'token=' . Comparison::MARKER));
             self::assertStringNotContainsString('dummyToken', $result['expected']);
             $cliHtml = $renderer->render($identifier, 'preview', 'en');
@@ -572,9 +670,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $identifiers = $runner->discover('site:text');
         self::assertCount(2, $identifiers);
         foreach ($identifiers as $identifier) {
-            $result = $runner->run($identifier, 'preview', 'en');
+            $result = $runner->run($identifier, 'preview', 'en', true);
             try {
-                self::assertSame('missing', $result['status'], $result['message']);
+                self::assertSame('created', $result['status'], $result['message']);
                 self::assertStringContainsString('<marquee>', $result['actual']);
                 self::assertStringContainsString('id="c50"', $result['actual']);
                 self::assertStringContainsString('Federal Republic of Germany', $result['actual']);
@@ -606,6 +704,12 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame(2, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISSING)', $tester->getDisplay());
             self::assertStringNotContainsString('Stack trace:', $tester->getDisplay());
+            foreach ($paths as $path) {
+                self::assertFileDoesNotExist($path);
+            }
+
+            self::assertSame(2, $tester->execute([...$arguments, '-u' => true]));
+            self::assertSame(2, substr_count($tester->getDisplay(), 'CREATED '));
             foreach ($paths as $path) {
                 self::assertFileExists($path);
                 $html = file_get_contents($path);
@@ -641,7 +745,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/SnapshotContext/SnapshotContext.fluid.html-snapshots/html-Default@' . rawurlencode($site) . '@' . rawurlencode($language) . '.snapshot.html';
         try {
             self::assertSame(2, $tester->execute([...$arguments, '--scope' => 'site:snapshotContext:Default']));
-            self::assertStringContainsString('Created baseline.', $tester->getDisplay());
+            self::assertFileDoesNotExist($path);
+            self::assertSame(2, $tester->execute([...$arguments, '--scope' => 'site:snapshotContext:Default', '-u' => true]));
+            self::assertStringContainsString('Created snapshot.', $tester->getDisplay());
             self::assertSame('passed', $runner->run('site:snapshotContext:Default', $site, $language)['status']);
             self::assertSame(0, $tester->execute([...$arguments, '--scope' => 'site:snapshotContext:Default']));
         } finally {
@@ -714,9 +820,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
 
         $arguments['site'] = 'preview';
         $arguments['language'] = 'en';
-        $result = $runner->run('site:wrappedCard:Default', 'preview', 'en');
+        $result = $runner->run('site:wrappedCard:Default', 'preview', 'en', true);
         try {
-            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertSame('created', $result['status'], $result['message']);
             file_put_contents($result['path'], "changed\n");
             self::assertSame(1, $tester->execute($arguments));
             self::assertStringContainsString('WARNING (MISMATCH)', $tester->getDisplay());
@@ -755,6 +861,11 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertStringContainsString("\033[33;1mWARNING (MISSING)", $output);
             self::assertStringContainsString("\033[36msite:wrappedCard", $output);
             self::assertStringContainsString("\033[35mDefault", $output);
+            self::assertFileDoesNotExist($path);
+            self::assertSame(2, $tester->execute([...$arguments, '-u' => true], ['decorated' => true]));
+            self::assertStringContainsString("\033[33;1mCREATED", $tester->getDisplay());
+            self::assertStringContainsString("\033[33;1m1/1 snapshots ready (1 created, 0 updated).", $tester->getDisplay());
+            self::assertStringNotContainsString('.snapshot.html', $tester->getDisplay());
             $absolutePath = realpath($path);
             self::assertNotFalse($absolutePath);
             self::assertStringContainsString(Path::makeRelative($absolutePath, Environment::getProjectPath()), $output);
@@ -816,9 +927,9 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $paths = [];
         try {
             foreach ([...$runner->discover('site:text'), 'site:wrappedCard:Default'] as $identifier) {
-                $result = $runner->run($identifier, 'preview', 'en');
+                $result = $runner->run($identifier, 'preview', 'en', true);
                 $paths[] = $result['path'];
-                self::assertSame('missing', $result['status'], $result['message']);
+                self::assertSame('created', $result['status'], $result['message']);
                 file_put_contents($result['path'], "changed\n");
             }
 
@@ -851,8 +962,19 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             self::assertSame($baseline, file_get_contents($paths[0]));
 
             unlink($paths[0]);
+            file_put_contents($paths[1], "changed\n");
+            self::assertSame(3, $tester->execute($arguments));
+            $output = $tester->getDisplay();
+            self::assertSame(1, substr_count($output, 'WARNING (MISSING)'));
+            self::assertSame(1, substr_count($output, 'WARNING (MISMATCH)'));
+            self::assertSame(1, substr_count($output, 'To create missing snapshots and accept these changes'));
+            self::assertGreaterThan(strrpos($output, 'WARNING ('), strpos($output, 'To create missing snapshots'));
+            self::assertFileDoesNotExist($paths[0]);
+            self::assertSame("changed\n", file_get_contents($paths[1]));
             self::assertSame(2, $tester->execute([...$arguments, '--update' => true]));
-            self::assertStringContainsString('2/2 snapshots ready (1 updated).', $tester->getDisplay());
+            self::assertStringContainsString('CREATED ', $tester->getDisplay());
+            self::assertStringContainsString('UPDATED ', $tester->getDisplay());
+            self::assertStringContainsString('2/2 snapshots ready (1 created, 1 updated).', $tester->getDisplay());
             self::assertSame($baseline, file_get_contents($paths[0]));
         } finally {
             foreach ($paths as $path) {

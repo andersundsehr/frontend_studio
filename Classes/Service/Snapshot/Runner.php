@@ -55,7 +55,13 @@ final readonly class Runner
         return $variants;
     }
 
-    /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null} */
+    /**
+     * An error status also means an update failed. GUI callers must keep their
+     * previous comparison and show this error separately so its diff remains
+     * reviewable and the update can be retried.
+     *
+     * @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null}
+     */
     public function run(string $identifier, string $site, string $language, bool $update = false): array
     {
         $path = '';
@@ -82,7 +88,11 @@ final readonly class Runner
             $second = $this->formatter->format($this->renderer->render($identifier, $site, $language, $secondDate));
             if ($update) {
                 $expected = $this->comparison->create($actual, $second);
-                if ($baseline !== $expected) {
+                if ($baseline === null) {
+                    $this->storage->create($path, $expected);
+                    $status = 'created';
+                    $message = 'Created snapshot. Review and commit it before rerunning.';
+                } elseif ($baseline !== $expected) {
                     $this->storage->update($path, $expected);
                     $status = 'updated';
                     $message = 'Updated snapshot. Review and commit the changes.';
@@ -91,14 +101,8 @@ final readonly class Runner
                     $message = '';
                 }
             } elseif ($baseline === null) {
-                $expected = $this->comparison->create($actual, $second);
-                $message = 'Missing baseline; creation blocked in Production.';
-                if (!$this->writePolicy->isReadOnly()) {
-                    $this->storage->create($path, $expected);
-                    $message = 'Created baseline. Review and commit it before rerunning.';
-                }
-
                 $status = 'missing';
+                $message = 'Snapshot is missing. Create it explicitly outside Production.';
             } elseif ($this->comparison->matches($baseline, $actual) && $this->comparison->matches($baseline, $second)) {
                 $status = 'passed';
                 $message = '';
@@ -127,7 +131,7 @@ final readonly class Runner
         foreach ($results as $result) {
             $code |= match ($result['status']) {
                 'passed' => 0,
-                'missing', 'updated' => 2,
+                'missing', 'created', 'updated' => 2,
                 default => 1,
             };
         }
