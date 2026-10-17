@@ -20,13 +20,16 @@ final class ConfigurationModuleTransformer
         string $empty = '',
         int $count = 5,
         float $ratio = 1.5,
-        TypolinkTargetEnum $target = TypolinkTargetEnum::_blank,
+        TypolinkTargetEnum $target = TypolinkTargetEnum::none,
         array $options = [
             'enabled' => true,
             'disabled' => false,
             'nullable' => null,
             'empty' => '',
-            'nested' => ['values' => [true, false, null, '', 0, 1.5, 'value', TypolinkTargetEnum::_blank], 'emptyArray' => []],
+            'nested' => [
+                'values' => [true, false, null, '', 0, 1.5, 'value', TypolinkTargetEnum::_blank, TypolinkTargetEnum::none],
+                'emptyArray' => [],
+            ],
         ],
     ): array {
         return [

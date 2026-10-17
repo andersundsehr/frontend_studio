@@ -8,12 +8,14 @@ use Andersundsehr\FrontendStudio\ConfigurationModuleProvider\TypeTransformersPro
 use Andersundsehr\FrontendStudio\Control\RichText\RichTextProvider;
 use Andersundsehr\FrontendStudio\Tests\Functional\Fixtures\ConfigurationModuleTransformer;
 use Andersundsehr\FrontendStudio\Transformer\Defaults\DefaultTransformer;
+use Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum;
 use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
 use DOMDocument;
 use DOMXPath;
 use ReflectionMethod;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Http\Uri;
+use TYPO3\CMS\Core\LinkHandling\TypolinkParameter;
 use TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\ProviderRegistry;
 use TYPO3\CMS\Lowlevel\Controller\ConfigurationController;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
@@ -42,6 +44,10 @@ final class TypeTransformersProviderTest extends FunctionalTestCase
         self::assertSame(RichTextProvider::class, $configuration['Stringable|string'][0]['handler']);
         self::assertSame('stringable', $configuration['Stringable|string'][0]['method']);
         self::assertSame(200, $configuration['Stringable|string'][0]['priority']);
+        self::assertSame(
+            TypolinkTargetEnum::class . '::none',
+            $configuration[TypolinkParameter::class][0]['arguments']['target']['defaultValue'],
+        );
     }
 
     public function testConfigurationModuleRendersFlagsAndDefaultsUnambiguously(): void
@@ -76,7 +82,7 @@ final class TypeTransformersProviderTest extends FunctionalTestCase
                 'arguments/empty/defaultValue' => "''",
                 'arguments/count/defaultValue' => '5',
                 'arguments/ratio/defaultValue' => '1.5',
-                'arguments/target/defaultValue' => '_blank',
+                'arguments/target/defaultValue' => TypolinkTargetEnum::class . '::none',
                 'arguments/options/defaultValue/enabled' => 'true',
                 'arguments/options/defaultValue/disabled' => 'false',
                 'arguments/options/defaultValue/nullable' => 'null',
@@ -88,7 +94,8 @@ final class TypeTransformersProviderTest extends FunctionalTestCase
                 'arguments/options/defaultValue/nested/values/4' => '0',
                 'arguments/options/defaultValue/nested/values/5' => '1.5',
                 'arguments/options/defaultValue/nested/values/6' => 'value',
-                'arguments/options/defaultValue/nested/values/7' => '_blank',
+                'arguments/options/defaultValue/nested/values/7' => TypolinkTargetEnum::class . '::_blank',
+                'arguments/options/defaultValue/nested/values/8' => TypolinkTargetEnum::class . '::none',
             ];
             foreach ($expectedValues as $path => $expectedValue) {
                 $query = '/html/body/ul/li[span/span[@class="treelist-label"]="array"]/div/ul/li[span/span[@class="treelist-label"]="' . $index . '"]';
@@ -103,5 +110,13 @@ final class TypeTransformersProviderTest extends FunctionalTestCase
                 self::assertSame($expectedValue, $xpath->evaluate('string(' . $query . ')'), $path);
             }
         }
+
+        self::assertSame(
+            TypolinkTargetEnum::class . '::none',
+            $xpath->evaluate('string(//li[span/span[@class="treelist-label"]="' . TypolinkParameter::class . '"]'
+                . '//li[span/span[@class="treelist-label"]="target"]'
+                . '//li[span/span[@class="treelist-label"]="defaultValue"]/span/span[@class="treelist-value"])'),
+        );
+        self::assertSame(TypolinkTargetEnum::none, $registry->get(TypolinkParameter::class)->arguments['target']->getDefaultValue());
     }
 }

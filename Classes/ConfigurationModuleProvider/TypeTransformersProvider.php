@@ -9,6 +9,7 @@ use Andersundsehr\FrontendStudio\Transformer\TypeTransformers;
 use Psr\Container\ContainerInterface;
 use ReflectionMethod;
 use TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\AbstractProvider;
+use UnitEnum;
 
 final class TypeTransformersProvider extends AbstractProvider
 {
@@ -68,7 +69,7 @@ final class TypeTransformersProvider extends AbstractProvider
                 false => 'false',
                 null => 'null',
                 '' => "''",
-                default => $value,
+                default => $value instanceof UnitEnum ? $value::class . '::' . $value->name : $value,
             };
         });
         return $configuration;

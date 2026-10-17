@@ -64,7 +64,7 @@ final class TypeTransformersProviderTest extends TestCase
             self::assertSame([
                 'value' => ['type' => 'string', 'required' => 'true', 'defaultValue' => '(no default)', 'control' => 'custom.text'],
                 'label' => ['type' => 'string', 'required' => 'false', 'defaultValue' => 'Default'],
-                'target' => ['type' => TypolinkTargetEnum::class, 'required' => 'false', 'defaultValue' => TypolinkTargetEnum::_blank],
+                'target' => ['type' => TypolinkTargetEnum::class, 'required' => 'false', 'defaultValue' => TypolinkTargetEnum::class . '::_blank'],
                 'options' => ['type' => 'array', 'required' => 'false', 'defaultValue' => []],
             ], $registration['arguments']);
             self::assertSame(['service' => stdClass::class], $registration['services']);
@@ -90,13 +90,16 @@ final class TypeTransformersProviderTest extends TestCase
             'empty' => "''",
             'count' => 5,
             'ratio' => 1.5,
-            'target' => TypolinkTargetEnum::_blank,
+            'target' => TypolinkTargetEnum::class . '::none',
             'options' => [
                 'enabled' => 'true',
                 'disabled' => 'false',
                 'nullable' => 'null',
                 'empty' => "''",
-                'nested' => ['values' => ['true', 'false', 'null', "''", 0, 1.5, 'value', TypolinkTargetEnum::_blank], 'emptyArray' => []],
+                'nested' => [
+                    'values' => ['true', 'false', 'null', "''", 0, 1.5, 'value', TypolinkTargetEnum::class . '::_blank', TypolinkTargetEnum::class . '::none'],
+                    'emptyArray' => [],
+                ],
             ],
         ];
         foreach ($expectedDefaults as $name => $expectedDefault) {
@@ -118,7 +121,10 @@ final class TypeTransformersProviderTest extends TestCase
             'disabled' => false,
             'nullable' => null,
             'empty' => '',
-            'nested' => ['values' => [true, false, null, '', 0, 1.5, 'value', TypolinkTargetEnum::_blank], 'emptyArray' => []],
+            'nested' => [
+                'values' => [true, false, null, '', 0, 1.5, 'value', TypolinkTargetEnum::_blank, TypolinkTargetEnum::none],
+                'emptyArray' => [],
+            ],
         ];
         self::assertSame($nativeOptions, $transformer->arguments['options']->getDefaultValue());
         self::assertSame([
@@ -129,7 +135,7 @@ final class TypeTransformersProviderTest extends TestCase
             'empty' => '',
             'count' => 5,
             'ratio' => 1.5,
-            'target' => TypolinkTargetEnum::_blank,
+            'target' => TypolinkTargetEnum::none,
             'options' => $nativeOptions,
         ], $transformer->execute(['value' => 'Example']));
     }
