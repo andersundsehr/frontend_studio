@@ -1,5 +1,6 @@
 <?php
 
+use Andersundsehr\FrontendStudio\ConfigurationModuleProvider\TypeTransformersProvider;
 use Andersundsehr\FrontendStudio\Transformer\Attribute\TypeTransformer;
 use Andersundsehr\FrontendStudio\Control\Attribute\TypeControl;
 use Andersundsehr\FrontendStudio\Control\TypeControls;
@@ -9,8 +10,16 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
+use TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\AbstractProvider;
 
 return static function (ContainerConfigurator $container, ContainerBuilder $containerBuilder): void {
+    if (class_exists(AbstractProvider::class)) {
+        $container->services()->set(TypeTransformersProvider::class)->autowire()->autoconfigure()->tag(
+            'lowlevel.configuration.module.provider',
+            ['identifier' => 'frontendStudioTypeTransformers', 'label' => 'Frontend Studio: Type transformers'],
+        );
+    }
+
     $containerBuilder->registerAttributeForAutoconfiguration(
         TypeControl::class,
         static function (ChildDefinition $definition, TypeControl $attribute, Reflector $reflector): void {
