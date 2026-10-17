@@ -6,3 +6,4 @@ services:
 
   Andersundsehr\FrontendStudio\:
     resource: '../Classes/*'
+    exclude: '../Classes/ConfigurationModuleProvider/*'

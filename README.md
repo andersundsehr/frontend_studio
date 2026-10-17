@@ -279,6 +279,13 @@ final readonly class ComponentTransformer
 
 ### Transformer selection
 
+To inspect the transformers available in your project, open **System → Configuration**
+and select **Frontend Studio: Type transformers** (requires the TYPO3 `lowlevel` extension).
+The list groups all registrations by return type and shows their handler, method,
+priority, inputs, default values, control overrides, and injected service types.
+The `active` flag identifies the selected registration for each exact return type;
+overridden registrations remain visible.
+
 An exact registration for the normalized component argument type is selected immediately, regardless of priority.
 When there is no exact registration, incompatible transformers are excluded and the highest-priority transformer is selected.
 Every member of a transformer return union must be assignable to at least one member of the component argument type.
