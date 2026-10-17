@@ -45,7 +45,7 @@ final class TypeTransformersProvider extends AbstractProvider
                     $arguments[$name] = [
                         'type' => $type,
                         'required' => !$parameter->isOptional(),
-                        'defaultValue' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null,
+                        'defaultValue' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : '(no default)',
                     ];
                     foreach ($parameter->getAttributes(Control::class) as $attribute) {
                         $arguments[$name]['control'] = $attribute->newInstance()->id;
@@ -62,6 +62,15 @@ final class TypeTransformersProvider extends AbstractProvider
         }
 
         ksort($configuration);
+        array_walk_recursive($configuration, static function (mixed &$value): void {
+            $value = match ($value) {
+                true => 'true',
+                false => 'false',
+                null => 'null',
+                '' => "''",
+                default => $value,
+            };
+        });
         return $configuration;
     }
 }
