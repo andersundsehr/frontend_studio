@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Andersundsehr\FrontendStudio\Controller;
 
+use Andersundsehr\FrontendStudio\Service\ComponentMetadataProvider;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use Andersundsehr\FrontendStudio\Service\Snapshot\Runner;
 use Andersundsehr\FrontendStudio\Service\Snapshot\InlineDiff;
@@ -25,6 +26,7 @@ final readonly class SnapshotController
 {
     public function __construct(
         private Runner $runner,
+        private ComponentMetadataProvider $metadata,
         private Context $context,
         private SiteFinder $siteFinder,
         private ExtensionConfiguration $extensionConfiguration,
@@ -65,13 +67,15 @@ final readonly class SnapshotController
                 return new JsonResponse(['success' => false, 'message' => 'Unknown site language.'], 400);
             }
 
-            $identifiers = $this->runner->discover($body['scope']);
             if ($body['operation'] === 'discover') {
-                return new JsonResponse(['success' => true, 'identifiers' => $identifiers, 'catalog' => $this->runner->discover()], 200, ['Cache-Control' => 'no-store']);
+                $identifiers = $this->runner->discover($body['scope']);
+                $catalog = $body['scope'] === '' ? $identifiers : $this->runner->discover();
+                return new JsonResponse(['success' => true, 'identifiers' => $identifiers, 'catalog' => $catalog], 200, ['Cache-Control' => 'no-store']);
             }
 
             // One variant per request bounds server execution and allows progress/cancellation.
-            if (count($identifiers) !== 1 || $identifiers[0] !== $body['scope']) {
+            $metadata = $this->metadata->getComponentMetadataForVariantIdentifier($body['scope']);
+            if ($metadata?->fixture?->selectedVariant === null || $metadata->selectedVariantIdentifier !== $body['scope']) {
                 return new JsonResponse(['success' => false, 'message' => 'Run one catalog variant per request.'], 400);
             }
 

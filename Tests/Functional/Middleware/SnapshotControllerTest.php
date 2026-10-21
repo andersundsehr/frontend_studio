@@ -198,11 +198,61 @@ final class SnapshotControllerTest extends FunctionalTestCase
         }
     }
 
+    #[DataProvider('singleVariantOperations')]
+    public function testSingleVariantOperationsDoNotDiscoverUnrelatedFixtures(string $operation, string $status): void
+    {
+        $this->login();
+        $fixture = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.fixture.yaml';
+        $content = file_get_contents($fixture);
+        self::assertIsString($content);
+        $path = '';
+        try {
+            file_put_contents($fixture, "variants: [\n");
+            $response = $this->dispatch(['operation' => $operation]);
+            self::assertSame(200, $response->getStatusCode(), (string)$response->getBody());
+            $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
+            $path = Environment::getProjectPath() . '/' . $result['path'];
+            self::assertSame($status, $result['status'], $result['message']);
+            self::assertSame(400, $this->dispatch(['operation' => 'discover'])->getStatusCode());
+        } finally {
+            file_put_contents($fixture, $content);
+            if (is_file($path)) {
+                unlink($path);
+                rmdir(dirname($path));
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function singleVariantOperations(): iterable
+    {
+        yield 'run' => ['run', 'missing'];
+        yield 'update' => ['update', 'created'];
+    }
+
     public function testRejectsInvalidIdentifiersContextAndBatchExecution(): void
     {
         $this->login();
         foreach ([['scope' => '../../etc/passwd'], ['scope' => 'site:unknown'], ['site' => 'missing'], ['language' => 'missing'], ['operation' => 'run', 'scope' => 'site:card'], ['operation' => 'update', 'scope' => 'site:card'], ['operation' => 'update', 'scope' => '../../etc/passwd'], ['operation' => 'delete'], ['scope' => []]] as $body) {
             self::assertSame(400, $this->dispatch($body)->getStatusCode());
+        }
+    }
+
+    #[DataProvider('invalidVariantIdentifiers')]
+    public function testSingleVariantOperationsRejectUnknownVariantsAndBatchScopes(string $identifier): void
+    {
+        $this->login();
+        foreach (['run', 'update'] as $operation) {
+            $response = $this->dispatch(['operation' => $operation, 'scope' => $identifier]);
+            self::assertSame(400, $response->getStatusCode(), (string)$response->getBody());
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function invalidVariantIdentifiers(): iterable
+    {
+        foreach (['', 'site:', 'site:card', 'site:nested.', 'unknown:card:Default', 'site:unknown:Default', 'site:card:Unknown', ' site:card:Default ', '../../etc/passwd'] as $identifier) {
+            yield $identifier => [$identifier];
         }
     }
 
