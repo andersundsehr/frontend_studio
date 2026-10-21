@@ -26,6 +26,8 @@ export default class SnapshotTests {
     this.context = { site: '', language: '' };
     this.generation = 0;
     this.results = new Map();
+    this.pending = new Map();
+    this.discovering = null;
     this.catalog = [];
     this.active = false;
     this.completed = 0;
@@ -45,6 +47,8 @@ export default class SnapshotTests {
     this.abort?.abort();
     this.active = false;
     this.results.clear();
+    this.pending.clear();
+    this.discovering = null;
     this.errors.clear();
     this.catalog = [];
     this.completed = this.total = 0;
@@ -53,6 +57,16 @@ export default class SnapshotTests {
 
   identifiers(scope = '', type = '') {
     return this.catalog.filter((identifier) => belongsToScope(identifier, scope, type));
+  }
+
+  progress(scope = '', type = '') {
+    const pending = this.identifiers(scope, type).map((id) => this.pending.get(id));
+    if (pending.includes('running')) return 'running';
+    if (pending.includes('queued') || (this.discovering && (
+      belongsToScope(scope, this.discovering.scope, this.discovering.type)
+      || belongsToScope(this.discovering.scope, scope, type)
+    ))) return 'queued';
+    return null;
   }
 
   status(scope = '', type = '') {
@@ -82,6 +96,7 @@ export default class SnapshotTests {
     this.active = true;
     this.completed = this.total = 0;
     const type = scope.split(':').length > 2 ? 'variant' : (scope.endsWith(':') || scope.endsWith('.') ? '' : 'component');
+    this.discovering = { scope, type };
     for (const id of this.errors.keys()) if (belongsToScope(id, scope, type)) this.errors.delete(id);
     for (const id of this.results.keys()) if (belongsToScope(id, scope, type)) this.results.delete(id);
     const context = { ...this.context };
@@ -92,6 +107,8 @@ export default class SnapshotTests {
       if (generation !== this.generation) return;
       this.catalog = plan.catalog;
       this.total = plan.identifiers.length;
+      this.discovering = null;
+      this.pending = new Map(plan.identifiers.map((id) => [id, 'queued']));
       const catalog = new Set(this.catalog);
       for (const id of this.results.keys()) if (!catalog.has(id)) this.results.delete(id);
       for (const id of plan.identifiers) this.results.delete(id);
@@ -100,6 +117,8 @@ export default class SnapshotTests {
       await Promise.all(Array.from({ length: Math.min(scope === '' ? 3 : 1, plan.identifiers.length) }, async () => {
         for (const identifier of identifiers) {
           if (generation !== this.generation) return;
+          this.pending.set(identifier, 'running');
+          this.changed();
           let result;
           try {
             const payload = await this.request({ ...context, scope: identifier, operation: 'run' }, signal);
@@ -109,6 +128,7 @@ export default class SnapshotTests {
             result = { identifier, status: 'error', message: error?.message || 'Snapshot request failed.', expected: '', actual: '' };
           }
           if (generation !== this.generation) return;
+          this.pending.delete(identifier);
           this.results.set(identifier, result);
           this.completed++;
           this.changed();
@@ -118,6 +138,8 @@ export default class SnapshotTests {
       if (generation === this.generation) this.errors.set(scope, error?.message || 'Snapshot discovery failed.');
     } finally {
       if (generation === this.generation) {
+        this.pending.clear();
+        this.discovering = null;
         this.active = false;
         this.changed();
       }

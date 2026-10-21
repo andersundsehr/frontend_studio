@@ -172,6 +172,49 @@ async function setup(t, version, query = 'component=site%3Acard&site=preview&lan
 }
 
 for (const version of ['13.4.35', '14.3.7']) {
+  test(`TYPO3 ${version}: queued snapshot icons turn blue and rotate only during execution`, async t => {
+    const ui = await setup(t, version);
+    await ui.page.evaluate(() => {
+      const tree = window.container.tree;
+      tree.nodes.filter(node => node.hasChildren).forEach(node => tree.showChildren(node));
+      window.snapshotCalls = [];
+      tree.snapshots.request = body => new Promise(resolve => window.snapshotCalls.push({ body, resolve }));
+    });
+    const row = identifier => ui.page.locator(`[role="treeitem"][data-id="${identifier}"]`);
+    const queued = ui.page.getByRole('img', { name: 'Snapshot tests queued', exact: true });
+    const running = ui.page.getByRole('img', { name: 'Snapshot tests running', exact: true });
+    const release = (index, payload) => ui.page.evaluate(({ index, payload }) => window.snapshotCalls[index].resolve(payload), { index, payload });
+    const identifiers = nodes.filter(node => node.nodeType === 'variant').map(node => node.identifier);
+    await row(component).hover();
+    await row(component).getByRole('button', { name: 'Test Card', exact: true }).click();
+    await expect(queued).toHaveCount(4);
+    assert.equal(await queued.first().evaluate(element => getComputedStyle(element).color), 'rgb(0, 120, 168)');
+    assert.equal(await queued.first().locator('typo3-backend-icon').evaluate(element => getComputedStyle(element).animationName), 'none');
+    await release(0, { catalog: identifiers, identifiers });
+    await expect(running).toHaveCount(3);
+    await expect(row(target).getByRole('img', { name: 'Snapshot tests queued', exact: true })).toBeVisible();
+    const spinning = row(identifiers[0]).locator('.snapshot-running');
+    await expect(spinning).toHaveAttribute('identifier', 'actions-refresh');
+    await expect.poll(() => spinning.evaluate(element => Number(element.getAnimations()[0]?.currentTime ?? 0))).toBeGreaterThan(0);
+    assert.equal(await spinning.evaluate(element => getComputedStyle(element).animationIterationCount), 'infinite');
+    await release(1, { result: { identifier: identifiers[0], status: 'passed' } });
+    await expect(row(identifiers[0]).getByRole('img', { name: 'All tests passed', exact: true })).toBeVisible();
+    await expect(row(target).getByRole('img', { name: 'Snapshot tests running', exact: true })).toBeVisible();
+    await expect(queued).toHaveCount(0);
+    await release(2, { result: { identifier: target, status: 'failed' } });
+    await expect(running).toHaveCount(0);
+    await expect(row(target).getByRole('button', { name: 'Inspect snapshot failures for Mobile:Dark', exact: true })).toBeVisible();
+    await expect(ui.page.getByRole('status')).toHaveText('1/2 passed');
+    await ui.page.getByRole('button', { name: 'Test all', exact: true }).click();
+    await expect(queued).toHaveCount(4);
+    await ui.page.evaluate(() => document.dispatchEvent(new CustomEvent('frontend-studio:component-files-changed')));
+    await expect(queued).toHaveCount(0);
+    await expect(running).toHaveCount(0);
+    await release(3, { catalog: identifiers, identifiers });
+    assert.equal(await ui.page.evaluate(() => window.snapshotCalls.length), 4);
+    await expect(ui.page.getByRole('status')).toHaveText('0/0 passed');
+  });
+
   for (const view of ['overview', 'variant']) {
     test(`TYPO3 ${version}: Test all uses automatic ${view} context without URL parameters and follows changes`, async t => {
       const ui = await setup(t, version, view === 'overview' ? 'component=site%3Acard' : 'componentVariant=site%3Acard%3ADefault');

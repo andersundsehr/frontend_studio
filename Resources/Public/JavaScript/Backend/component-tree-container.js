@@ -88,7 +88,7 @@ class FrontendStudioComponentTree extends Tree {
 
   snapshotActions(node) {
     if (!this.snapshots.enabled || node.identifier.startsWith('NEW')) return '';
-    const status = this.snapshots.status(node.identifier, node.nodeType);
+    const status = this.snapshots.progress(node.identifier, node.nodeType) || this.snapshots.status(node.identifier, node.nodeType);
     return html`
       <button type="button" class="btn btn-default btn-sm btn-icon btn-borderless"
         title=${`Test ${node.name}`} aria-label=${`Test ${node.name}`}
@@ -97,6 +97,11 @@ class FrontendStudioComponentTree extends Tree {
         @dblclick=${(event) => event.stopPropagation()}
         @click=${(event) => { event.preventDefault(); event.stopImmediatePropagation(); this.clearPendingNodeSelection(); this.runSnapshots(node.identifier); }}
       >▶</button>
+      ${['queued', 'running'].includes(status) ? html`<span class="snapshot-status snapshot-progress text-info" role="img"
+        title=${status === 'running' ? 'Snapshot tests running' : 'Snapshot tests queued'}
+        aria-label=${status === 'running' ? 'Snapshot tests running' : 'Snapshot tests queued'}>
+        <typo3-backend-icon identifier="actions-refresh" size="small" class=${status === 'running' ? 'snapshot-running' : ''}></typo3-backend-icon>
+      </span>` : ''}
       ${status === 'passed' ? html`<span class="snapshot-status text-success" role="img" aria-label="All tests passed">✓</span>` : ''}
       ${status === 'failed' ? html`<button type="button" class="snapshot-status btn btn-default btn-sm btn-icon text-danger"
         title="Inspect snapshot failures" aria-label=${`Inspect snapshot failures for ${node.name}`}
@@ -800,6 +805,24 @@ class FrontendStudioComponentTreeContainer extends LitElement {
 
         andersundsehr-frontend-studio-component-tree .node-action > button:not(.snapshot-status) {
           display: none;
+        }
+
+        andersundsehr-frontend-studio-component-tree .snapshot-progress {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          color: var(--typo3-text-color-info, #0078a8);
+        }
+
+        andersundsehr-frontend-studio-component-tree .snapshot-running {
+          display: inline-flex;
+          animation: frontend-studio-snapshot-spin 1s linear infinite;
+        }
+
+        @keyframes frontend-studio-snapshot-spin {
+          to { transform: rotate(360deg); }
         }
 
         andersundsehr-frontend-studio-component-tree .node:hover .node-action > button:not(.snapshot-status):not([hidden]),

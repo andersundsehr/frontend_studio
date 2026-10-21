@@ -84,6 +84,8 @@ Select the preview site and language, then hover over a row to test its saved fi
 with the ▶ button. Use **Test all** to test the complete catalog, including filtered or
 collapsed rows. Unsaved form edits are not used. Each request tests one variant.
 **Test all** runs up to three requests in parallel; the toolbar shows the passed/total count.
+A blue double-arrow icon marks queued tests and rotates while a test is running.
+Components and folders rotate it while any of their variants are running.
 A scope receives a checkmark only after every descendant has passed.
 Missing, created or updated snapshots, errors and mismatches show a red **✕** button that opens the failure details.
 The toolbar's **✕ Results (N)** button shows the number of failures and opens all their details.
@@ -92,6 +94,9 @@ then Tab to its test action and Enter to run it. Green checkmarks and red failur
 Starting another run clears the previous results for that scope immediately,
 including when discovery fails. Partial runs retain results and discovery errors outside their scope;
 **Test all** clears all previous results.
+
+![Queued and running snapshot tests](html-snapshot-running.png)
+
 The popup starts with a colored result summary and site/language cards,
 followed by the available actions. Red identifies mismatches and errors;
 yellow identifies missing, created, updated or unchanged snapshots awaiting verification.
