@@ -825,6 +825,12 @@ class FrontendStudioComponentTreeContainer extends LitElement {
           to { transform: rotate(360deg); }
         }
 
+        @media (prefers-reduced-motion: reduce) {
+          andersundsehr-frontend-studio-component-tree .snapshot-running {
+            animation: none;
+          }
+        }
+
         andersundsehr-frontend-studio-component-tree .node:hover .node-action > button:not(.snapshot-status):not([hidden]),
         andersundsehr-frontend-studio-component-tree .node:focus-within .node-action > button:not(.snapshot-status):not([hidden]) {
           display: inline-flex;

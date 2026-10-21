@@ -29,6 +29,9 @@ export default class SnapshotTests {
     this.pending = new Map();
     this.discovering = null;
     this.catalog = [];
+    this.catalogScopes = new Map();
+    this.cachedCatalog = this.catalog;
+    this.cachedCatalogLength = 0;
     this.active = false;
     this.completed = 0;
     this.total = 0;
@@ -56,7 +59,14 @@ export default class SnapshotTests {
   }
 
   identifiers(scope = '', type = '') {
-    return this.catalog.filter((identifier) => belongsToScope(identifier, scope, type));
+    if (this.cachedCatalog !== this.catalog || this.cachedCatalogLength !== this.catalog.length) {
+      this.cachedCatalog = this.catalog;
+      this.cachedCatalogLength = this.catalog.length;
+      this.catalogScopes.clear();
+    }
+    const key = JSON.stringify([scope, type]);
+    if (!this.catalogScopes.has(key)) this.catalogScopes.set(key, this.catalog.filter((identifier) => belongsToScope(identifier, scope, type)));
+    return this.catalogScopes.get(key);
   }
 
   progress(scope = '', type = '') {

@@ -86,6 +86,7 @@ collapsed rows. Unsaved form edits are not used. Each request tests one variant.
 **Test all** runs up to three requests in parallel; the toolbar shows the passed/total count.
 A blue double-arrow icon marks queued tests and rotates while a test is running.
 Components and folders rotate it while any of their variants are running.
+If you prefer reduced motion, the icons stay still while retaining their running status.
 A scope receives a checkmark only after every descendant has passed.
 Missing, created or updated snapshots, errors and mismatches show a red **✕** button that opens the failure details.
 The toolbar's **✕ Results (N)** button shows the number of failures and opens all their details.

@@ -197,6 +197,12 @@ for (const version of ['13.4.35', '14.3.7']) {
     await expect(spinning).toHaveAttribute('identifier', 'actions-refresh');
     await expect.poll(() => spinning.evaluate(element => Number(element.getAnimations()[0]?.currentTime ?? 0))).toBeGreaterThan(0);
     assert.equal(await spinning.evaluate(element => getComputedStyle(element).animationIterationCount), 'infinite');
+    await ui.page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect.poll(() => spinning.evaluate(element => getComputedStyle(element).animationName)).toBe('none');
+    await expect(row(identifiers[0]).getByRole('img', { name: 'Snapshot tests running', exact: true })).toBeVisible();
+    assert.equal(await spinning.evaluate(element => element.getAnimations().length), 0);
+    await ui.page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect.poll(() => spinning.evaluate(element => getComputedStyle(element).animationName)).toBe('frontend-studio-snapshot-spin');
     await release(1, { result: { identifier: identifiers[0], status: 'passed' } });
     await expect(row(identifiers[0]).getByRole('img', { name: 'All tests passed', exact: true })).toBeVisible();
     await expect(row(target).getByRole('img', { name: 'Snapshot tests running', exact: true })).toBeVisible();
