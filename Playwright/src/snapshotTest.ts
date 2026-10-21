@@ -51,8 +51,20 @@ function getSettings(inputSettings: SnapshotTestSettings): Settings {
   } satisfies Settings;
 }
 
-function setSnapshotPathTemplate(snapshotPathTemplate: string) {
-  (test.info() as unknown as { _projectInternal: { snapshotPathTemplate: string } })._projectInternal.snapshotPathTemplate = snapshotPathTemplate;
+/**
+ * Sets the snapshot path template of the current Playwright project.
+ *
+ * Playwright shares the project settings with every later test in the worker,
+ * so callers restore the returned template once their snapshots, ignore files
+ * and accessibility reports are resolved.
+ *
+ * @returns The previous snapshot path template.
+ */
+function setSnapshotPathTemplate(snapshotPathTemplate: string | undefined): string | undefined {
+  const project = (test.info() as unknown as { _projectInternal: { snapshotPathTemplate?: string } })._projectInternal;
+  const previousSnapshotPathTemplate = project.snapshotPathTemplate;
+  project.snapshotPathTemplate = snapshotPathTemplate;
+  return previousSnapshotPathTemplate;
 }
 
 export async function snapshotTest(page: Page, variant: SnapshotTestSettings) {
@@ -66,14 +78,17 @@ export async function snapshotTest(page: Page, variant: SnapshotTestSettings) {
   const response = await page.goto(settings.variant.url);
   expect(response?.status(), 'Expected a 200 response from the Frontend Studio preview endpoint').toBe(200);
 
-  setSnapshotPathTemplate(`${settings.variant.fileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`);
+  const previousSnapshotPathTemplate = setSnapshotPathTemplate(`${settings.variant.fileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`);
+  try {
+    await expect(page.locator(settings.selector)).toMatchAriaSnapshot();
+    await expect(page.locator(settings.selector)).toHaveScreenshot();
 
-  await expect(page.locator(settings.selector)).toMatchAriaSnapshot();
-  await expect(page.locator(settings.selector)).toHaveScreenshot();
+    await logging.assertEmpty();
 
-  await logging.assertEmpty();
+    await page.clock.resume();
 
-  await page.clock.resume();
-
-  await checkAccessibility(page, settings.selector, settings.accessibilityTags, settings.axeFolder);
+    await checkAccessibility(page, settings.selector, settings.accessibilityTags, settings.axeFolder);
+  } finally {
+    setSnapshotPathTemplate(previousSnapshotPathTemplate);
+  }
 }

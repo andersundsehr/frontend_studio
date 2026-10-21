@@ -49,7 +49,31 @@ final readonly class ComponentMetadataProvider
     ) {
     }
 
+    public function getComponentTemplateForIdentifier(string $identifier): ?ComponentTemplateMetadata
+    {
+        $parts = explode(':', $identifier);
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+            return null;
+        }
+
+        $component = $this->resolveComponent($parts[0], $parts[1]);
+        $resolver = $component['resolverDelegate'] ?? null;
+        return $resolver instanceof ComponentTemplateResolverInterface
+            ? $this->getTemplateMetadata($resolver, $parts[1])
+            : null;
+    }
+
+    public function getComponentMetadataForIdentifier(string $componentIdentifier): ?ComponentMetadata
+    {
+        return $this->getComponentMetadata($componentIdentifier, true);
+    }
+
     public function getComponentMetadataForVariantIdentifier(string $variantIdentifier): ?ComponentMetadata
+    {
+        return $this->getComponentMetadata($variantIdentifier, false);
+    }
+
+    private function getComponentMetadata(string $variantIdentifier, bool $overview): ?ComponentMetadata
     {
         $variantIdentifier = trim($variantIdentifier);
         if ($variantIdentifier === '') {
@@ -57,12 +81,12 @@ final readonly class ComponentMetadataProvider
         }
 
         $identifierParts = explode(':', $variantIdentifier, 3);
-        if (count($identifierParts) !== 3) {
+        if (count($identifierParts) !== ($overview ? 2 : 3)) {
             return null;
         }
 
-        [$namespace, $componentName, $variantName] = $identifierParts;
-        if ($namespace === '' || $componentName === '' || $variantName === '') {
+        [$namespace, $componentName, $variantName] = [...$identifierParts, ''];
+        if ($namespace === '' || $componentName === '' || (!$overview && $variantName === '')) {
             return null;
         }
 
@@ -110,7 +134,7 @@ final readonly class ComponentMetadataProvider
         $fixture = $this->getFixtureMetadata($resolverDelegate, $componentName, $variantName);
         if ($fixture->error !== null) {
             $errors[] = 'Fixture file could not be loaded: ' . $fixture->error;
-        } elseif ($fixture->variants !== [] && $fixture->selectedVariant === null) {
+        } elseif (!$overview && $fixture->variants !== [] && $fixture->selectedVariant === null) {
             $errors[] = 'Selected variant was not found in the fixture file.';
         }
 
@@ -357,6 +381,13 @@ final readonly class ComponentMetadataProvider
             $error = $throwable->getMessage();
         }
 
+        $documentationPath = is_string($absolutePath) ? preg_replace('/(?:\\.fluid)?\\.html$/i', '.md', $absolutePath) : null;
+        $documentationExists = $documentationPath !== null && $documentationPath !== $absolutePath
+            && !is_link($documentationPath) && is_file($documentationPath);
+        $documentationDisplayPath = is_string($absolutePath)
+            ? preg_replace('/(?:\\.fluid)?\\.html$/i', '.md', $this->getExtensionPath($absolutePath) ?? $this->getRelativePath($absolutePath) ?? $absolutePath)
+            : null;
+
         return new ComponentTemplateMetadata(
             $templateName,
             $absolutePath,
@@ -365,6 +396,8 @@ final readonly class ComponentMetadataProvider
             $this->normalizeTemplateRootPaths($templatePaths->getTemplateRootPaths()),
             $content,
             $error,
+            $documentationExists,
+            $documentationDisplayPath,
         );
     }
 

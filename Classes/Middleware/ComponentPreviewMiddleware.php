@@ -279,11 +279,8 @@ html, body {
 body {
     margin: 5px;
 
-    background: linear-gradient(45deg, rgba(0, 0, 0, 0.098) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.098) 75%, rgba(0, 0, 0, 0.098) 0), linear-gradient(45deg, rgba(0, 0, 0, 0.098) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.098) 75%, rgba(0, 0, 0, 0.098) 0), white;
-    background-repeat: repeat, repeat;
-    background-position: 0 0, 5px 5px;
-    background-clip: border-box, border-box;
-    background-size: 10px 10px, 10px 10px;
+    color-scheme: light dark;
+    background: repeating-conic-gradient(light-dark(#fff, #ddd) 0% 25%, light-dark(#fff, #fff) 0% 50%) 0 0 / 10px 10px;
     transition: none;
     transform: scaleX(1) scaleY(1) scaleZ(1);
 }

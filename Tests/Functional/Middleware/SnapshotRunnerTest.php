@@ -51,7 +51,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     public function testRendersImagesAndIconsWithNormalizedFrontendRequest(string $site, string $language, bool $absolute, string $prefix): void
     {
         $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frontend_studio']['showOwnComponents'] = '1';
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $setup = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Configuration/Sets/PreviewTest/setup.typoscript';
         $originalTemplate = file_get_contents($template);
         $originalSetup = file_get_contents($setup);
@@ -125,7 +125,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $result = $runner->run('site:wrappedCard:Default', 'preview', 'de');
         try {
             self::assertSame('missing', $result['status'], $result['message']);
-            self::assertStringEndsWith('WrappedCard.html-snapshots/html-Default@preview@de.snapshot.html', $result['path']);
+            self::assertStringEndsWith('WrappedCard.fluid.html-snapshots/html-Default@preview@de.snapshot.html', $result['path']);
             self::assertStringContainsString('<section class="wrapper-example">', $result['expected']);
             self::assertStringContainsString("<article>\n    Wrapped preview\n  </article>", $result['expected']);
             self::assertSame($result['expected'], file_get_contents($result['path']));
@@ -146,7 +146,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     #[DataProvider('inlineWhitespaceTemplates')]
     public function testInlineWhitespaceChangesFailRunnerAndCliUntilUpdated(string $before, string $after): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
@@ -200,7 +200,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     #[DataProvider('dynamicDateFormats')]
     public function testDateViewHelperCreatesOneInlineMarkerWithStableSurroundingText(string $format): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
@@ -248,7 +248,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     #[DataProvider('changedDynamicTemplates')]
     public function testMismatchDiffMasksDynamicValuesAfterMarkupChanges(string $before, string $after, string $maskedAddition): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
@@ -298,7 +298,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     #[DataProvider('savedDateSnapshots')]
     public function testNormalChecksCompareBothClockSamplesWithoutChangingBaseline(bool $dynamic): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
@@ -340,7 +340,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     #[DataProvider('clockDependentMarkupBaselines')]
     public function testClockDependentMarkupRemainsAMismatchWithTheFailingSample(bool $baselineMatchesFirst): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
@@ -382,7 +382,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
     #[DataProvider('dateClockFormats')]
     public function testDateViewHelperUsesExplicitClockAndRestoresContext(string $format, string $firstDate, string $secondDate): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $context = $this->get(Context::class);
@@ -424,7 +424,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
 
     public function testInlineDebugOutputDoesNotChangeStructureBetweenSamples(): void
     {
-        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html';
+        $template = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html';
         $original = file_get_contents($template);
         self::assertNotFalse($original);
         $path = $template . '-snapshots/html-Default@preview@en.snapshot.html';
@@ -571,7 +571,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $result = $runner->run($identifier, 'preview', 'en');
         try {
             self::assertSame('missing', $result['status'], $result['message']);
-            self::assertSame(3, substr_count($result['expected'], 'token=' . Comparison::MARKER));
+            self::assertSame(4, substr_count($result['expected'], 'token=' . Comparison::MARKER));
             self::assertStringNotContainsString('dummyToken', $result['expected']);
             $cliHtml = $renderer->render($identifier, 'preview', 'en');
             self::assertMatchesRegularExpression('/token=[a-f0-9]{64}/', $cliHtml);
@@ -580,7 +580,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
             $cliDiff = $runner->run($identifier, 'preview', 'en');
             self::assertSame('failed', $cliDiff['status'], $cliDiff['message']);
             self::assertStringNotContainsString('dummyToken', $cliDiff['actual']);
-            self::assertSame(3, substr_count($cliDiff['actual'], 'token=' . Comparison::MARKER));
+            self::assertSame(4, substr_count($cliDiff['actual'], 'token=' . Comparison::MARKER));
 
             $this->importCSVDataSet(__DIR__ . '/../Fixtures/BackendUser.csv');
             $this->setUpBackendUser(1);
@@ -677,7 +677,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $resolver = new PreviewContextResolver($this->get(SiteFinder::class));
         self::assertSame([$site, $language], $resolver->resolve(new ServerRequest('/'), $arguments['site'] ?? null, $arguments['language'] ?? null));
         $tester = new CommandTester(new SnapshotCommand($runner, $resolver));
-        $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/SnapshotContext/SnapshotContext.html-snapshots/html-Default@' . rawurlencode($site) . '@' . rawurlencode($language) . '.snapshot.html';
+        $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/SnapshotContext/SnapshotContext.fluid.html-snapshots/html-Default@' . rawurlencode($site) . '@' . rawurlencode($language) . '.snapshot.html';
         try {
             self::assertSame(2, $tester->execute([...$arguments, '--scope' => 'site:snapshotContext:Default']));
             self::assertStringContainsString('Created baseline.', $tester->getDisplay());
@@ -787,7 +787,7 @@ final class SnapshotRunnerTest extends FunctionalTestCase
         $runner = $this->get(Runner::class);
         $tester = new CommandTester(new SnapshotCommand($runner, new PreviewContextResolver($this->get(SiteFinder::class))));
         $arguments = ['site' => 'preview', 'language' => 'en', '--scope' => 'site:wrappedCard'];
-        $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.html-snapshots/html-Default@preview@en.snapshot.html';
+        $path = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/WrappedCard/WrappedCard.fluid.html-snapshots/html-Default@preview@en.snapshot.html';
         try {
             self::assertSame(2, $tester->execute($arguments, ['decorated' => true]));
             $output = $tester->getDisplay();

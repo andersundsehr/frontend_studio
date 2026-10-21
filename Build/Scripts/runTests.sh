@@ -125,7 +125,7 @@ handleDbmsOptions() {
 loadHelp() {
     # Load help text into $HELP
     read -r -d '' HELP <<EOF
-EXT:examples test runner. Check code styles, lint PHP files and some other details.
+EXT:frontend_studio test runner. Check PHP, JavaScript and generated bundles.
 
 Usage: $0 [options] [file]
 
@@ -141,6 +141,11 @@ Options:
             - composerValidate: "composer validate"
             - functional: PHP functional tests
             - grumphpRun: Run GrumPHP
+            - javascript: Install locked root dependencies, run Playwright and Tests/browser tests and TypeScript checks
+            - unitJavascript: Alias for javascript, following the TYPO3 core suite name
+            - javascriptBuild: Install locked build dependencies and rebuild all three committed JavaScript bundles
+            - javascriptBuildCheck: Clean build and verify all expected bundles are present, tracked and match HEAD
+            - npm: "npm" in the pinned Node.js container with all remaining arguments dispatched
             - phpstan: Run PHPStan
             - unit: PHP unit tests
             - renderDocumentation
@@ -190,6 +195,10 @@ Options:
             - 8.4: use PHP 8.4 (default)
             - 8.5: use PHP 8.5
 
+        JavaScript suites use Node.js ${NODE_VERSION} in pinned Debian Bookworm containers.
+        Browser tests use a cached Chromium image built from the same Node.js version.
+        PHP suites do not install or rebuild JavaScript.
+
     -x
         Only with -s functional|unit
         Send information to host instance for test or system under test break points. This is especially
@@ -217,6 +226,10 @@ Examples:
 
     # Run functional tests on postgres with xdebug, php 8.4 and execute a restricted set of tests
     ./Build/Scripts/runTests.sh -x -p 8.4 -s functional -d postgres -- Tests/Functional/DummyTest.php
+
+    # Test JavaScript and check reproducibility of committed bundles
+    ./Build/Scripts/runTests.sh -s javascript
+    ./Build/Scripts/runTests.sh -s javascriptBuildCheck
 EOF
 }
 
@@ -233,6 +246,7 @@ DATABASE_DRIVER=""
 DBMS="sqlite"
 DBMS_VERSION=""
 PHP_VERSION="8.4"
+NODE_VERSION="24.19.0"
 PHP_XDEBUG_ON=0
 PHP_XDEBUG_PORT=9003
 CGLCHECK_DRY_RUN=0
@@ -314,6 +328,7 @@ handleDbmsOptions
 
 COMPOSER_ROOT_VERSION="13.0.x-dev"
 HOST_UID=$(id -u)
+HOST_GID=$(id -g)
 USERSET=""
 if [ $(uname) != "Darwin" ]; then
     USERSET="--user $HOST_UID"
@@ -358,6 +373,9 @@ IMAGE_MARIADB="docker.io/mariadb:${DBMS_VERSION}"
 IMAGE_MYSQL="docker.io/mysql:${DBMS_VERSION}"
 IMAGE_POSTGRES="docker.io/postgres:${DBMS_VERSION}-alpine"
 IMAGE_DOCS="ghcr.io/typo3-documentation/render-guides:latest"
+# Follow TYPO3 core's separate Node.js and browser-test image conventions.
+IMAGE_NODEJS="docker.io/node:${NODE_VERSION}-bookworm"
+IMAGE_NODEJS_CHROME="frontend-studio-nodejs${NODE_VERSION}-chrome"
 
 # Set $1 to first mass argument, this is the optional test file or test directory to execute
 shift $((OPTIND - 1))
@@ -368,7 +386,7 @@ ${CONTAINER_BIN} network create ${NETWORK} >/dev/null
 
 if [ ${CONTAINER_BIN} = "docker" ]; then
     # docker needs the add-host for xdebug remote debugging. podman has host.container.internal built in
-    CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} --rm --network ${NETWORK} --add-host "${CONTAINER_HOST}:host-gateway" ${USERSET} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"
+    CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} ${CI_PARAMS} --rm --network ${NETWORK} --add-host "${CONTAINER_HOST}:host-gateway" ${USERSET} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"
     CONTAINER_DOCS_PARAMS="${CONTAINER_INTERACTIVE} ${DOCS_PARAMS} --rm --network ${NETWORK} --add-host "${CONTAINER_HOST}:host-gateway" ${USERSET} -v ${ROOT_DIR}:/project"
 else
     # podman
@@ -478,6 +496,43 @@ case ${TEST_SUITE} in
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name grumphp-${SUFFIX} -e COMPOSER_CACHE_DIR=var/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
+    javascript|unitJavascript)
+        # Prepare the browser image once; Docker/Podman caches unchanged layers.
+        ${CONTAINER_BIN} build --build-arg NODE_VERSION=${NODE_VERSION} --tag ${IMAGE_NODEJS_CHROME} \
+            --file ${ROOT_DIR}/Build/Scripts/Dockerfile.NodejsChrome ${ROOT_DIR}/Build/Scripts
+        SUITE_EXIT_CODE=$?
+        if [[ ${SUITE_EXIT_CODE} -eq 0 ]]; then
+            JAVASCRIPT_USER_PARAMS=()
+            if [ "${CONTAINER_BIN}" = "podman" ]; then
+                JAVASCRIPT_USER_PARAMS=(--userns=keep-id)
+            fi
+            COMMAND=(/bin/sh -ec 'npm ci && npm test && npm run typecheck')
+            # Chromium needs writable configuration when the caller's UID has no home in the image.
+            ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} "${JAVASCRIPT_USER_PARAMS[@]}" --user "${HOST_UID}:${HOST_GID}" --name javascript-${SUFFIX} \
+                -e CHROMIUM_PATH=/usr/bin/chromium -e XDG_CONFIG_HOME=/tmp/frontend-studio-config -e XDG_CACHE_HOME=/tmp/frontend-studio-cache \
+                -e npm_config_cache=${ROOT_DIR}/var/.cache/npm ${IMAGE_NODEJS_CHROME} "${COMMAND[@]}"
+            SUITE_EXIT_CODE=$?
+        fi
+        ;;
+    npm)
+        if [ "$#" -eq 0 ]; then
+            echo 'Pass an npm command after --, for example: -s npm -- ci' >&2
+            SUITE_EXIT_CODE=1
+        else
+            COMMAND=(npm "$@")
+            ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name npm-${SUFFIX} -e npm_config_cache=${ROOT_DIR}/var/.cache/npm ${IMAGE_NODEJS} "${COMMAND[@]}"
+            SUITE_EXIT_CODE=$?
+        fi
+        ;;
+    javascriptBuild|javascriptBuildCheck)
+        BUILD_ARGS=()
+        if [ "${TEST_SUITE}" = "javascriptBuildCheck" ]; then
+            BUILD_ARGS=(--check)
+        fi
+        COMMAND=(/bin/sh -ec 'npm ci && npm run build -- "$@"' -- "${BUILD_ARGS[@]}")
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name javascript-build-${SUFFIX} -e npm_config_cache=${ROOT_DIR}/var/.cache/npm ${IMAGE_NODEJS} "${COMMAND[@]}"
+        SUITE_EXIT_CODE=$?
+        ;;
     phpstan)
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name phpstan-${SUFFIX} ${IMAGE_PHP} vendor/bin/phpstan analyse "$@"
         SUITE_EXIT_CODE=$?
@@ -530,8 +585,12 @@ if [[ ${IS_CORE_CI} -eq 1 ]]; then
 else
     echo "Environment: local" >&2
 fi
-echo "PHP: ${PHP_VERSION}" >&2
-echo "TYPO3: ${CORE_VERSION}" >&2
+if [[ ${TEST_SUITE} == javascript* || ${TEST_SUITE} == unitJavascript || ${TEST_SUITE} == npm ]]; then
+    echo "Node.js: ${NODE_VERSION}" >&2
+else
+    echo "PHP: ${PHP_VERSION}" >&2
+    echo "TYPO3: ${CORE_VERSION}" >&2
+fi
 if [[ ${TEST_SUITE} =~ ^functional$ ]]; then
     case "${DBMS}" in
         mariadb|mysql)

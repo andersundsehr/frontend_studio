@@ -44,10 +44,12 @@ final readonly class ComponentChangeEventStream implements SelfEmittableStreamIn
             usleep(250_000);
             $debouncedSnapshot = $this->componentTemplateRootWatcher->createSnapshot();
             $componentIdentifiers = $this->componentTemplateRootWatcher->getChangedComponentIdentifiers($snapshot, $debouncedSnapshot);
+            $documentationComponentIdentifiers = $this->componentTemplateRootWatcher->getChangedDocumentationComponentIdentifiers($snapshot, $debouncedSnapshot);
             $snapshot = $debouncedSnapshot;
 
             $this->sendEvent('component-files-changed', [
                 'componentIdentifiers' => $componentIdentifiers,
+                'documentationComponentIdentifiers' => $documentationComponentIdentifiers,
             ]);
         }
     }

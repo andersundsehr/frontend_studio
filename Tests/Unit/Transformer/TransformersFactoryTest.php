@@ -27,7 +27,7 @@ final class TransformersFactoryTest extends UnitTestCase
 {
     public function testMissingTransformerIncludesStructuredArgumentAndFileDetails(): void
     {
-        $template = __DIR__ . '/../../Functional/Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.html';
+        $template = __DIR__ . '/../../Functional/Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.fluid.html';
         $paths = new TemplatePaths();
         $paths->setTemplatePathAndFilename($template);
 

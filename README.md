@@ -153,6 +153,38 @@ variants:
 
 Use `Save as new` to create another variant.
 
+## Component documentation
+
+Use the **Documentation** inspector tab to write and edit component documentation, then click **Save**.
+Documentation is shared by all variants and saved as Markdown next to the component template:
+`Components/Card/Card.md` documents `Card.html` or `Card.fluid.html`.
+
+Document what another frontend developer needs to use the component:
+
+- Its purpose and when to use it.
+- Usage examples, including how arguments and slots affect the result.
+- Available variants and when to choose each one.
+- Accessibility requirements, expected interactions, and usage limitations.
+
+### Component Docs overview
+
+Selecting a component in the tree opens its Docs overview; selecting an individual variant still opens its inspector.
+The overview shows the shared component Markdown, then the first variant in fixture declaration order with its existing Controls beneath it.
+Outside Production, edit the documentation directly in the overview and save it with **Save**.
+The same documentation is available in each variant's **Documentation** tab; Production displays the rendered text.
+Other variants appear as separate previews with links to their inspectors.
+Live controls affect only the first preview; the remaining examples keep their stored fixture values.
+Long documentation starts collapsed with a fade and an Expand documentation button.
+Short documentation remains fully visible; expanded documentation can be collapsed again.
+Focusing the documentation expands it for editing.
+The overview preserves the current site and language context without showing selectors.
+Controls provide temporary live edits; fixture save and reset actions remain in the variant inspector.
+
+A long first preview can be expanded or collapsed. Preview frames resize when content, images, fonts or layout change;
+when measurement is unavailable, a scrolling frame and variant link remain available.
+Lower previews load lazily. A component without fixtures displays an empty state without creating files.
+Production retains temporary live controls while the existing write restrictions continue to apply.
+
 ## Component Fixtures
 
 Frontend Studio creates and updates fixture files next to component templates.
@@ -246,6 +278,13 @@ final readonly class ComponentTransformer
 ```
 
 ### Transformer selection
+
+To inspect the transformers available in your project, open **System → Configuration**
+and select **Frontend Studio: Type transformers** (requires the TYPO3 `lowlevel` extension).
+The list groups all registrations by return type and shows their handler, method,
+priority, inputs, default values, control overrides, and injected service types.
+The `active` flag identifies the selected registration for each exact return type;
+overridden registrations remain visible.
 
 An exact registration for the normalized component argument type is selected immediately, regardless of priority.
 When there is no exact registration, incompatible transformers are excluded and the highest-priority transformer is selected.
@@ -436,7 +475,12 @@ Run the checks with each supported PHP version (`8.4` and `8.5`); the CI setup c
 ./Build/Scripts/runTests.sh -p 8.5 -s functional -d mysql
 ./Build/Scripts/runTests.sh -p 8.5 -s functional -d mariadb
 ./Build/Scripts/runTests.sh -p 8.5 -s functional -d postgres
+./Build/Scripts/runTests.sh -s javascript
+./Build/Scripts/runTests.sh -s javascriptBuildCheck
 ```
+
+For JavaScript tests and CI checks, see [test placement and commands](Tests/browser/README.md).
+For dependency updates and bundle builds, see [the build guide](Build/InlineDocumentationEditor/README.md).
 
 ## License and Author
 

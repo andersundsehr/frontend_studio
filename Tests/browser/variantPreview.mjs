@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+
 import { chromium } from '@playwright/test';
 
 // Exercise the shipped controls, CSS and ES modules in a real browser. Only the

@@ -1,0 +1,142 @@
+.frontend-studio-documentation { padding: 1rem; }
+.frontend-studio-documentation [hidden] { display: none !important; }
+.frontend-studio-documentation [data-doc-rich] { max-width: 880px; margin-block: 1.5rem; }
+.frontend-studio-documentation [data-doc-status] { margin-block: .5rem; }
+.frontend-studio-documentation [data-doc-status]:empty { display: none; }
+.frontend-studio-documentation [data-doc-file] { display: block; margin-block-start: .5rem; }
+.frontend-studio-documentation [data-doc-actions] { display: flex; align-items: center; gap: .5rem; max-width: 880px; flex-wrap: wrap; opacity: 0; visibility: hidden; }
+.frontend-studio-documentation:is(:hover, :focus-within, .has-editor-focus) [data-doc-actions] { opacity: 1; visibility: visible; }
+.frontend-studio-documentation [data-doc-save-state] { order: 1; flex-basis: 100%; }
+.frontend-studio-inline-editor { position: relative; }
+.frontend-studio-inline-editor .tiptap { outline: none; min-height: 1.6em; }
+.frontend-studio-inline-editor .tiptap:empty::before,
+.frontend-studio-inline-editor .tiptap:has(> p:only-child > br:only-child)::before {
+  content: 'Write component documentation…';
+  position: absolute;
+  color: var(--typo3-text-color-secondary, #656d76);
+  pointer-events: none;
+}
+.frontend-studio-editor-controls {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  gap: .25rem;
+  margin-block-end: .5rem;
+  opacity: 0;
+  visibility: hidden;
+}
+[data-doc-actions] .frontend-studio-editor-controls { margin-block-end: 0; margin-inline-start: auto; opacity: 1; visibility: inherit; }
+.frontend-studio-inline-editor:is(:hover, :focus-within) .frontend-studio-editor-controls {
+  opacity: 1;
+  visibility: visible;
+}
+.frontend-studio-editor-controls button,
+.frontend-studio-editor-bubble button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem .6rem;
+  border: 1px solid var(--typo3-component-border-color, #d8dee4);
+  border-radius: .35rem;
+  color: var(--typo3-text-color-base, #1f2328);
+  background: var(--typo3-surface-container-lowest, #fff);
+  font: inherit;
+  font-size: .8rem;
+  cursor: pointer;
+}
+.frontend-studio-editor-bubble button:disabled { opacity: .4; cursor: default; }
+.frontend-studio-editor-controls button:hover,
+.frontend-studio-editor-bubble button:hover {
+  background: var(--typo3-surface-container-low, #f6f8fa);
+}
+.frontend-studio-editor-controls button[aria-pressed='true'],
+.frontend-studio-editor-bubble button[aria-pressed='true'] {
+  color: var(--typo3-state-primary-color, #fff);
+  background: var(--typo3-state-primary-bg, #5f42a7);
+  border-color: var(--typo3-state-primary-border-color, #4f3591);
+}
+.frontend-studio-editor-controls button:focus-visible,
+.frontend-studio-editor-bubble :is(button, input, select):focus-visible {
+  outline: 2px solid var(--typo3-text-color-link, #0969da);
+  outline-offset: 2px;
+}
+.frontend-studio-editor-bubble {
+  opacity: .5;
+  padding: .35rem;
+  border: 1px solid var(--typo3-component-border-color, #d8dee4);
+  border-radius: .6rem;
+  color: var(--typo3-text-color-base, #1f2328);
+  background: var(--typo3-surface-container-lowest, #fff);
+  box-shadow: 0 4px 16px #0002;
+  font-family: var(--typo3-font-family-base, system-ui, sans-serif);
+  z-index: 10000;
+}
+.frontend-studio-editor-bubble:is(:hover, :focus-within) { opacity: 1; }
+.frontend-studio-editor-dropdown > button { gap: .35rem; }
+.frontend-studio-editor-dropdown > button[aria-label='Text style'] { min-width: 6.6rem; justify-content: space-between; }
+.frontend-studio-editor-menu {
+  position: fixed;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  padding: .35rem;
+  min-width: 13rem;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--typo3-component-border-color, #d8dee4);
+  border-radius: .6rem;
+  color: inherit;
+  background: var(--typo3-surface-container-lowest, #fff);
+  box-shadow: 0 4px 16px #0002;
+}
+.frontend-studio-editor-menu button { justify-content: flex-start; gap: .5rem; border-color: transparent; background: transparent; }
+.frontend-studio-editor-menu button[aria-checked='true'] { color: var(--typo3-state-primary-color, #fff); background: var(--typo3-state-primary-bg, #5f42a7); }
+.frontend-studio-editor-menu button[aria-checked='false'] > svg { visibility: hidden; }
+.frontend-studio-editor-menu button:focus-visible { outline-offset: -2px; background: var(--typo3-surface-container-low, #f6f8fa); }
+.frontend-studio-editor-menu button[aria-checked='true']:focus-visible { background: var(--typo3-state-primary-bg, #5f42a7); }
+.frontend-studio-editor-style-name { flex: 1; text-align: start; }
+.frontend-studio-editor-style-name.is-heading-1 { font-size: 1.2rem; font-weight: 600; }
+.frontend-studio-editor-style-name.is-heading-2 { font-size: 1.05rem; font-weight: 600; }
+.frontend-studio-editor-style-name:is(.is-heading-3, .is-heading-4) { font-weight: 600; }
+.frontend-studio-editor-style-hint { opacity: .65; font-size: .75rem; }
+.frontend-studio-editor-menu-separator { margin: .2rem 0; border-block-start: 1px solid var(--typo3-component-border-color, #d8dee4); }
+.frontend-studio-editor-menu.is-horizontal { flex-direction: row; min-width: 0; }
+.frontend-studio-editor-menu.is-horizontal button[aria-checked='false'] > svg { visibility: visible; }
+.frontend-studio-editor-bubble { position: fixed; display: flex; flex-direction: column; gap: .2rem; box-sizing: border-box; width: max-content; max-width: min(38rem, calc(100vw - 16px)); }
+.frontend-studio-editor-row { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
+.frontend-studio-editor-code-actions { display: flex; gap: inherit; }
+.frontend-studio-editor-bubble [hidden], .frontend-studio-editor-bubble[hidden] { display: none !important; }
+.frontend-studio-editor-link { display: flex; flex-wrap: wrap; gap: .25rem; }
+.frontend-studio-editor-link input { min-width: 8rem; flex: 1; color: inherit; background: inherit; border: 1px solid var(--typo3-component-border-color, #d8dee4); }
+.frontend-studio-editor-source {
+  display: block;
+  width: 100%;
+  min-height: 16rem;
+  field-sizing: content;
+  padding: .75rem;
+  border: 1px solid var(--typo3-component-border-color, #d8dee4);
+  border-radius: .4rem;
+  color: var(--typo3-text-color-base, #1f2328);
+  background: var(--typo3-surface-container-lowest, #fff);
+  font-family: var(--typo3-font-family-monospace, monospace);
+}
+.frontend-studio-editor-warning { color: var(--typo3-text-color-secondary, #656d76); font-size: .875rem; }
+.frontend-studio-code-language-select {
+  position: absolute;
+  inset-inline-end: .5rem;
+  max-width: calc(100% - 1rem);
+  padding: .15rem .35rem;
+  border: 1px solid var(--typo3-component-border-color, #d8dee4);
+  border-radius: .25rem;
+  color: var(--typo3-text-color-base, #1f2328);
+  background: var(--markdown-muted-surface);
+  font: inherit;
+  opacity: 0;
+  visibility: hidden;
+}
+.frontend-studio-code-block:is(:hover, :focus-within, .is-active) .frontend-studio-code-language-select { opacity: 1; visibility: visible; }
+.frontend-studio-code-block:has(select):is(:hover, :focus-within, .is-active) .frontend-studio-code-language-label { visibility: hidden; }
+.frontend-studio-code-language-select:focus-visible { outline: 2px solid var(--typo3-text-color-link, #0969da); outline-offset: 2px; }

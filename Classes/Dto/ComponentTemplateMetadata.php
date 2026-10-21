@@ -17,6 +17,8 @@ final readonly class ComponentTemplateMetadata
         public array $rootPaths,
         public ?string $content,
         public ?string $error,
+        public bool $documentationExists = false,
+        public ?string $documentationPath = null,
     ) {
     }
 }

@@ -73,6 +73,11 @@ class VariantSidebar extends VariantFeature {
       this.persistActiveTab(tabName);
     }
     const panelRoot = this.tabPanels.find((panel) => panel.dataset.frontendStudioVariantTabPanel === tabName);
+    if (panelRoot !== undefined && tabName === 'doc') {
+      const { default: Documentation } = await import('@andersundsehr/frontend-studio/backend/component-documentation.js');
+      if (!this.destroyed && this.activeTab === tabName) this.view.mount(panelRoot, () => new Documentation(panelRoot, this.view));
+      return;
+    }
     if (panelRoot === undefined || !['html', 'usage'].includes(tabName)) {
       return;
     }

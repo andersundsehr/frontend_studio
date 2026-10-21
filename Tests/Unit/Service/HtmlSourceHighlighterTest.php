@@ -12,6 +12,43 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(HtmlSourceHighlighter::class)]
 final class HtmlSourceHighlighterTest extends TestCase
 {
+    /** @param list<array{?string, string}> $tokens */
+    #[DataProvider('sharedTokensDataProvider')]
+    public function testFluidTokensMatchTheSharedJavaScriptFixtures(string $source, array $tokens): void
+    {
+        $highlighter = new HtmlSourceHighlighter();
+        foreach ([$highlighter->highlightFluidUsage($source), $highlighter->highlightFluidTemplate($source)] as $html) {
+            self::assertSame($source, html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            preg_match_all('/<span class="frontend-studio-variant-html-source__([^"]+)">(.*?)<\/span>|(\r?\n)/s', $html, $matches, PREG_SET_ORDER);
+            $actual = [];
+            foreach ($matches as $match) {
+                $token = ($match[1] ?? '') !== '' ? $match[1] : null;
+                $value = $token === null ? ($match[3] ?? '') : html_entity_decode($match[2] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                if ($value === '') {
+                    continue;
+                }
+
+                $last = array_key_last($actual);
+                if ($last !== null && $actual[$last][0] === $token) {
+                    $actual[$last][1] .= $value;
+                } else {
+                    $actual[] = [$token, $value];
+                }
+            }
+
+            self::assertSame($tokens, $actual);
+        }
+    }
+
+    /** @return iterable<string, array{string, list<array{?string, string}>}> */
+    public static function sharedTokensDataProvider(): iterable
+    {
+        $fixtures = json_decode((string)file_get_contents(__DIR__ . '/Fixtures/fluid-highlighting.json'), true, 512, JSON_THROW_ON_ERROR);
+        foreach ($fixtures as $fixture) {
+            yield $fixture['name'] => [$fixture['source'], $fixture['tokens']];
+        }
+    }
+
     #[DataProvider('usageDataProvider')]
     public function testUsageHighlightingPreservesSourceAndEscapesMarkup(string $source): void
     {

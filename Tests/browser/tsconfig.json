@@ -1,0 +1,11 @@
+{
+  "extends": "../../Playwright/tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "include": [
+    "**/*.ts",
+    "../../Playwright/index.ts",
+    "../../Playwright/src/**/*.ts"
+  ]
+}

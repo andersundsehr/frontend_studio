@@ -1,0 +1,134 @@
+.frontend-studio-overview {
+  --overview-description-height: 320px;
+  --overview-border: var(--typo3-component-border-color, #d8dee4);
+  --overview-muted-surface: var(--typo3-surface-container-low, #f6f8fa);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  background: var(--typo3-surface-container-lowest, #fff);
+  overflow-wrap: anywhere;
+}
+
+.frontend-studio-overview-header,
+.frontend-studio-overview [data-overview-description] {
+  max-width: 880px;
+}
+
+.frontend-studio-overview-header {
+  margin-bottom: 2rem;
+}
+
+.frontend-studio-overview .frontend-studio-documentation { max-width: 880px; padding: 0; }
+.frontend-studio-overview [data-doc-rich] { margin: 0; }
+.frontend-studio-overview [data-doc-actions] {
+  top: 0;
+  background: var(--typo3-surface-container-lowest, #fff);
+}
+
+.frontend-studio-overview-header h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.frontend-studio-overview-identifier {
+  margin: 0.5rem 0 0;
+  color: var(--typo3-text-color-secondary, #656d76);
+  font-size: 0.875rem;
+}
+
+.frontend-studio-overview-identifier code {
+  --typo3-text-color-code: currentColor;
+  color: inherit;
+}
+
+.frontend-studio-overview [data-overview-markdown] {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.frontend-studio-overview-example {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--overview-border);
+}
+
+.frontend-studio-overview-example > h2 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.frontend-studio-overview h2 [data-overview-variant-link] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.frontend-studio-overview-frame {
+  padding: clamp(0.7rem, 1.5vw, 1rem);
+  border: 1px solid var(--overview-border);
+  border-radius: 8px;
+  background: repeating-conic-gradient(light-dark(#fff, #ddd) 0% 25%, light-dark(#fff, #fff) 0% 50%) 0 0 / 10px 10px;
+  overflow: hidden;
+}
+
+.frontend-studio-overview-frame.is-first:not(.is-expanded) {
+  max-height: 480px;
+  overflow: auto;
+}
+
+.frontend-studio-overview iframe {
+  display: block;
+  width: 100%;
+  height: 240px;
+  border: 0;
+  background: transparent;
+}
+
+.frontend-studio-overview [data-overview-frame-status]:empty {
+  margin: 0;
+}
+
+.frontend-studio-overview-controls {
+  margin-top: 1rem;
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+  border-radius: 8px;
+  background: var(--overview-muted-surface);
+}
+
+.frontend-studio-overview-controls > h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.frontend-studio-overview-controls .frontend-studio-variant-argument-group {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.frontend-studio-overview img {
+  max-width: 100%;
+  height: auto;
+}
+
+.frontend-studio-overview [hidden] {
+  display: none !important;
+}
+
+.frontend-studio-overview [data-overview-description-content] {
+  display: flow-root;
+}
+
+.frontend-studio-overview [data-overview-description].is-collapsed {
+  max-height: var(--overview-description-height);
+  overflow: hidden;
+  mask-image: linear-gradient(#000 calc(100% - 4rem), transparent);
+}
+
+.frontend-studio-overview-description-toggle {
+  margin-top: 0.75rem;
+}

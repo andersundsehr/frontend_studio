@@ -74,7 +74,7 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   syncSnapshotContext() {
-    const header = Viewport.ContentContainer.get()?.document?.querySelector('[data-frontend-studio-variant-header]');
+    const header = Viewport.ContentContainer.get()?.document?.querySelector('[data-frontend-studio-variant-header], [data-component-overview]');
     this.snapshots.setContext({
       site: header?.dataset.selectedSiteIdentifier || '',
       language: header?.dataset.selectedLanguageHreflang || '',
@@ -516,7 +516,7 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   async waitForRefreshToFinish() {
-    while (this.loading === true || this.currentFilterRequest !== null) {
+    while (this.loading === true || this.currentFilterRequest != null) {
       await new Promise((resolve) => window.setTimeout(resolve, 50));
     }
   }
@@ -631,20 +631,11 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       return;
     }
 
-    if (propagate !== false) {
-      ModuleStateStorage.updateWithTreeIdentifier(componentTreeModuleStateType, node.identifier, node.__treeIdentifier);
-    } else {
+    if (propagate === false) {
       return;
     }
 
-    if (node.nodeType !== 'variant') {
-      const firstChildVariant = this.findFirstChildNodeOfType(node, 'variant');
-
-      if (firstChildVariant !== null) {
-        await this.selectNode(firstChildVariant);
-        return;
-      }
-
+    if (node.nodeType !== 'variant' && node.nodeType !== 'component') {
       const firstChildComponent = this.findFirstChildNodeOfType(node, 'component');
 
       if (firstChildComponent !== null) {
@@ -654,6 +645,10 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       return;
     }
 
+    await this.navigateToNode(node);
+  };
+
+  async navigateToNode(node, navigationApproved = false) {
     const moduleMenu = top.TYPO3.ModuleMenu.App;
     const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
     const currentContentUrl = Viewport.ContentContainer.get()?.location?.href || Viewport.ContentContainer.getUrl();
@@ -661,7 +656,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       ? new URL(currentContentUrl, window.location.origin).searchParams
       : null;
     const contentParameters = {
-      componentVariant: node.identifier,
+      [node.nodeType === 'component' ? 'component' : 'componentVariant']: node.identifier,
     };
     ['site', 'language'].forEach((parameter) => {
       const value = currentQueryParams?.get(parameter);
@@ -670,9 +665,43 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       }
     });
     const contentUrl = createUrl(moduleConfiguration.link, contentParameters);
+    contentUrl.searchParams.delete(node.nodeType === 'component' ? 'componentVariant' : 'component');
 
+    if (!navigationApproved && !top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) {
+      const previousNode = this.getNodeFromCurrentContentUrl()
+        ?? this.getNodeFromStoredState(ModuleStateStorage.current(componentTreeModuleStateType));
+      if (previousNode !== null) {
+        await this.selectNode(previousNode, false);
+      } else {
+        this.tree.resetSelectedNodes();
+      }
+      return;
+    }
+
+    ModuleStateStorage.updateWithTreeIdentifier(componentTreeModuleStateType, node.identifier, node.__treeIdentifier);
     Viewport.ContentContainer.setUrl(contentUrl);
-  };
+  }
+
+  async selectVariant(identifier) {
+    if (!this.tree || !identifier) return;
+    let node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
+    if (!node) {
+      // Confirm before changing the filter; a cancelled Docs link must leave the tree untouched.
+      if (!top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) return;
+      await this.tree.resetFilter();
+      // TYPO3 13's resetFilter() can start a reload without returning its promise.
+      await this.tree.waitForRefreshToFinish();
+      const searchInput = this.toolbar?.querySelector(this.toolbar.settings.searchInput);
+      if (searchInput) searchInput.value = '';
+      node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
+      if (node) {
+        await this.selectNode(node, false);
+        await this.navigateToNode(node, true);
+      }
+      return;
+    }
+    if (node) await this.selectNode(node);
+  }
 
   async selectNode(node, propagate = true) {
     await this.tree.expandNodeParents(node);
@@ -687,7 +716,8 @@ class FrontendStudioComponentTreeContainer extends LitElement {
   getNodeFromCurrentContentUrl() {
     const contentUrl = Viewport.ContentContainer.getUrl();
     const componentVariant = contentUrl !== null
-      ? new URL(contentUrl, window.location.origin).searchParams.get('componentVariant')
+      ? (new URL(contentUrl, window.location.origin).searchParams.get('component')
+        || new URL(contentUrl, window.location.origin).searchParams.get('componentVariant'))
       : null;
 
     if (componentVariant === null || componentVariant === '') {
