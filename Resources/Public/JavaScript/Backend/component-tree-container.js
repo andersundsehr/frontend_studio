@@ -87,7 +87,7 @@ class FrontendStudioComponentTree extends Tree {
   }
 
   snapshotActions(node) {
-    if (!this.snapshots.enabled || node.identifier.startsWith('NEW')) return '';
+    if (!this.snapshots.enabled || node.identifier.startsWith('NEW') || node.testable === false) return '';
     const status = this.snapshots.progress(node.identifier, node.nodeType) || this.snapshots.status(node.identifier, node.nodeType);
     return html`
       <button type="button" class="btn btn-default btn-sm btn-icon btn-borderless"
@@ -102,13 +102,15 @@ class FrontendStudioComponentTree extends Tree {
         aria-label=${status === 'running' ? 'Snapshot tests running' : 'Snapshot tests queued'}>
         <typo3-backend-icon identifier="actions-refresh" size="small" class=${status === 'running' ? 'snapshot-running' : ''}></typo3-backend-icon>
       </span>` : ''}
-      ${status === 'passed' ? html`<span class="snapshot-status text-success" role="img" aria-label="All tests passed">✓</span>` : ''}
+      ${status === 'passed' ? html`<span class="snapshot-status text-success" role="img" aria-label="All tests passed">
+        <typo3-backend-icon identifier="actions-check" size="small"></typo3-backend-icon>
+      </span>` : ''}
       ${status === 'failed' ? html`<button type="button" class="snapshot-status btn btn-default btn-sm btn-icon text-danger"
         title="Inspect snapshot failures" aria-label=${`Inspect snapshot failures for ${node.name}`}
         @keydown=${(event) => event.stopPropagation()}
         @dblclick=${(event) => event.stopPropagation()}
         @click=${(event) => { event.preventDefault(); event.stopImmediatePropagation(); this.clearPendingNodeSelection(); this.snapshots.showFailures(node.identifier, node.nodeType); }}
-      >✕</button>` : ''}
+      ><typo3-backend-icon identifier="actions-close" size="small"></typo3-backend-icon></button>` : ''}
     `;
   }
 
@@ -807,12 +809,18 @@ class FrontendStudioComponentTreeContainer extends LitElement {
           display: none;
         }
 
-        andersundsehr-frontend-studio-component-tree .snapshot-progress {
+        andersundsehr-frontend-studio-component-tree .snapshot-status {
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          box-sizing: border-box;
+          flex: 0 0 24px;
           width: 24px;
           height: 24px;
+          padding: 0;
+        }
+
+        andersundsehr-frontend-studio-component-tree .snapshot-progress {
           color: var(--typo3-text-color-info, #0078a8);
         }
 

@@ -32,7 +32,7 @@ let browser;
 before(async () => { browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) }); });
 after(async () => { await browser?.close(); });
 
-async function setup(t, version, query = 'component=site%3Acard&site=preview&language=de-DE') {
+async function setup(t, version, query = 'component=site%3Acard&site=preview&language=de-DE', treeNodes = nodes) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 850 } });
   page.setDefaultTimeout(15000);
   const errors = [];
@@ -74,7 +74,7 @@ async function setup(t, version, query = 'component=site%3Acard&site=preview&lan
       if (path === '/tree-data' && requests.filter(value => value === path).length > 1) {
         await new Promise(resolve => setTimeout(resolve, 150));
       }
-      return route.fulfill({ json: path === '/tree-filter' ? nodes.filter(node => node.identifier !== target) : nodes });
+      return route.fulfill({ json: path === '/tree-filter' ? treeNodes.filter(node => node.identifier !== target) : treeNodes });
     }
     if (path === '/docs') return route.fulfill({ json: { markdown: '# Card\n\nOriginal documentation\n', revision: 'r1', readOnly: false } });
     if (path === '/snapshots') {
@@ -82,7 +82,7 @@ async function setup(t, version, query = 'component=site%3Acard&site=preview&lan
       const body = request.headers()['content-type']?.includes('application/json') ? request.postDataJSON()
         : Object.fromEntries(await new Response(request.postDataBuffer(), { headers: request.headers() }).formData());
       snapshotRequests.push(body);
-      const identifiers = nodes.filter(node => node.nodeType === 'variant').map(node => node.identifier);
+      const identifiers = treeNodes.filter(node => node.nodeType === 'variant').map(node => node.identifier);
       return route.fulfill({ json: { success: true, ...(body.operation === 'discover' ? { catalog: identifiers, identifiers }
         : { result: { identifier: body.scope, status: 'passed' } }) } });
     }
@@ -172,6 +172,38 @@ async function setup(t, version, query = 'component=site%3Acard&site=preview&lan
 }
 
 for (const version of ['13.4.35', '14.3.7']) {
+  test(`TYPO3 ${version}: only scopes with fixture variants expose snapshot actions`, async t => {
+    const treeNodes = [
+      ...nodes.map(node => ({ ...node, testable: true })),
+      { identifier: 'site:empty.', nodeType: 'folder', name: 'Empty folder', depth: 1, hasChildren: true, testable: false },
+      { identifier: 'site:empty.card', nodeType: 'component', name: 'Empty card', depth: 2, hasChildren: false, testable: false },
+      { identifier: 'empty:', nodeType: 'namespace', name: 'Empty namespace', depth: 0, hasChildren: true, testable: false },
+      { identifier: 'empty:card', nodeType: 'component', name: 'Empty component', depth: 1, hasChildren: false, testable: false },
+    ];
+    const ui = await setup(t, version, undefined, treeNodes);
+    await ui.page.evaluate(() => window.container.tree.nodes.filter(node => node.hasChildren).forEach(node => window.container.tree.showChildren(node)));
+    const row = identifier => ui.page.locator(`[role="treeitem"][data-id="${identifier}"]`);
+    for (const node of treeNodes.filter(node => !node.testable)) {
+      await row(node.identifier).hover();
+      await expect(row(node.identifier).getByRole('button', { name: `Test ${node.name}`, exact: true })).toHaveCount(0);
+    }
+    await row('site:empty.card').hover();
+    await expect(row('site:empty.card').getByRole('button', { name: 'Create variant', exact: true })).toBeVisible();
+    await expect(row('site:empty.card').getByRole('button', { name: 'Download component folder', exact: true })).toBeVisible();
+    await row(component).hover();
+    await expect(row(component).getByRole('button', { name: 'Test Card', exact: true })).toBeEnabled();
+    await row(`${component}:Default`).hover();
+    await expect(row(`${component}:Default`).getByRole('button', { name: 'Test Default', exact: true })).toBeEnabled();
+    assert.equal(ui.snapshotRequests.length, 0);
+    await ui.page.route('https://studio.test/tree-filter?*', route => route.fulfill({ json: treeNodes.filter(node => ['site', 'site:empty.', 'site:empty.card'].includes(node.identifier)) }));
+    await ui.search.fill('Empty');
+    await ui.page.waitForFunction(() => window.container.tree.searchTerm === 'Empty' && !window.container.tree.loading && !window.container.tree.nodes.some(node => node.nodeType === 'variant'));
+    await row('site').hover();
+    await expect(row('site').getByRole('button', { name: 'Test Site', exact: true })).toBeEnabled();
+    await row('site').getByRole('button', { name: 'Test Site', exact: true }).click();
+    await expect(ui.page.getByRole('status')).toHaveText('2/2 passed');
+  });
+
   test(`TYPO3 ${version}: queued snapshot icons turn blue and rotate only during execution`, async t => {
     const ui = await setup(t, version);
     await ui.page.evaluate(() => {
@@ -189,6 +221,7 @@ for (const version of ['13.4.35', '14.3.7']) {
     await row(component).getByRole('button', { name: 'Test Card', exact: true }).click();
     await expect(queued).toHaveCount(4);
     assert.equal(await queued.first().evaluate(element => getComputedStyle(element).color), 'rgb(0, 120, 168)');
+    assert.equal(await queued.first().evaluate(element => element.getBoundingClientRect().width), 24);
     assert.equal(await queued.first().locator('typo3-backend-icon').evaluate(element => getComputedStyle(element).animationName), 'none');
     await release(0, { catalog: identifiers, identifiers });
     await expect(running).toHaveCount(3);
@@ -205,11 +238,15 @@ for (const version of ['13.4.35', '14.3.7']) {
     await expect.poll(() => spinning.evaluate(element => getComputedStyle(element).animationName)).toBe('frontend-studio-snapshot-spin');
     await release(1, { result: { identifier: identifiers[0], status: 'passed' } });
     await expect(row(identifiers[0]).getByRole('img', { name: 'All tests passed', exact: true })).toBeVisible();
+    assert.equal(await row(identifiers[0]).locator('.snapshot-status').evaluate(element => element.getBoundingClientRect().width), 24);
+    await expect(row(identifiers[0]).locator('.snapshot-status typo3-backend-icon')).toHaveAttribute('identifier', 'actions-check');
     await expect(row(target).getByRole('img', { name: 'Snapshot tests running', exact: true })).toBeVisible();
     await expect(queued).toHaveCount(0);
     await release(2, { result: { identifier: target, status: 'failed' } });
     await expect(running).toHaveCount(0);
     await expect(row(target).getByRole('button', { name: 'Inspect snapshot failures for Mobile:Dark', exact: true })).toBeVisible();
+    assert.equal(await row(target).locator('.snapshot-status').evaluate(element => element.getBoundingClientRect().width), 24);
+    await expect(row(target).locator('.snapshot-status typo3-backend-icon')).toHaveAttribute('identifier', 'actions-close');
     await expect(ui.page.getByRole('status')).toHaveText('1/2 passed');
     await ui.page.getByRole('button', { name: 'Test all', exact: true }).click();
     await expect(queued).toHaveCount(4);

@@ -81,7 +81,12 @@ requests, clear **Enable GUI snapshot testing** in **Settings → Extension Conf
 then reload the backend. CLI tests and CI remain available.
 
 Select the preview site and language, then hover over a row to test its saved fixtures
-with the ▶ button. Use **Test all** to test the complete catalog, including filtered or
+with the ▶ button. Rows without fixture variants have no test action.
+Use **Create variant** to add a component's first fixture before testing it.
+
+![A component without fixtures keeps its creation and download actions](html-snapshot-no-fixtures.png)
+
+Use **Test all** to test the complete catalog, including filtered or
 collapsed rows. Unsaved form edits are not used. Each request tests one variant.
 **Test all** runs up to three requests in parallel; the toolbar shows the passed/total count.
 A blue double-arrow icon marks queued tests and rotates while a test is running.

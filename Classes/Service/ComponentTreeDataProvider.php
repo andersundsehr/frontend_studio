@@ -121,6 +121,18 @@ final readonly class ComponentTreeDataProvider
             }
         }
 
+        $ancestors = [];
+        foreach ($nodes as $index => $node) {
+            $ancestors = array_slice($ancestors, 0, (int)$node['depth']);
+            $ancestors[] = $index;
+            $nodes[$index]['testable'] = false;
+            if ($node['nodeType'] === 'variant') {
+                foreach ($ancestors as $ancestor) {
+                    $nodes[$ancestor]['testable'] = true;
+                }
+            }
+        }
+
         return $nodes;
     }
 

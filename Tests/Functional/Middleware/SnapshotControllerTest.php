@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Functional\Middleware;
 
 use Andersundsehr\FrontendStudio\Controller\SnapshotController;
+use Andersundsehr\FrontendStudio\Service\ComponentTreeDataProvider;
 use ReflectionProperty;
 use Symfony\Component\Filesystem\Path;
 use TYPO3\CMS\Backend\Http\RouteDispatcher;
@@ -195,6 +196,29 @@ final class SnapshotControllerTest extends FunctionalTestCase
             $payload = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
             self::assertNotEmpty($payload['identifiers']);
             self::assertContains('site:card:Default', $payload['catalog']);
+        }
+    }
+
+    public function testTreeTestabilityUsesAllFixturesBeforeFiltering(): void
+    {
+        $fixture = __DIR__ . '/../Fixtures/Extensions/preview_site_set/Resources/Private/Components/Nested/Card/Card.fixture.yaml';
+        $content = file_get_contents($fixture);
+        self::assertIsString($content);
+        try {
+            file_put_contents($fixture, "variants: {}\n");
+            $provider = $this->get(ComponentTreeDataProvider::class);
+            $nodes = array_column($provider->getTreeNodes(), null, 'identifier');
+            self::assertFalse($nodes['site:nested.']['testable'] ?? true);
+            self::assertFalse($nodes['site:nested.card']['testable'] ?? true);
+            self::assertTrue($nodes['site:']['testable'] ?? false);
+            self::assertTrue($nodes['site:card']['testable'] ?? false);
+            self::assertTrue($nodes['site:card:Default']['testable'] ?? false);
+            $filtered = array_column($provider->getFilteredTreeNodes('site:nested.card'), null, 'identifier');
+            self::assertArrayNotHasKey('site:card:Default', $filtered);
+            self::assertTrue($filtered['site:']['testable'] ?? false);
+            self::assertFalse($filtered['site:nested.card']['testable'] ?? true);
+        } finally {
+            file_put_contents($fixture, $content);
         }
     }
 
