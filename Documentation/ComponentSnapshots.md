@@ -75,11 +75,11 @@ then reload the backend. CLI tests and CI remain available.
 
 Select the preview site and language, then hover over a row to test its saved fixtures
 with the ▶ button. Use **Test all** to test the complete catalog, including filtered or
-collapsed rows. Unsaved form edits are not used. Requests run one variant at a time;
-the toolbar shows the passed/total count. A scope receives a checkmark only after
-every descendant has passed. Missing/new baselines, errors and mismatches show a
-red **✕** button that opens the failure details. The toolbar's **✕ Results (N)**
-button shows the number of failures and opens all their details.
+collapsed rows. Unsaved form edits are not used. Each request tests one variant.
+**Test all** runs up to three requests in parallel; the toolbar shows the passed/total count.
+A scope receives a checkmark only after every descendant has passed.
+Missing/new baselines, errors and mismatches show a red **✕** button that opens the failure details.
+The toolbar's **✕ Results (N)** button shows the number of failures and opens all their details.
 Row action buttons appear on hover or keyboard focus; use the arrow keys to select a row,
 then Tab to its test action and Enter to run it. Green checkmarks and red failure buttons stay visible.
 Starting another run clears the previous results for that scope immediately,

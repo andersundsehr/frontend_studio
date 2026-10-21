@@ -78,6 +78,7 @@ export default class SnapshotTests {
     if (!this.enabled || this.active) return;
     const generation = ++this.generation;
     this.abort = new AbortController();
+    const signal = this.abort.signal;
     this.active = true;
     this.completed = this.total = 0;
     const type = scope.split(':').length > 2 ? 'variant' : (scope.endsWith(':') || scope.endsWith('.') ? '' : 'component');
@@ -87,7 +88,7 @@ export default class SnapshotTests {
     this.changed();
     try {
       if (!context.site || !context.language) throw new Error('Select a preview site and language before testing.');
-      const plan = await this.request({ ...context, scope, operation: 'discover' }, this.abort.signal);
+      const plan = await this.request({ ...context, scope, operation: 'discover' }, signal);
       if (generation !== this.generation) return;
       this.catalog = plan.catalog;
       this.total = plan.identifiers.length;
@@ -95,20 +96,24 @@ export default class SnapshotTests {
       for (const id of this.results.keys()) if (!catalog.has(id)) this.results.delete(id);
       for (const id of plan.identifiers) this.results.delete(id);
       this.changed();
-      for (const identifier of plan.identifiers) {
-        let result;
-        try {
-          const payload = await this.request({ ...context, scope: identifier, operation: 'run' }, this.abort.signal);
-          result = payload.result;
-          if (!result || result.identifier !== identifier) throw new Error('Invalid snapshot response.');
-        } catch (error) {
-          result = { identifier, status: 'error', message: error?.message || 'Snapshot request failed.', expected: '', actual: '' };
+      const identifiers = plan.identifiers.values();
+      await Promise.all(Array.from({ length: Math.min(scope === '' ? 3 : 1, plan.identifiers.length) }, async () => {
+        for (const identifier of identifiers) {
+          if (generation !== this.generation) return;
+          let result;
+          try {
+            const payload = await this.request({ ...context, scope: identifier, operation: 'run' }, signal);
+            result = payload.result;
+            if (!result || result.identifier !== identifier) throw new Error('Invalid snapshot response.');
+          } catch (error) {
+            result = { identifier, status: 'error', message: error?.message || 'Snapshot request failed.', expected: '', actual: '' };
+          }
+          if (generation !== this.generation) return;
+          this.results.set(identifier, result);
+          this.completed++;
+          this.changed();
         }
-        if (generation !== this.generation) return;
-        this.results.set(identifier, result);
-        this.completed++;
-        this.changed();
-      }
+      }));
     } catch (error) {
       if (generation === this.generation) this.errors.set(scope, error?.message || 'Snapshot discovery failed.');
     } finally {
