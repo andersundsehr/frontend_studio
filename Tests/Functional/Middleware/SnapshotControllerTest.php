@@ -51,8 +51,15 @@ final class SnapshotControllerTest extends FunctionalTestCase
         if (isset($payload['result'])) {
             self::assertNotSame('error', $payload['result']['status'], $payload['result']['message']);
             $path = Environment::getProjectPath() . '/' . $payload['result']['path'];
-            unlink($path);
-            rmdir(dirname($path));
+            if ($operation === 'run') {
+                self::assertSame('missing', $payload['result']['status']);
+                self::assertFileDoesNotExist($path);
+                self::assertDirectoryDoesNotExist(dirname($path));
+            } else {
+                self::assertSame('created', $payload['result']['status']);
+                unlink($path);
+                rmdir(dirname($path));
+            }
         }
     }
 
@@ -107,9 +114,9 @@ final class SnapshotControllerTest extends FunctionalTestCase
 
         $runner = $this->get(Runner::class);
         self::assertContains('site:wrappedCard:Default', $runner->discover());
-        $result = $runner->run('site:wrappedCard:Default', 'preview', 'de');
+        $result = $runner->run('site:wrappedCard:Default', 'preview', 'de', true);
         try {
-            self::assertSame('missing', $result['status'], $result['message']);
+            self::assertSame('created', $result['status'], $result['message']);
             self::assertFileExists($result['path']);
             self::assertSame('passed', $runner->run('site:wrappedCard:Default', 'preview', 'de')['status']);
         } finally {
@@ -126,7 +133,7 @@ final class SnapshotControllerTest extends FunctionalTestCase
         $paths = [];
         try {
             foreach (['en', 'de'] as $language) {
-                $response = $this->dispatch(['operation' => 'run', 'language' => $language]);
+                $response = $this->dispatch(['operation' => 'update', 'language' => $language]);
                 $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
                 $paths[$language] = Environment::getProjectPath() . '/' . $result['path'];
                 file_put_contents($paths[$language], '<p>Old ' . $language . ' snapshot</p>');
@@ -144,7 +151,7 @@ final class SnapshotControllerTest extends FunctionalTestCase
             $response = $this->dispatch(['operation' => 'run']);
             self::assertSame('passed', json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result']['status']);
             $response = $this->dispatch(['operation' => 'update']);
-            self::assertSame('passed', json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result']['status']);
+            self::assertSame('unchanged', json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result']['status']);
         } finally {
             foreach ($paths as $path) {
                 unlink($path);
@@ -159,7 +166,7 @@ final class SnapshotControllerTest extends FunctionalTestCase
     public function testProductionUpdateCannotOverwriteAnExistingSnapshot(): void
     {
         $this->login();
-        $response = $this->dispatch(['operation' => 'run']);
+        $response = $this->dispatch(['operation' => 'update']);
         $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
         $path = Environment::getProjectPath() . '/' . $result['path'];
         file_put_contents($path, '<p>Reviewed snapshot</p>');
@@ -220,7 +227,17 @@ final class SnapshotControllerTest extends FunctionalTestCase
             $response = $this->dispatch(['operation' => 'run']);
             $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
             self::assertSame('missing', $result['status'], $result['message']);
-            self::assertFileExists($path);
+            self::assertSame('', $result['expected']);
+            self::assertFileDoesNotExist($path);
+            self::assertDirectoryDoesNotExist(dirname($path));
+            $response = $this->dispatch(['operation' => 'update']);
+            $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
+            self::assertSame('created', $result['status'], $result['message']);
+            self::assertSame([], $result['diff']);
+            self::assertSame($result['expected'], file_get_contents($path));
+            $response = $this->dispatch(['operation' => 'update']);
+            $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];
+            self::assertSame('unchanged', $result['status'], $result['message']);
             $property->setValue(null, new ApplicationContext('Production'));
             $response = $this->dispatch(['operation' => 'run']);
             $result = json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR)['result'];

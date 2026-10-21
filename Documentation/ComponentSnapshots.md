@@ -1,7 +1,7 @@
 # Component Snapshots
 
 Use Component Snapshots to check your saved Fluid component variants before committing
-template changes: run `vendor/bin/typo3 frontend-studio:test`,
+template changes: create your first snapshots with `vendor/bin/typo3 frontend-studio:test -u`,
 review the generated HTML snapshots, and commit them alongside your templates.
 Later runs show a readable diff when the HTML changes,
 helping you catch unintended changes to markup, content, attributes and links
@@ -33,10 +33,17 @@ Providing only the site uses that site's first enabled language.
 Relative site and language bases such as `/` and `/en/` are supported,
 as are absolute HTTP(S) URLs. Invalid explicit identifiers fail the command.
 
-On the first run, missing snapshots are created outside Production.
-Review their HTML and commit the files, then rerun the command.
-The first run returns a nonzero exit code because the new snapshots need review;
-a successful comparison returns `0`.
+Normal tests report missing snapshots without creating files or directories.
+Create them explicitly outside Production with `--update` or its shortcut `-u`:
+
+```bash
+vendor/bin/typo3 frontend-studio:test -u
+```
+
+New snapshots appear as yellow `CREATED` results. Review their HTML and commit the files,
+then rerun without `-u`. Missing snapshots and newly created files return a nonzero exit code;
+a successful comparison returns `0`. An empty catalog succeeds with `0/0 passed`;
+an explicitly requested unknown or empty scope remains an error.
 
 Snapshots contain the saved fixture values, slot content and fixture wrapper.
 They check HTML rather than browser layout or JavaScript behavior;
@@ -57,7 +64,7 @@ Translated content and site-specific markup can then have different baselines.
 
 | Exit code | Meaning |
 | --- | --- |
-| `0` | All comparisons pass, or an update changes no files |
+| `0` | All comparisons pass, the catalog is empty, or an update changes no files |
 | `1` | A mismatch or configuration, discovery, rendering or file error |
 | `2` | Snapshots are missing, newly created or updated |
 | `3` | Both errors/mismatches and missing/changed snapshots occurred |
@@ -78,7 +85,7 @@ with the ▶ button. Use **Test all** to test the complete catalog, including fi
 collapsed rows. Unsaved form edits are not used. Each request tests one variant.
 **Test all** runs up to three requests in parallel; the toolbar shows the passed/total count.
 A scope receives a checkmark only after every descendant has passed.
-Missing/new baselines, errors and mismatches show a red **✕** button that opens the failure details.
+Missing, created or updated snapshots, errors and mismatches show a red **✕** button that opens the failure details.
 The toolbar's **✕ Results (N)** button shows the number of failures and opens all their details.
 Row action buttons appear on hover or keyboard focus; use the arrow keys to select a row,
 then Tab to its test action and Enter to run it. Green checkmarks and red failure buttons stay visible.
@@ -87,7 +94,8 @@ including when discovery fails. Partial runs retain results and discovery errors
 **Test all** clears all previous results.
 The popup starts with a colored result summary and site/language cards,
 followed by the available actions. Red identifies mismatches and errors;
-yellow identifies missing or updated snapshots. The HTML changes section explains
+yellow identifies missing, created, updated or unchanged snapshots awaiting verification.
+The HTML changes section explains
 the next step above the diff. Any stack trace has its own section.
 When several variants fail, select one in the list to inspect its result.
 The list fills the available height and scrolls independently of the details;
@@ -105,9 +113,11 @@ and language. Use **Copy Snapshot file location** to copy its project-relative p
 or **Copy details** to copy its message, context and output.
 For an intentional mismatch, use **Update snapshot** to replace that variant's
 baseline for the displayed site and language. Other snapshots stay unchanged.
+For a missing snapshot, the button reads **Create snapshot**.
+Starting a test or opening its details does not create a file.
 Updates use the saved fixture, including its dynamic markers, and ignore unsaved form edits.
-Review and commit the changed file, then run the test again. An updated snapshot
-stays yellow in its details and does not count as a passed test.
+Review and commit created or changed files, then run the test again.
+Created, updated and unchanged results stay yellow until a regular test passes.
 If an update fails, its error appears separately and the original mismatch and diff stay available.
 **Update snapshot** stays available for another attempt, including after rendering or file errors.
 
@@ -118,7 +128,7 @@ Error stack traces are visible; full output is expandable beneath the details.
 Newly created snapshots still require review and a commit before another test run.
 Production never creates them.
 The same baseline creation and Production restrictions apply as in the CLI;
-**Update snapshot** is disabled in Production and its subcontexts.
+**Create snapshot** and **Update snapshot** are disabled in Production and its subcontexts.
 
 ![Snapshot mismatch details](html-snapshot-diff.png)
 
@@ -188,12 +198,13 @@ To accept an intentional change, add `--update` or its shortcut `-u`:
 vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text -u
 ```
 
-Only snapshots in the selected scope are updated.
+Only snapshots in the selected scope are created or updated.
 Review the Git diff, commit the approved files, and rerun without `-u`.
 Updates can replace manually added dynamic markers, so check those too.
 An update that creates or changes files returns a nonzero exit code;
 an unchanged update returns `0`.
-Ordinary comparisons do not overwrite existing snapshots.
+Ordinary comparisons never write snapshot files, including when a snapshot is missing.
+An unchanged update reports `UNCHANGED`; only a regular test reports `PASSED`.
 
 Warnings always show the project-relative snapshot path so you can open the affected file.
 Add `-v` to also see paths for other results and exception stack traces:
@@ -202,7 +213,7 @@ Add `-v` to also see paths for other results and exception stack traces:
 vendor/bin/typo3 frontend-studio:test main en-us --scope=c:element.text -v
 ```
 
-Passes are green, warnings and updated snapshots yellow, and errors red.
+Passes are green, warnings and created, updated or unchanged snapshots yellow, and errors red.
 Component identifiers and variant names have separate colors.
 Mismatches and missing snapshots are warnings; rendering failures are errors.
 Successful comparisons show only the state, component and variant:

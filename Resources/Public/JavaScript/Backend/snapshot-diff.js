@@ -11,9 +11,13 @@ export function failureSummary(result) {
     case 'missing':
       return { title: 'Missing snapshot', tone: 'warning', icon: '!', next: result.message?.startsWith('Created baseline.')
         ? 'Review and commit the new snapshot, then rerun the test.'
-        : 'Create and review the snapshot outside Production, commit it, then rerun the test.' };
+        : 'Use Create snapshot outside Production, review and commit the file, then rerun the test.' };
+    case 'created':
+      return { title: 'Snapshot created', tone: 'warning', icon: '!', next: 'Review and commit the new snapshot, then rerun the test. Creating a snapshot does not count as a passed test.' };
     case 'updated':
       return { title: 'Snapshot updated', tone: 'warning', icon: '!', next: 'Review and commit the updated snapshot, then rerun the test. An update does not count as a passed test.' };
+    case 'unchanged':
+      return { title: 'Snapshot unchanged', tone: 'warning', icon: '!', next: 'No snapshot files changed. Rerun the regular test to verify the snapshot.' };
     case 'passed':
       return { title: 'Snapshot passed', tone: 'success', icon: '✓', next: 'The current output matches the snapshot. No file changes were needed.' };
     default:
@@ -175,10 +179,10 @@ export async function showSnapshotDiff(results, options = {}) {
           ${options.context?.site ? html`<dl class="fs-snapshot-context"><div><dt>Site</dt><dd>${options.context.site}</dd></div><div><dt>Language</dt><dd>${options.context.language}</dd></div></dl>` : ''}
         </div>
         <div class="fs-snapshot-actions">
-          ${options.updateSnapshot && options.variantIdentifiers?.includes(results[selected].identifier) && ['failed', 'missing', 'updated', 'passed'].includes(results[selected].status) ? html`
+          ${options.updateSnapshot && options.variantIdentifiers?.includes(results[selected].identifier) && ['failed', 'missing', 'created', 'updated', 'unchanged', 'passed'].includes(results[selected].status) ? html`
             <button type="button" class="btn btn-warning"
               ?disabled=${updating || options.readOnly || !options.canUpdate() || !['failed', 'missing'].includes(results[selected].status)}
-              title=${options.readOnly ? 'Production: snapshot files are read-only' : 'Replace this variant’s snapshot for the displayed site and language'}
+              title=${options.readOnly ? 'Production: snapshot files are read-only' : `${results[selected].status === 'missing' ? 'Create' : 'Replace'} this variant’s snapshot for the displayed site and language`}
               @click=${async () => {
                 if (updating) return;
                 const index = selected;
@@ -192,7 +196,7 @@ export async function showSnapshotDiff(results, options = {}) {
                   if (result) {
                     results[index] = result;
                     if (index === selected) {
-                      feedback = result.status === 'updated' ? 'Snapshot updated. Review and commit the file, then rerun.' : result.message || 'The snapshot is already up to date.';
+                      feedback = ['created', 'updated'].includes(result.status) ? `Snapshot ${result.status}. Review and commit the file, then rerun.` : result.message || 'The snapshot is already up to date.';
                       feedbackError = result.status === 'error';
                     }
                   }
@@ -204,7 +208,7 @@ export async function showSnapshotDiff(results, options = {}) {
                   updating = false;
                   update();
                 }
-              }}>Update snapshot</button>` : ''}
+              }}>${results[selected].status === 'missing' ? 'Create snapshot' : 'Update snapshot'}</button>` : ''}
           ${options.openComponent && options.variantIdentifiers?.includes(results[selected].identifier) ? html`
             <button type="button" class="btn btn-default" @click=${() => { const identifier = results[selected].identifier; modal.hideModal(); options.openComponent(identifier, options.context); }}>Go to Component</button>` : ''}
           ${results[selected].path ? html`<button type="button" class="btn btn-default" @click=${async () => {
@@ -228,7 +232,7 @@ export async function showSnapshotDiff(results, options = {}) {
             update();
           }}>Copy details</button>
           ${options.readOnly ? html`<span class="text-warning">Production: snapshot files are read-only.</span>` : ''}
-          <span class=${feedbackError ? 'text-danger' : results[selected].status === 'updated' ? 'text-warning' : 'text-success'} role="status" aria-live="polite">${feedback}</span>
+          <span class=${feedbackError ? 'text-danger' : ['created', 'updated', 'unchanged'].includes(results[selected].status) ? 'text-warning' : 'text-success'} role="status" aria-live="polite">${feedback}</span>
         </div>
         ${updateError ? html`<aside class="alert alert-danger" role="alert" aria-label="Snapshot update error">
           <h4>Snapshot update failed</h4><p class="mb-0 text-break">${updateError.message}</p>
