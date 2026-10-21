@@ -56,10 +56,7 @@ class FrontendStudioComponentTree extends Tree {
     this.snapshots = new SnapshotTests(() => {
       this.requestUpdate();
       this.closest('andersundsehr-frontend-studio-component-tree-container')?.querySelector('andersundsehr-frontend-studio-component-tree-toolbar')?.requestUpdate();
-    }, null, (identifier, context) => {
-      const module = ModuleUtility.getFromName(frontendStudioModuleName);
-      Viewport.ContentContainer.setUrl(createUrl(module.link, { componentVariant: identifier, ...context }));
-    });
+    }, null, (identifier, context) => this.closest('andersundsehr-frontend-studio-component-tree-container')?.selectVariant(identifier, context));
   }
 
   connectedCallback() {
@@ -655,7 +652,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     await this.navigateToNode(node);
   };
 
-  async navigateToNode(node, navigationApproved = false) {
+  async navigateToNode(node, navigationApproved = false, context = {}) {
     const moduleMenu = top.TYPO3.ModuleMenu.App;
     const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
     const currentContentUrl = Viewport.ContentContainer.get()?.location?.href || Viewport.ContentContainer.getUrl();
@@ -666,7 +663,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       [node.nodeType === 'component' ? 'component' : 'componentVariant']: node.identifier,
     };
     ['site', 'language'].forEach((parameter) => {
-      const value = currentQueryParams?.get(parameter);
+      const value = context[parameter] ?? currentQueryParams?.get(parameter);
       if (value !== null && value !== undefined) {
         contentParameters[parameter] = value;
       }
@@ -689,11 +686,11 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     Viewport.ContentContainer.setUrl(contentUrl);
   }
 
-  async selectVariant(identifier) {
+  async selectVariant(identifier, context = {}) {
     if (!this.tree || !identifier) return;
     let node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
     if (!node) {
-      // Confirm before changing the filter; a cancelled Docs link must leave the tree untouched.
+      // Confirm before changing the filter; cancelling navigation must leave the tree untouched.
       if (!top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) return;
       await this.tree.resetFilter();
       // TYPO3 13's resetFilter() can start a reload without returning its promise.
@@ -703,11 +700,14 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
       if (node) {
         await this.selectNode(node, false);
-        await this.navigateToNode(node, true);
+        await this.navigateToNode(node, true, context);
       }
       return;
     }
-    if (node) await this.selectNode(node);
+    if (node) {
+      await this.selectNode(node, false);
+      await this.navigateToNode(node, false, context);
+    }
   }
 
   async selectNode(node, propagate = true) {

@@ -47,7 +47,23 @@ async function setup(t, version, query = 'component=site%3Acard&site=preview&lan
     '/empty.js': '',
     '/typo3/backend/element/icon-element.js': '',
     '/typo3/backend/viewport/content-navigation-toggle.js': '',
-    '/typo3/backend/modal.js': 'export default {};',
+    '/typo3/backend/modal.js': `import { render } from 'lit';
+      export default { sizes: { large: 'large' }, advanced(options) {
+        const modal = new EventTarget();
+        const root = document.createElement('main');
+        root.setAttribute('role', 'dialog');
+        root.style.cssText = 'position:fixed;inset:24px;z-index:1000;background:white;overflow:auto;padding:24px';
+        root.innerHTML = '<h2></h2><div></div>';
+        document.body.append(root);
+        Object.defineProperties(modal, {
+          modalTitle: { set: value => { root.querySelector('h2').textContent = value; } },
+          templateResultContent: { set: value => render(value, root.querySelector('div')) },
+        });
+        modal.hideModal = () => { root.remove(); modal.dispatchEvent(new Event('typo3-modal-hidden')); };
+        modal.modalTitle = options.title;
+        modal.templateResultContent = options.content;
+        return modal;
+      } };`,
     '/typo3/backend/notification.js': 'export default { success() {}, error(...args) { throw new Error(JSON.stringify(args)); } };',
     '/typo3/backend/page-wizard/helper/wizard-helper.js': 'export function openPageWizardModal() {}',
     '/typo3/backend/module.js': 'export const ModuleUtility = { getFromName: () => ({ link: "/module?token=module" }) };',
@@ -166,12 +182,60 @@ async function setup(t, version, query = 'component=site%3Acard&site=preview&lan
     const persistedExpansion = await page.evaluate(() => JSON.parse(localStorage.getItem('t3-tree-state-frontend-studio-component-tree')));
     assert.equal(persistedExpansion.site.expanded, true);
     // TYPO3 temporarily expands filtered descendants without changing saved expansion.
-    assert.equal(persistedExpansion[`site_${component}`].expanded, result.searchTerm === '');
+    assert.equal(persistedExpansion[`site_${component}`].expanded, !result.searchTerm);
   };
   return { page, content, search, filter, state, requests, snapshotRequests, assertNavigation };
 }
 
 for (const version of ['13.4.35', '14.3.7']) {
+  for (const filtered of [false, true]) {
+    test(`TYPO3 ${version}: Go to Component protects unsaved documentation with a ${filtered ? 'filtered' : 'visible'} target`, async t => {
+      const ui = await setup(t, version, filtered ? 'component=site%3Acard' : undefined);
+      await ui.page.getByRole('button', { name: 'Test all', exact: true }).click();
+      await expect(ui.page.getByRole('status')).toHaveText('2/2 passed');
+      await ui.page.evaluate(target => {
+        const tests = window.container.tree.snapshots;
+        tests.results.set(target, { identifier: target, status: 'failed', message: 'Snapshot mismatch.', expected: '', actual: '' });
+        tests.changed();
+      }, target);
+      if (filtered) await ui.filter();
+      const editor = ui.content.locator('[contenteditable="true"]');
+      await editor.click();
+      await editor.press('End');
+      await editor.pressSequentially(' Unsaved snapshot navigation');
+      await expect(ui.content.locator('[data-doc-save]')).toBeEnabled();
+      const original = await ui.state();
+      const originalRequests = [...ui.requests];
+      const dialogs = [];
+      let approve = false;
+      ui.page.on('dialog', async dialog => {
+        dialogs.push({ type: dialog.type(), message: dialog.message() });
+        if (approve) await dialog.accept(); else await dialog.dismiss();
+      });
+      const open = async () => {
+        await ui.page.getByRole('button', { name: '✕ Results (1)', exact: true }).click();
+        await ui.page.getByRole('button', { name: 'Go to Component', exact: true }).click();
+      };
+      await open();
+      await expect.poll(() => dialogs.length).toBe(1);
+      assert.deepEqual(dialogs[0], { type: 'confirm', message: 'Discard unsaved documentation changes?' });
+      const cancelled = await ui.state();
+      assert.deepEqual(cancelled.stored, original.stored);
+      assert.deepEqual(cancelled.selected, original.selected);
+      assert.equal(cancelled.searchTerm, original.searchTerm);
+      assert.deepEqual(cancelled.navigations, []);
+      assert.deepEqual(cancelled.order, ['confirm']);
+      assert.deepEqual(ui.requests, originalRequests);
+      await expect(editor).toContainText('Unsaved snapshot navigation');
+      await expect(ui.content.locator('[data-doc-save]')).toBeEnabled();
+      await ui.page.evaluate(() => { window.order = []; });
+      approve = true;
+      await open();
+      await ui.assertNavigation(target);
+      assert.equal(dialogs.length, 2, 'Navigation and iframe unload must reuse the discard approval.');
+    });
+  }
+
   test(`TYPO3 ${version}: only scopes with fixture variants expose snapshot actions`, async t => {
     const treeNodes = [
       ...nodes.map(node => ({ ...node, testable: true })),

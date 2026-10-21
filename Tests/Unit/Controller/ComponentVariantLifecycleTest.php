@@ -96,19 +96,16 @@ final class ComponentVariantLifecycleTest extends TestCase
     public function testTreeTestabilityFollowsFixtureCreationAndDeletion(): void
     {
         $provider = $this->createDataProvider();
-        foreach ($provider->getTreeNodes() as $node) {
-            self::assertFalse($node['testable'] ?? true, $node['identifier']);
-        }
+        self::assertSame(['test:' => false, 'test:Card' => false], array_column($provider->getTreeNodes(), 'testable', 'identifier'));
 
         $provider->createVariant('test:Card', 'Default');
-        foreach ($provider->getTreeNodes() as $node) {
-            self::assertTrue($node['testable'] ?? false, $node['identifier']);
-        }
+        self::assertSame(
+            ['test:' => true, 'test:Card' => true, 'test:Card:Default' => true],
+            array_column($provider->getTreeNodes(), 'testable', 'identifier'),
+        );
 
         $provider->deleteVariant('test:Card:Default');
-        foreach ($provider->getTreeNodes() as $node) {
-            self::assertFalse($node['testable'] ?? true, $node['identifier']);
-        }
+        self::assertSame(['test:' => false, 'test:Card' => false], array_column($provider->getTreeNodes(), 'testable', 'identifier'));
     }
 
     /**

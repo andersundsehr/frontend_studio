@@ -120,7 +120,8 @@ Expand **Show full output** to inspect the complete saved snapshot and current H
 HTML is displayed as escaped text.
 
 Use **Go to Component** to open the failed variant with the current preview site
-and language. Use **Copy Snapshot file location** to copy its project-relative path,
+and language. It confirms unsaved documentation changes before navigating and selects
+the variant in the component tree. Use **Copy Snapshot file location** to copy its project-relative path,
 or **Copy details** to copy its message, context and output.
 For an intentional mismatch, use **Update snapshot** to replace that variant's
 baseline for the displayed site and language. Other snapshots stay unchanged.
