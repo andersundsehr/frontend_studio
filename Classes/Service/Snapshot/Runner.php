@@ -48,14 +48,20 @@ final readonly class Runner
             }
         }
 
-        if (!$found || $variants === []) {
+        if (!$found || ($scope !== '' && $variants === [])) {
             throw new RuntimeException('Snapshot scope is unknown or contains no fixture variants.', 3349110734);
         }
 
         return $variants;
     }
 
-    /** @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null} */
+    /**
+     * An error status also means an update failed. GUI callers must keep their
+     * previous comparison and show this error separately so its diff remains
+     * reviewable and the update can be retried.
+     *
+     * @return array{identifier: string, status: string, message: string, path: string, expected: string, actual: string, exception: Throwable|null}
+     */
     public function run(string $identifier, string $site, string $language, bool $update = false): array
     {
         $path = '';
@@ -83,21 +89,20 @@ final readonly class Runner
             if ($update) {
                 $expected = $this->comparison->create($actual, $second);
                 if ($baseline !== $expected) {
-                    $this->storage->update($path, $expected);
-                    $status = 'updated';
-                    $message = 'Updated snapshot. Review and commit the changes.';
+                    if ($baseline === null) {
+                        $this->storage->create($path, $expected);
+                    } else {
+                        $this->storage->update($path, $expected);
+                    }
+
+                    $status = $baseline === null ? 'created' : 'updated';
+                    $message = ucfirst($status) . ' snapshot. Review and commit the changes.';
                 } else {
-                    $status = 'passed';
-                    $message = '';
+                    $status = 'unchanged';
+                    $message = 'Snapshot is unchanged. Rerun the test to verify.';
                 }
             } elseif ($baseline === null) {
-                $expected = $this->comparison->create($actual, $second);
-                $message = 'Missing baseline; creation blocked in Production.';
-                if (!$this->writePolicy->isReadOnly()) {
-                    $this->storage->create($path, $expected);
-                    $message = 'Created baseline. Review and commit it before rerunning.';
-                }
-
+                $message = 'Missing baseline. Create it explicitly outside Production, review and commit it, then rerun the test.';
                 $status = 'missing';
             } elseif ($this->comparison->matches($baseline, $actual) && $this->comparison->matches($baseline, $second)) {
                 $status = 'passed';
@@ -123,11 +128,11 @@ final readonly class Runner
     /** @param list<array{status: string}> $results */
     public static function exitCode(array $results): int
     {
-        $code = $results === [] ? 1 : 0;
+        $code = 0;
         foreach ($results as $result) {
             $code |= match ($result['status']) {
-                'passed' => 0,
-                'missing', 'updated' => 2,
+                'passed', 'unchanged' => 0,
+                'missing', 'created', 'updated' => 2,
                 default => 1,
             };
         }

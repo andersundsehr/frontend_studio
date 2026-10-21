@@ -12,6 +12,7 @@ use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\EventDispatcher\ListenerProvider;
 use TYPO3\CMS\Core\Resource\Event\GeneratePublicUrlForResourceEvent;
 use TYPO3\CMS\Frontend\Resource\PublicUrlPrefixer;
+use TYPO3\CMS\Backend\Resource\PublicUrlPrefixer as BackendPublicUrlPrefixer;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\DateTimeAspect;
 use TYPO3\CMS\Core\Context\LanguageAspectFactory;
@@ -77,8 +78,17 @@ final readonly class FrontendRenderer
         $oldLanguage = $this->context->getAspect('language');
         $oldDate = $this->context->getAspect('date');
         $oldLocale = setlocale(LC_ALL, '0');
+        /** @var array{service: string, method: string|null}|null $backendUrlListener */
+        $backendUrlListener = $this->listenerProvider->getAllListenerDefinitions()[GeneratePublicUrlForResourceEvent::class][BackendPublicUrlPrefixer::class] ?? null;
         try {
-            $this->listenerProvider->addListener(GeneratePublicUrlForResourceEvent::class, PublicUrlPrefixer::class, 'prefixWithAbsRefPrefix');
+            // Backend requests already prefix FAL URLs. Replace that listener during
+            // frontend rendering so nested URL generation cannot apply both prefixes.
+            $this->listenerProvider->addListener(
+                GeneratePublicUrlForResourceEvent::class,
+                PublicUrlPrefixer::class,
+                'prefixWithAbsRefPrefix',
+                $backendUrlListener === null ? PublicUrlPrefixer::class : BackendPublicUrlPrefixer::class,
+            );
             $this->assets->updateState(new AssetCollector()->getState());
             $this->context->setAspect('language', LanguageAspectFactory::createFromSiteLanguage($language));
             $this->context->setAspect('date', new DateTimeAspect($date ?? new DateTimeImmutable()));
@@ -108,6 +118,15 @@ final readonly class FrontendRenderer
             $html = DebuggerState::withoutStylesheet(fn(): string => $this->renderer->renderVariant($identifier, $request));
             return BackendRouteTokens::normalize($html, $this->backendUriBuilder);
         } finally {
+            if ($backendUrlListener !== null) {
+                $this->listenerProvider->addListener(
+                    GeneratePublicUrlForResourceEvent::class,
+                    $backendUrlListener['service'],
+                    $backendUrlListener['method'],
+                    BackendPublicUrlPrefixer::class,
+                );
+            }
+
             if ($oldRequest === null) {
                 unset($GLOBALS['TYPO3_REQUEST']);
             } else {

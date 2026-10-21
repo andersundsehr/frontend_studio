@@ -10,6 +10,7 @@ import { SeverityEnum } from '@typo3/backend/enum/severity.js';
 import { TreeToolbar } from '@typo3/backend/tree/tree-toolbar.js';
 import ClientStorage from '@typo3/backend/storage/client.js';
 import { ModuleStateStorage } from '@typo3/backend/storage/module-state-storage.js';
+import SnapshotTests from '@andersundsehr/frontend-studio/backend/snapshot-tests.js';
 import ComponentFileWatcher from '@andersundsehr/frontend-studio/backend/component-file-watcher.js';
 
 const componentTreeModuleStateType = 'frontend_studio_component_tree';
@@ -52,9 +53,67 @@ class FrontendStudioComponentTree extends Tree {
       tooltip: '',
     };
     this.pendingNodeSelectionTimeout = null;
+    this.snapshots = new SnapshotTests(() => {
+      this.requestUpdate();
+      this.closest('andersundsehr-frontend-studio-component-tree-container')?.querySelector('andersundsehr-frontend-studio-component-tree-toolbar')?.requestUpdate();
+    }, null, (identifier, context) => this.closest('andersundsehr-frontend-studio-component-tree-container')?.selectVariant(identifier, context));
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.snapshotEvents = new AbortController();
+    const options = { signal: this.snapshotEvents.signal };
+    top.document.addEventListener('frontend-studio:preview-context-changed', () => this.syncSnapshotContext(), options);
+    top.document.addEventListener('typo3-module-loaded', () => this.syncSnapshotContext(), options);
+    top.document.addEventListener('frontend-studio:component-files-changed', () => this.snapshots.invalidate(), options);
+    top.document.addEventListener('frontend-studio:component-file-action-started', () => this.snapshots.invalidate(), options);
+    this.syncSnapshotContext();
+  }
+
+  syncSnapshotContext() {
+    const header = Viewport.ContentContainer.get()?.document?.querySelector('[data-frontend-studio-variant-header], [data-component-overview]');
+    this.snapshots.setContext({
+      site: header?.dataset.selectedSiteIdentifier || '',
+      language: header?.dataset.selectedLanguageHreflang || '',
+    });
+  }
+
+  runSnapshots(scope = '') {
+    this.syncSnapshotContext();
+    return this.snapshots.run(scope);
+  }
+
+  snapshotActions(node) {
+    if (!this.snapshots.enabled || node.identifier.startsWith('NEW') || node.testable === false) return '';
+    const status = this.snapshots.progress(node.identifier, node.nodeType) || this.snapshots.status(node.identifier, node.nodeType);
+    return html`
+      <button type="button" class="btn btn-default btn-sm btn-icon btn-borderless"
+        title=${`Test ${node.name}`} aria-label=${`Test ${node.name}`}
+        ?disabled=${this.snapshots.active}
+        @keydown=${(event) => event.stopPropagation()}
+        @dblclick=${(event) => event.stopPropagation()}
+        @click=${(event) => { event.preventDefault(); event.stopImmediatePropagation(); this.clearPendingNodeSelection(); this.runSnapshots(node.identifier); }}
+      >▶</button>
+      ${['queued', 'running'].includes(status) ? html`<span class="snapshot-status snapshot-progress text-info" role="img"
+        title=${status === 'running' ? 'Snapshot tests running' : 'Snapshot tests queued'}
+        aria-label=${status === 'running' ? 'Snapshot tests running' : 'Snapshot tests queued'}>
+        <typo3-backend-icon identifier="actions-refresh" size="small" class=${status === 'running' ? 'snapshot-running' : ''}></typo3-backend-icon>
+      </span>` : ''}
+      ${status === 'passed' ? html`<span class="snapshot-status text-success" role="img" aria-label="All tests passed">
+        <typo3-backend-icon identifier="actions-check" size="small"></typo3-backend-icon>
+      </span>` : ''}
+      ${status === 'failed' ? html`<button type="button" class="snapshot-status btn btn-default btn-sm btn-icon text-danger"
+        title="Inspect snapshot failures" aria-label=${`Inspect snapshot failures for ${node.name}`}
+        @keydown=${(event) => event.stopPropagation()}
+        @dblclick=${(event) => event.stopPropagation()}
+        @click=${(event) => { event.preventDefault(); event.stopImmediatePropagation(); this.clearPendingNodeSelection(); this.snapshots.showFailures(node.identifier, node.nodeType); }}
+      ><typo3-backend-icon identifier="actions-close" size="small"></typo3-backend-icon></button>` : ''}
+    `;
   }
 
   disconnectedCallback() {
+    this.snapshotEvents?.abort();
+    this.snapshots.invalidate();
     this.clearPendingNodeSelection();
     super.disconnectedCallback();
   }
@@ -159,6 +218,7 @@ class FrontendStudioComponentTree extends Tree {
         throw new Error(payload.message || 'The variant could not be renamed.');
       }
 
+      this.snapshots.invalidate();
       await this.loadData();
       const renamedNode = this.nodes.find((candidate) => candidate.identifier === payload.variant.identifier) ?? null;
       if (renamedNode !== null) {
@@ -170,6 +230,7 @@ class FrontendStudioComponentTree extends Tree {
     } catch (error) {
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant rename failed', payload?.message || error?.message || 'The variant could not be renamed.');
+      this.snapshots.invalidate();
       await this.loadData();
     }
   }
@@ -189,6 +250,7 @@ class FrontendStudioComponentTree extends Tree {
         throw new Error(payload.message || 'The variant could not be created.');
       }
 
+      this.snapshots.invalidate();
       await this.loadData();
       const createdNode = this.nodes.find((candidate) => candidate.identifier === payload.variant.identifier) ?? null;
       if (createdNode !== null) {
@@ -201,6 +263,7 @@ class FrontendStudioComponentTree extends Tree {
       this.dispatchComponentFileActionCancelled('create', node.componentIdentifier);
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant creation failed', payload?.message || error?.message || 'The variant could not be created.');
+      this.snapshots.invalidate();
       await this.loadData();
     }
   }
@@ -224,6 +287,7 @@ class FrontendStudioComponentTree extends Tree {
         throw new Error(payload.message || 'The variant could not be copied.');
       }
 
+      this.snapshots.invalidate();
       await this.loadData();
       const copiedNode = this.nodes.find((candidate) => candidate.identifier === payload.variant.identifier) ?? null;
       if (copiedNode !== null) {
@@ -236,6 +300,7 @@ class FrontendStudioComponentTree extends Tree {
       this.dispatchComponentFileActionCancelled('copy', node.identifier);
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant copy failed', payload?.message || error?.message || 'The variant could not be copied.');
+      this.snapshots.invalidate();
       await this.loadData();
     }
   }
@@ -244,6 +309,7 @@ class FrontendStudioComponentTree extends Tree {
     if (node.nodeType === 'component') {
       return html`
         <span class="node-action">
+          ${this.snapshotActions(node)}
           <button
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
@@ -276,6 +342,7 @@ class FrontendStudioComponentTree extends Tree {
     if (node.nodeType === 'variant' && !node.identifier.startsWith('NEW')) {
       return html`
         <span class="node-action">
+          ${this.snapshotActions(node)}
           <button
             type="button"
             class="btn btn-default btn-sm btn-icon btn-borderless"
@@ -306,7 +373,7 @@ class FrontendStudioComponentTree extends Tree {
       `;
     }
 
-    return super.createNodeContentAction(node);
+    return html`<span class="node-action">${this.snapshotActions(node)}${super.createNodeContentAction(node)}</span>`;
   }
 
   async createVariantNode(componentNode) {
@@ -392,6 +459,7 @@ class FrontendStudioComponentTree extends Tree {
         throw new Error(payload.message || 'The variant could not be deleted.');
       }
 
+      this.snapshots.invalidate();
       await this.loadData();
       const componentNode = this.nodes.find((candidate) => candidate.identifier === payload.variant.componentIdentifier) ?? null;
       if (componentNode !== null) {
@@ -404,6 +472,7 @@ class FrontendStudioComponentTree extends Tree {
       this.dispatchComponentFileActionCancelled('delete', node.identifier);
       const payload = typeof error?.resolve === 'function' ? await error.resolve() : null;
       Notification.error('Variant deletion failed', payload?.message || error?.message || 'The variant could not be deleted.');
+      this.snapshots.invalidate();
       await this.loadData();
     }
   }
@@ -460,6 +529,17 @@ class FrontendStudioComponentTree extends Tree {
 customElements.define('andersundsehr-frontend-studio-component-tree', FrontendStudioComponentTree);
 
 class FrontendStudioComponentTreeToolbar extends TreeToolbar {
+  render() {
+    const tests = this.tree?.snapshots;
+    return html`${super.render()}
+      ${tests?.enabled ? html`<div class="p-2 d-flex align-items-center gap-2 flex-wrap" aria-label="HTML snapshot tests">
+        <button type="button" class="btn btn-default btn-sm" ?disabled=${!tests || tests.active}
+          @click=${() => this.tree.runSnapshots()}>Test all</button>
+        <span role="status" aria-live="polite">${tests?.passed || 0}/${tests?.catalog.length || 0} passed</span>
+        ${tests?.status() === 'failed' ? html`<button type="button" class="btn btn-default btn-sm text-danger" @click=${() => tests.showFailures()}>✕ Results (${tests.failures().length})</button>` : ''}
+      </div>` : ''}`;
+  }
+
   collapseAll(event) {
     event.preventDefault();
 
@@ -572,7 +652,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     await this.navigateToNode(node);
   };
 
-  async navigateToNode(node, navigationApproved = false) {
+  async navigateToNode(node, navigationApproved = false, context = {}) {
     const moduleMenu = top.TYPO3.ModuleMenu.App;
     const moduleConfiguration = ModuleUtility.getFromName(moduleMenu.getCurrentModule());
     const currentContentUrl = Viewport.ContentContainer.get()?.location?.href || Viewport.ContentContainer.getUrl();
@@ -583,7 +663,7 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       [node.nodeType === 'component' ? 'component' : 'componentVariant']: node.identifier,
     };
     ['site', 'language'].forEach((parameter) => {
-      const value = currentQueryParams?.get(parameter);
+      const value = context[parameter] ?? currentQueryParams?.get(parameter);
       if (value !== null && value !== undefined) {
         contentParameters[parameter] = value;
       }
@@ -606,11 +686,11 @@ class FrontendStudioComponentTreeContainer extends LitElement {
     Viewport.ContentContainer.setUrl(contentUrl);
   }
 
-  async selectVariant(identifier) {
+  async selectVariant(identifier, context = {}) {
     if (!this.tree || !identifier) return;
     let node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
     if (!node) {
-      // Confirm before changing the filter; a cancelled Docs link must leave the tree untouched.
+      // Confirm before changing the filter; cancelling navigation must leave the tree untouched.
       if (!top.document.dispatchEvent(new CustomEvent('frontend-studio:before-navigate', { cancelable: true }))) return;
       await this.tree.resetFilter();
       // TYPO3 13's resetFilter() can start a reload without returning its promise.
@@ -620,11 +700,14 @@ class FrontendStudioComponentTreeContainer extends LitElement {
       node = this.tree.nodes.find((candidate) => candidate.nodeType === 'variant' && candidate.identifier === identifier);
       if (node) {
         await this.selectNode(node, false);
-        await this.navigateToNode(node, true);
+        await this.navigateToNode(node, true, context);
       }
       return;
     }
-    if (node) await this.selectNode(node);
+    if (node) {
+      await this.selectNode(node, false);
+      await this.navigateToNode(node, false, context);
+    }
   }
 
   async selectNode(node, propagate = true) {
@@ -715,8 +798,50 @@ class FrontendStudioComponentTreeContainer extends LitElement {
         }
 
         andersundsehr-frontend-studio-component-tree .node-action {
+          display: inline-flex;
           gap: 2px;
           width: auto;
+          visibility: visible;
+          opacity: 1;
+        }
+
+        andersundsehr-frontend-studio-component-tree .node-action > button:not(.snapshot-status) {
+          display: none;
+        }
+
+        andersundsehr-frontend-studio-component-tree .snapshot-status {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+          flex: 0 0 24px;
+          width: 24px;
+          height: 24px;
+          padding: 0;
+        }
+
+        andersundsehr-frontend-studio-component-tree .snapshot-progress {
+          color: var(--typo3-text-color-info, #0078a8);
+        }
+
+        andersundsehr-frontend-studio-component-tree .snapshot-running {
+          display: inline-flex;
+          animation: frontend-studio-snapshot-spin 1s linear infinite;
+        }
+
+        @keyframes frontend-studio-snapshot-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          andersundsehr-frontend-studio-component-tree .snapshot-running {
+            animation: none;
+          }
+        }
+
+        andersundsehr-frontend-studio-component-tree .node:hover .node-action > button:not(.snapshot-status):not([hidden]),
+        andersundsehr-frontend-studio-component-tree .node:focus-within .node-action > button:not(.snapshot-status):not([hidden]) {
+          display: inline-flex;
         }
       </style>
       <andersundsehr-frontend-studio-component-tree-toolbar
