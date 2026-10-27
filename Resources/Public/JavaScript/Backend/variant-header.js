@@ -79,6 +79,7 @@ class VariantHeader extends VariantFeature {
 
     this.root.dataset.selectedSiteIdentifier = siteIdentifier;
     this.root.dataset.selectedLanguageHreflang = languageHreflang;
+    top.document.dispatchEvent(new CustomEvent('frontend-studio:preview-context-changed'));
     if (language === undefined) {
       this.view.previewUri = '';
       if (this.iframe !== null) {

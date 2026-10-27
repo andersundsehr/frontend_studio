@@ -293,7 +293,8 @@ final readonly class ComponentTemplateRootWatcher
                     }
 
                     if ($fileInfo->isDir()) {
-                        return !isset(self::IGNORED_DIRECTORY_NAMES[$fileInfo->getFilename()]);
+                        return !isset(self::IGNORED_DIRECTORY_NAMES[$fileInfo->getFilename()])
+                            && !str_ends_with($fileInfo->getFilename(), '-snapshots');
                     }
 
                     return $fileInfo->isFile();

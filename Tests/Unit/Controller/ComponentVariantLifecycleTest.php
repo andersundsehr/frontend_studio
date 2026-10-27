@@ -93,6 +93,21 @@ final class ComponentVariantLifecycleTest extends TestCase
         self::assertFileDoesNotExist($this->getSlotPath('Renamed'));
     }
 
+    public function testTreeTestabilityFollowsFixtureCreationAndDeletion(): void
+    {
+        $provider = $this->createDataProvider();
+        self::assertSame(['test:' => false, 'test:Card' => false], array_column($provider->getTreeNodes(), 'testable', 'identifier'));
+
+        $provider->createVariant('test:Card', 'Default');
+        self::assertSame(
+            ['test:' => true, 'test:Card' => true, 'test:Card:Default' => true],
+            array_column($provider->getTreeNodes(), 'testable', 'identifier'),
+        );
+
+        $provider->deleteVariant('test:Card:Default');
+        self::assertSame(['test:' => false, 'test:Card' => false], array_column($provider->getTreeNodes(), 'testable', 'identifier'));
+    }
+
     /**
      * @throws JsonException
      */

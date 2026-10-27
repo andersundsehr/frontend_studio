@@ -1,2 +1,5 @@
 # cat=basic; type=boolean; label=Show own components: List Frontend Studio's backend UI components in its component browser
 showOwnComponents = 0
+
+# cat=basic; type=boolean; label=Enable GUI snapshot testing: Show Component Snapshot tests and update actions in the backend module. CLI testing remains available.
+enableGuiTesting = 1
