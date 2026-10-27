@@ -30,7 +30,7 @@
     "highlight.js": "11.11.1",
     "lowlight": "3.3.0",
     "lucide": "1.52.0",
-    "markdown-it": "14.3.2",
+    "markdown-it": "14.3.3",
     "turndown": "7.2.2",
     "esbuild": "0.28.2"
   }
