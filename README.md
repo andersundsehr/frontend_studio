@@ -259,6 +259,47 @@ Frontend Studio derives controls from component argument types.
 Scalars use native inputs, enums use selects, and `DateTime`, `DateTimeImmutable`, and `DateTimeInterface` use a local date-time input.
 Built-in transformers cover `Stringable`, `Uri`, `File`, and `TypolinkParameter` arguments.
 
+### Value objects without a transformer
+
+A component argument can use a value object directly,
+when its class has a public constructor whose parameters are all scalars, enums or dates.
+Frontend Studio then builds the object from the constructor,
+so you need neither a transformer file nor a `#[TypeTransformer]`.
+Each constructor parameter becomes a control,
+and its fixture value is stored under the argument name:
+
+```php
+final readonly class TeaserLink
+{
+    public function __construct(
+        public string $url,
+        public LinkTarget $target = LinkTarget::Self,
+        public ?string $title = null,
+    ) {
+    }
+}
+```
+
+```yaml
+variants:
+  Default:
+    link:
+      url: "/news"
+      target: "Blank"
+```
+
+Omitted optional parameters keep their constructor default.
+A nullable parameter uses the control of its non-null type.
+Add `#[Control]` to a constructor parameter to choose another control, as on transformer inputs.
+
+A sibling transformer file and a compatible `#[TypeTransformer]` take precedence over the constructor.
+A class still needs one of them when a constructor parameter is a service, another object,
+a variadic parameter or a union of several non-null types,
+or when the constructor is not public or takes no parameters.
+This only affects previews: Frontend Studio does not change how Fluid passes arguments in your frontend.
+
+### Reusable type transformers
+
 For another reusable type, add a method to an autoconfigured service.
 Its typed inputs become controls and its return type must be compatible with the component argument.
 Priority lets you prefer a transformer when several return types are compatible; an exact normalized return-type registration takes precedence regardless of priority:
@@ -291,6 +332,7 @@ When there is no exact registration, incompatible transformers are excluded and 
 Every member of a transformer return union must be assignable to at least one member of the component argument type.
 At equal priority, the transformer with the highest proportion of exact type matches is selected: the number of exact matches divided by the larger union size.
 If priority and specificity tie, the later-registered transformer wins.
+Only when no registration is compatible does Frontend Studio fall back to the class constructor.
 
 For an argument of type `string|int|float`, a transformer returning `string|int` scores 2/3 and outranks one returning `string`, which scores 1/3, when their priorities are equal.
 For an argument of type `string|Stringable`, a transformer returning `string|int` is excluded because `int` matches neither argument type.

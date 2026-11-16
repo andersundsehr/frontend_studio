@@ -153,6 +153,24 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertStringContainsString('data-fixture-name="body.text"', $html);
     }
 
+    public function testConstructorProvidesControlsAndPreviewWithoutTransformer(): void
+    {
+        $identifier = 'site:constructorTransformer:Default';
+        $metadata = $this->get(ComponentMetadataProvider::class)->getComponentMetadataForVariantIdentifier($identifier);
+        self::assertNotNull($metadata);
+        self::assertNull($metadata->missingTransformerError);
+        self::assertSame([], $metadata->errors);
+        self::assertNotNull($metadata->fixture?->selectedVariant);
+        self::assertSame(
+            ['link.url', 'link.target', 'link.title'],
+            array_column($metadata->fixture->selectedVariant->values, 'fixtureName'),
+        );
+
+        $response = $this->requestPreview($identifier, format: 'fragment');
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('<a href="/news" target="_blank">Read more</a>', (string)$response->getBody());
+    }
+
     public function testRendersTheEmptyVariantView(): void
     {
         $html = $this->renderVariantView([]);

@@ -1,0 +1,6 @@
+variants:
+  Default:
+    link:
+      url: /news
+      target: Blank
+      title: Read more

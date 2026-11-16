@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Service;
 
 use Andersundsehr\FrontendStudio\Service\ComponentVariantTransformer;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\LinkTarget;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserLink;
 use Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
+use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use DateTime;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
+use RuntimeException;
 use TYPO3Fluid\Fluid\Core\Component\ComponentDefinition;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
@@ -105,5 +110,30 @@ final class ComponentVariantTransformerTest extends TestCase
         );
 
         self::assertSame(TypolinkTargetEnum::none, $result['result']);
+    }
+
+    public function testBuildsObjectFromConstructorTransformer(): void
+    {
+        $definition = new ComponentDefinition('test:component', [
+            'link' => new ArgumentDefinition('link', TeaserLink::class, '', true, null, false),
+        ], false, []);
+        $transformer = new TransformerFactory(new class implements ContainerInterface {
+            public function get(string $id): mixed
+            {
+                throw new RuntimeException('No services available in unit test container.', 1763333102);
+            }
+
+            public function has(string $id): bool
+            {
+                return false;
+            }
+        })->fromConstructor(TeaserLink::class);
+        self::assertNotNull($transformer);
+
+        $result = new ComponentVariantTransformer()->transform($definition, new Transformers(['link' => $transformer], 'test'), [
+            'link' => ['url' => '/news', 'target' => 'Blank', 'position' => '2'],
+        ]);
+
+        self::assertEquals(new TeaserLink('/news', LinkTarget::Blank, null, 2), $result['link']);
     }
 }
