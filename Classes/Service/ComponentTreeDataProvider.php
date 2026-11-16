@@ -8,6 +8,7 @@ use RuntimeException;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Transformer\InputPath;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\TransformersFactory;
 use Throwable;
@@ -467,9 +468,14 @@ final readonly class ComponentTreeDataProvider
     {
         $defaults = [];
         foreach ($transformer->arguments as $argument) {
-            $defaults[$argument->getName()] = $argument->isRequired()
+            // Inputs of nested value objects keep their constructor defaults; an optional object stays unset.
+            if (!$argument->isRequired() && str_contains($argument->getName(), '.')) {
+                continue;
+            }
+
+            InputPath::set($defaults, $argument->getName(), $argument->isRequired()
                 ? $this->getDefaultValueForArgumentType($argument->getType())
-                : $argument->getDefaultValue();
+                : $argument->getDefaultValue());
         }
 
         return $defaults;

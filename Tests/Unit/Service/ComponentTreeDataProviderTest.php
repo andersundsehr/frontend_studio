@@ -56,6 +56,26 @@ final class ComponentTreeDataProviderTest extends TestCase
         self::assertSame(['target' => TypolinkTargetEnum::none], $method->invoke($subject, $transformer));
     }
 
+    public function testNestsDefaultsOfRequiredValueObjectInputs(): void
+    {
+        $subject = new ReflectionClass(ComponentTreeDataProvider::class)->newInstanceWithoutConstructor();
+        $method = new ReflectionMethod(ComponentTreeDataProvider::class, 'getTransformerDefaults');
+        $transformer = new Transformer(
+            static fn(): string => '',
+            'test',
+            'string',
+            [
+                'headline' => new ArgumentDefinition('headline', 'string', '', true, null, false),
+                'link.url' => new ArgumentDefinition('link.url', 'string', '', true, null, false),
+                'link.title' => new ArgumentDefinition('link.title', 'string', '', false, null, false),
+                'secondaryLink.url' => new ArgumentDefinition('secondaryLink.url', 'string', '', false, null, false),
+            ],
+            [],
+        );
+
+        self::assertSame(['headline' => 'Lorem ipsum', 'link' => ['url' => 'Lorem ipsum']], $method->invoke($subject, $transformer));
+    }
+
     public function testRoundTripsEnumDefaultThroughYaml(): void
     {
         $yaml = Yaml::dump(['target' => TypolinkTargetEnum::none]);

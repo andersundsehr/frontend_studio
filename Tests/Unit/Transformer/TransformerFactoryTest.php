@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace Andersundsehr\FrontendStudio\Tests\Unit\Transformer;
 
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\Identifier;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\LabelledLink;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\LinkTarget;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\MenuItem;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\NamedConstructorOnly;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TagList;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserCard;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserLink;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserList;
+use DateTimeImmutable;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
+use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
 use stdClass;
@@ -58,6 +63,81 @@ final class TransformerFactoryTest extends UnitTestCase
         self::assertNull($link->position);
     }
 
+    public function testNestedValueObjectsBecomeDottedInputs(): void
+    {
+        $transformer = $this->createSubject()->fromConstructor(TeaserCard::class);
+        self::assertNotNull($transformer);
+
+        $inputs = [];
+        foreach ($transformer->arguments as $name => $definition) {
+            $inputs[$name] = [$definition->getType(), $definition->isRequired()];
+        }
+
+        self::assertSame([
+            'headline' => ['string', true],
+            'link.url' => ['string', true],
+            'link.target' => [LinkTarget::class, false],
+            'link.title' => ['string', false],
+            'link.position' => ['int', false],
+            'secondaryLink.url' => ['string', false],
+            'secondaryLink.target' => [LinkTarget::class, false],
+            'secondaryLink.title' => ['string', false],
+            'secondaryLink.position' => ['int', false],
+        ], $inputs);
+        self::assertSame(
+            ['link.title' => 'frontend-studio.rich-text', 'secondaryLink.title' => 'frontend-studio.rich-text'],
+            $transformer->controls,
+        );
+
+        $card = $transformer->execute(['headline' => 'News', 'link' => ['url' => '/news']]);
+        self::assertEquals(new TeaserCard('News', new TeaserLink('/news')), $card);
+    }
+
+    public function testArraysUseTheElementTypeFromPhpDoc(): void
+    {
+        $transformer = $this->createSubject()->fromConstructor(TeaserList::class);
+        self::assertNotNull($transformer);
+
+        $descriptions = [];
+        foreach ($transformer->arguments as $name => $definition) {
+            $descriptions[$name] = [$definition->getType(), $definition->getDescription()];
+        }
+
+        self::assertSame([
+            'headline' => ['string', ''],
+            'links' => ['array', 'List of ' . TeaserLink::class],
+            'targets' => ['array', 'List of ' . LinkTarget::class],
+            'dates' => ['array', 'List of ' . DateTimeImmutable::class],
+            'tags' => ['array', ''],
+        ], $descriptions);
+
+        $list = $transformer->execute([
+            'headline' => 'All',
+            'links' => [['url' => '/a', 'target' => 'Blank'], ['url' => '/b', 'position' => '2']],
+            'targets' => ['Blank'],
+            'dates' => ['start' => '2026-11-16T10:00:00'],
+            'tags' => ['x', 1],
+        ]);
+
+        self::assertInstanceOf(TeaserList::class, $list);
+        self::assertEquals([new TeaserLink('/a', LinkTarget::Blank), new TeaserLink('/b', LinkTarget::Self, null, 2)], $list->links);
+        self::assertSame([LinkTarget::Blank], $list->targets);
+        self::assertSame(['start'], array_keys($list->dates));
+        self::assertSame('10:00', $list->dates['start']->format('H:i'));
+        self::assertSame(['x', 1], $list->tags);
+    }
+
+    public function testMissingInputOfOptionalNestedObjectIsReported(): void
+    {
+        $transformer = $this->createSubject()->fromConstructor(TeaserCard::class);
+        self::assertNotNull($transformer);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Missing input "secondaryLink.url"');
+
+        $transformer->execute(['headline' => 'News', 'link' => ['url' => '/news'], 'secondaryLink' => ['title' => 'More']]);
+    }
+
     #[DataProvider('typesWithoutConstructorTransformerDataProvider')]
     public function testFromConstructorReturnsNullWhenInputsCannotBeEdited(string $type): void
     {
@@ -76,7 +156,8 @@ final class TransformerFactoryTest extends UnitTestCase
             'enum' => [LinkTarget::class],
             'class without constructor parameters' => [stdClass::class],
             'private constructor' => [NamedConstructorOnly::class],
-            'nested object parameter' => [TeaserCard::class],
+            'interface parameter' => [LabelledLink::class],
+            'recursive value object' => [MenuItem::class],
             'variadic parameter' => [TagList::class],
             'ambiguous union parameter' => [Identifier::class],
         ];

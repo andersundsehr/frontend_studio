@@ -51,20 +51,37 @@ final readonly class ComponentVariantValues
     {
         $normalizedValues = [];
         foreach ($this->values as $name => $value) {
-            $value = $this->normalizeValueForArgumentType($value, $argumentTypes[$name] ?? null);
-            if (is_array($value)) {
-                foreach ($value as $nestedName => $nestedValue) {
-                    $value[$nestedName] = $this->normalizeValueForArgumentType(
-                        $nestedValue,
-                        $argumentTypes[$name . '.' . $nestedName] ?? null,
-                    );
-                }
-            }
-
-            $normalizedValues[$name] = $value;
+            $normalizedValues[$name] = $this->normalizeValueAtPath($value, $name, $argumentTypes, true);
         }
 
         return new self($normalizedValues);
+    }
+
+    /**
+     * Transformer inputs are typed by dotted paths, for example "card.link.url" for a nested value object.
+     *
+     * @param array<string, string> $argumentTypes
+     */
+    private function normalizeValueAtPath(mixed $value, string $path, array $argumentTypes, bool $isArgument): mixed
+    {
+        $value = $this->normalizeValueForArgumentType($value, $argumentTypes[$path] ?? null);
+        if (!is_array($value) || (!$isArgument && !$this->hasTypeBelow($argumentTypes, $path))) {
+            return $value;
+        }
+
+        foreach ($value as $nestedName => $nestedValue) {
+            $value[$nestedName] = $this->normalizeValueAtPath($nestedValue, $path . '.' . $nestedName, $argumentTypes, false);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<string, string> $argumentTypes
+     */
+    private function hasTypeBelow(array $argumentTypes, string $path): bool
+    {
+        return array_any(array_keys($argumentTypes), fn(string $typedPath): bool => str_starts_with($typedPath, $path . '.'));
     }
 
     /**

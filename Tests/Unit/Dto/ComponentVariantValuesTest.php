@@ -77,6 +77,24 @@ final class ComponentVariantValuesTest extends TestCase
         self::assertSame(['content' => ['count' => 50, 'ratio' => 1.5, 'label' => '0050']], $values->toArray());
     }
 
+    public function testNormalizesInputsOfNestedValueObjects(): void
+    {
+        $values = ComponentVariantValues::fromYamlValues([
+            'card' => ['headline' => 'News', 'link' => ['url' => '/news', 'position' => '3'], 'links' => [['position' => '4']]],
+        ])->normalizeForArgumentTypes([
+            'card' => 'Vendor\\TeaserCard',
+            'card.headline' => 'string',
+            'card.link.url' => 'string',
+            'card.link.position' => 'int',
+            'card.links' => 'array',
+        ]);
+
+        self::assertSame(
+            ['card' => ['headline' => 'News', 'link' => ['url' => '/news', 'position' => 3], 'links' => [['position' => '4']]]],
+            $values->toArray(),
+        );
+    }
+
     public function testPersistsNormalizedValuesAsYamlNumbers(): void
     {
         $values = ComponentVariantValues::fromYamlValues(['count' => '50', 'ratio' => '1.5'])->normalizeForArgumentTypes([
