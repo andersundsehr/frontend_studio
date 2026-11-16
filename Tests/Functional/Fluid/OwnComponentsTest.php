@@ -160,9 +160,10 @@ final class OwnComponentsTest extends FunctionalTestCase
         self::assertNotNull($metadata);
         self::assertNull($metadata->missingTransformerError);
         self::assertSame([], $metadata->errors);
+        self::assertNotNull($metadata->fixture?->selectedVariant);
         self::assertSame(
             ['link.url', 'link.target', 'link.title'],
-            array_column($metadata->fixture?->selectedVariant?->values ?? [], 'fixtureName'),
+            array_column($metadata->fixture->selectedVariant->values, 'fixtureName'),
         );
 
         $response = $this->requestPreview($identifier, format: 'fragment');
