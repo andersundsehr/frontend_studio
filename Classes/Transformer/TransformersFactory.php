@@ -87,12 +87,18 @@ final readonly class TransformersFactory
                 continue;
             }
 
-            if (!$this->typeTransformers->has($type)) {
+            if ($this->typeTransformers->has($type)) {
+                $transformers[$argumentName] = $this->typeTransformers->get($type);
+                continue;
+            }
+
+            $constructorTransformer = $this->transformerFactory->fromConstructor($type);
+            if ($constructorTransformer === null) {
                 $missingArguments[$argumentName] = $type;
                 continue;
             }
 
-            $transformers[$argumentName] = $this->typeTransformers->get($type);
+            $transformers[$argumentName] = $constructorTransformer;
         }
 
         if ($missingArguments !== []) {

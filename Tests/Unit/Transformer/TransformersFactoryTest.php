@@ -6,6 +6,8 @@ namespace Andersundsehr\FrontendStudio\Tests\Unit\Transformer;
 
 use Throwable;
 use Stringable;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserCard;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserLink;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
@@ -54,6 +56,43 @@ final class TransformersFactoryTest extends UnitTestCase
             self::assertSame(['title' => Stringable::class, 'payload' => 'stdClass'], $missingTransformerException->missingArguments);
             self::assertSame(6790927084, $missingTransformerException->getCode());
         }
+    }
+
+    public function testClassWithEditableConstructorNeedsNoTransformer(): void
+    {
+        $transformers = $this->createSubject()->get($this->createCollection([
+            'link' => new ArgumentDefinition('link', TeaserLink::class, '', true, null, false),
+        ]), 'Card');
+
+        self::assertSame(TeaserLink::class . '::__construct', $transformers->get('link')->from);
+        self::assertSame(['url', 'target', 'title', 'position'], array_keys($transformers->get('link')->arguments));
+    }
+
+    public function testTypeTransformerTakesPrecedenceOverConstructor(): void
+    {
+        $handler = new class {
+            public function link(string $href): TeaserLink
+            {
+                return new TeaserLink($href);
+            }
+        };
+        $typeTransformers = new TypeTransformers($this->createTransformerFactory());
+        $typeTransformers->addTransformer($handler, 'link', TeaserLink::class, 0);
+
+        $transformers = $this->createSubject($typeTransformers)->get($this->createCollection([
+            'link' => new ArgumentDefinition('link', TeaserLink::class, '', true, null, false),
+        ]), 'Card');
+
+        self::assertSame($handler::class . '::link', $transformers->get('link')->from);
+    }
+
+    public function testClassWithNestedObjectInConstructorStillNeedsTransformer(): void
+    {
+        $this->expectException(MissingTransformerException::class);
+
+        $this->createSubject()->get($this->createCollection([
+            'card' => new ArgumentDefinition('card', TeaserCard::class, '', true, null, false),
+        ]), 'Card');
     }
 
     #[DataProvider('validReturnTypesDataProvider')]
@@ -116,9 +155,19 @@ final class TransformersFactoryTest extends UnitTestCase
         ];
     }
 
-    private function createSubject(): TransformersFactory
+    private function createSubject(?TypeTransformers $typeTransformers = null): TransformersFactory
     {
-        $transformerFactory = new TransformerFactory(new class implements ContainerInterface {
+        $transformerFactory = $this->createTransformerFactory();
+
+        return new TransformersFactory(
+            $typeTransformers ?? new TypeTransformers($transformerFactory),
+            $transformerFactory,
+        );
+    }
+
+    private function createTransformerFactory(): TransformerFactory
+    {
+        return new TransformerFactory(new class implements ContainerInterface {
             public function get(string $id): mixed
             {
                 throw new RuntimeException('No services available in unit test container.', 1589909511);
@@ -129,11 +178,26 @@ final class TransformersFactoryTest extends UnitTestCase
                 return false;
             }
         });
+    }
 
-        return new TransformersFactory(
-            new TypeTransformers($transformerFactory),
-            $transformerFactory,
-        );
+    /**
+     * @param array<string, ArgumentDefinition> $argumentDefinitions
+     */
+    private function createCollection(array $argumentDefinitions): ComponentDefinitionProviderInterface&ComponentTemplateResolverInterface
+    {
+        $paths = new TemplatePaths();
+        $paths->setTemplatePathAndFilename(__DIR__ . '/../../Functional/Fixtures/Extensions/preview_site_set/Resources/Private/Components/Card/Card.fluid.html');
+
+        /** @var ComponentDefinitionProviderInterface&ComponentTemplateResolverInterface&MockObject $collection */
+        $collection = $this->createMockForIntersectionOfInterfaces([
+            ComponentDefinitionProviderInterface::class,
+            ComponentTemplateResolverInterface::class,
+        ]);
+        $collection->method('getTemplatePaths')->willReturn($paths);
+        $collection->method('resolveTemplateName')->willReturn('Card');
+        $collection->method('getComponentDefinition')->willReturn(new ComponentDefinition('Card', $argumentDefinitions, false, []));
+
+        return $collection;
     }
 
     private function createComponentDefinition(string $targetType): ComponentDefinition

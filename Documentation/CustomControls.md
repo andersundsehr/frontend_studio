@@ -30,6 +30,7 @@ A provider can return null to decline. IDs must be unique.
 Wildcard providers can inspect the full context for more specialized matching.
 A transformer parameter can select a registered provider explicitly with
 `#[Control('acme.html')]` (same attribute namespace).
+The same works on constructor parameters of value objects that Frontend Studio builds without a transformer.
 Unknown IDs or a declined explicit selection raise configuration errors.
 Existing built-in controls remain the fallback.
 
