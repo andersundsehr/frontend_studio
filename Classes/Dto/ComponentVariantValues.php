@@ -81,13 +81,7 @@ final readonly class ComponentVariantValues
      */
     private function hasTypeBelow(array $argumentTypes, string $path): bool
     {
-        foreach (array_keys($argumentTypes) as $typedPath) {
-            if (str_starts_with($typedPath, $path . '.')) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(array_keys($argumentTypes), fn(string $typedPath): bool => str_starts_with($typedPath, $path . '.'));
     }
 
     /**

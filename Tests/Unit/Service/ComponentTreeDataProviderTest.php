@@ -73,7 +73,7 @@ final class ComponentTreeDataProviderTest extends TestCase
             [],
         );
 
-        self::assertSame(['headline' => '', 'link' => ['url' => '']], $method->invoke($subject, $transformer));
+        self::assertSame(['headline' => 'Lorem ipsum', 'link' => ['url' => 'Lorem ipsum']], $method->invoke($subject, $transformer));
     }
 
     public function testRoundTripsEnumDefaultThroughYaml(): void

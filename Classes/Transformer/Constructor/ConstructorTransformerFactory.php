@@ -267,9 +267,9 @@ final readonly class ConstructorTransformerFactory
         $length = strlen($text);
         for ($index = 0; $index < $length; $index++) {
             $character = $text[$index];
-            if ($character === '<' || $character === '(' || $character === '{' || $character === '[') {
+            if (in_array($character, ['<', '(', '{', '['], true)) {
                 $depth++;
-            } elseif ($character === '>' || $character === ')' || $character === '}' || $character === ']') {
+            } elseif (in_array($character, ['>', ')', '}', ']'], true)) {
                 $depth--;
             } elseif ($depth === 0 && ctype_space($character)) {
                 break;
