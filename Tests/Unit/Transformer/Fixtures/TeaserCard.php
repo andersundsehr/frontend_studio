@@ -9,6 +9,7 @@ final readonly class TeaserCard
     public function __construct(
         public string $headline,
         public TeaserLink $link,
+        public ?TeaserLink $secondaryLink = null,
     ) {
     }
 }

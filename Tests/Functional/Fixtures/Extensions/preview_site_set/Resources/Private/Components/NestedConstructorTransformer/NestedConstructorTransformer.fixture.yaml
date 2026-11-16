@@ -1,0 +1,11 @@
+variants:
+  Default:
+    card:
+      headline: News
+      link:
+        url: /news
+        target: Blank
+        title: Read more
+      moreLinks:
+        - url: /archive
+          title: Archive

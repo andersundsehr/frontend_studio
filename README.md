@@ -262,7 +262,8 @@ Built-in transformers cover `Stringable`, `Uri`, `File`, and `TypolinkParameter`
 ### Value objects without a transformer
 
 A component argument can use a value object directly,
-when its class has a public constructor whose parameters are all scalars, enums or dates.
+when its class has a public constructor whose parameters are scalars, enums, dates,
+other value objects or arrays of these.
 Frontend Studio then builds the object from the constructor,
 so you need neither a transformer file nor a `#[TypeTransformer]`.
 Each constructor parameter becomes a control,
@@ -292,10 +293,46 @@ Omitted optional parameters keep their constructor default.
 A nullable parameter uses the control of its non-null type.
 Add `#[Control]` to a constructor parameter to choose another control, as on transformer inputs.
 
+A nested value object gets one control per parameter, named by its path such as `link.url`.
+Its fixture values are stored as a nested map.
+An optional nested object stays unset until you fill in one of its controls.
+
+An array parameter is edited as one JSON list.
+When PHPDoc documents its element type, Frontend Studio converts every element to it,
+for example maps to value objects, case names to enums and strings to dates.
+Use `@param` on the constructor or `@var` on the promoted property:
+
+```php
+final readonly class TeaserList
+{
+    /**
+     * @param list<TeaserLink> $links
+     */
+    public function __construct(
+        public string $headline,
+        public array $links = [],
+    ) {
+    }
+}
+```
+
+```yaml
+variants:
+  Default:
+    list:
+      headline: "Latest news"
+      links:
+        - url: "/news"
+        - url: "/archive"
+          target: "Blank"
+```
+
+An array without a documented element type is passed on unchanged.
+
 A sibling transformer file and a compatible `#[TypeTransformer]` take precedence over the constructor.
-A class still needs one of them when a constructor parameter is a service, another object,
-a variadic parameter or a union of several non-null types,
-or when the constructor is not public or takes no parameters.
+A class still needs one of them when a constructor parameter is a service, an interface,
+an object that cannot be built this way, a variadic parameter or a union of several non-null types,
+when it refers to itself, or when the constructor is not public or takes no parameters.
 This only affects previews: Frontend Studio does not change how Fluid passes arguments in your frontend.
 
 ### Reusable type transformers

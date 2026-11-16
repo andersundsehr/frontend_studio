@@ -18,6 +18,7 @@ use Andersundsehr\FrontendStudio\Dto\ComponentTemplateRootPathMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValueMetadata;
 use Andersundsehr\FrontendStudio\Dto\ComponentVariantValues;
+use Andersundsehr\FrontendStudio\Transformer\InputPath;
 use Andersundsehr\FrontendStudio\Transformer\Transformers;
 use Andersundsehr\FrontendStudio\Transformer\MissingTransformerException;
 use Andersundsehr\FrontendStudio\Dto\MissingTransformersMetadata;
@@ -215,8 +216,8 @@ final readonly class ComponentMetadataProvider
             if ($transformer !== null) {
                 $inputValues = is_array($variantValue?->nativeValue) ? $variantValue->nativeValue : [];
                 foreach ($transformer->arguments as $inputName => $inputDefinition) {
-                    $hasValue = array_key_exists($inputName, $inputValues);
-                    $value = $hasValue ? $inputValues[$inputName] : $inputDefinition->getDefaultValue();
+                    $hasValue = InputPath::has($inputValues, $inputName);
+                    $value = $hasValue ? InputPath::get($inputValues, $inputName) : $inputDefinition->getDefaultValue();
                     $mergedValues[] = new ComponentVariantValueMetadata(
                         $inputName,
                         $inputDefinition->getType(),

@@ -6,7 +6,9 @@ namespace Andersundsehr\FrontendStudio\Tests\Unit\Service;
 
 use Andersundsehr\FrontendStudio\Service\ComponentVariantTransformer;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\LinkTarget;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserCard;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserLink;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserList;
 use Andersundsehr\FrontendStudio\Transformer\Defaults\TypolinkTargetEnum;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
@@ -135,5 +137,39 @@ final class ComponentVariantTransformerTest extends TestCase
         ]);
 
         self::assertEquals(new TeaserLink('/news', LinkTarget::Blank, null, 2), $result['link']);
+    }
+
+    public function testBuildsNestedObjectsAndListsFromFixtureMaps(): void
+    {
+        $definition = new ComponentDefinition('test:component', [
+            'card' => new ArgumentDefinition('card', TeaserCard::class, '', true, null, false),
+            'list' => new ArgumentDefinition('list', TeaserList::class, '', true, null, false),
+        ], false, []);
+        $factory = new TransformerFactory(new class implements ContainerInterface {
+            public function get(string $id): mixed
+            {
+                throw new RuntimeException('No services available in unit test container.', 1763340101);
+            }
+
+            public function has(string $id): bool
+            {
+                return false;
+            }
+        });
+        $cardTransformer = $factory->fromConstructor(TeaserCard::class);
+        $listTransformer = $factory->fromConstructor(TeaserList::class);
+        self::assertNotNull($cardTransformer);
+        self::assertNotNull($listTransformer);
+
+        $result = new ComponentVariantTransformer()->transform($definition, new Transformers(['card' => $cardTransformer, 'list' => $listTransformer], 'test'), [
+            'card' => ['headline' => 'News', 'link' => ['url' => '/news', 'target' => 'Blank', 'position' => '1']],
+            'list' => ['headline' => 'All', 'links' => [['url' => '/a'], ['url' => '/b', 'target' => 'Blank']]],
+        ]);
+
+        self::assertEquals(new TeaserCard('News', new TeaserLink('/news', LinkTarget::Blank, null, 1)), $result['card']);
+        self::assertEquals(
+            new TeaserList('All', [new TeaserLink('/a'), new TeaserLink('/b', LinkTarget::Blank)]),
+            $result['list'],
+        );
     }
 }

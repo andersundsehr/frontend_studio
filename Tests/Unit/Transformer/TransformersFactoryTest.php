@@ -6,7 +6,7 @@ namespace Andersundsehr\FrontendStudio\Tests\Unit\Transformer;
 
 use Throwable;
 use Stringable;
-use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserCard;
+use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\LabelledLink;
 use Andersundsehr\FrontendStudio\Tests\Unit\Transformer\Fixtures\TeaserLink;
 use Andersundsehr\FrontendStudio\Transformer\Transformer;
 use Andersundsehr\FrontendStudio\Transformer\TransformerFactory;
@@ -86,12 +86,12 @@ final class TransformersFactoryTest extends UnitTestCase
         self::assertSame($handler::class . '::link', $transformers->get('link')->from);
     }
 
-    public function testClassWithNestedObjectInConstructorStillNeedsTransformer(): void
+    public function testClassWithInterfaceInConstructorStillNeedsTransformer(): void
     {
         $this->expectException(MissingTransformerException::class);
 
         $this->createSubject()->get($this->createCollection([
-            'card' => new ArgumentDefinition('card', TeaserCard::class, '', true, null, false),
+            'link' => new ArgumentDefinition('link', LabelledLink::class, '', true, null, false),
         ]), 'Card');
     }
 

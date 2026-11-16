@@ -19,7 +19,7 @@ final class MissingTransformerException extends RuntimeException
             'No transformer is available for argument "' . $argumentName . '" of type "' . $argumentType . '". '
                 . 'Add an ArgumentTransformers entry for this argument in "' . $transformerFile . '" '
                 . 'or register a service method with #[TypeTransformer] for this type. '
-                . 'A class whose public constructor only takes scalars, enums or dates needs neither. '
+                . 'A class whose public constructor only takes scalars, enums, dates, value objects or arrays of these needs neither. '
                 . 'Reload the component after adding the transformer.',
             6790927084,
         );
