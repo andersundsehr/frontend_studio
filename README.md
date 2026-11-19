@@ -466,7 +466,7 @@ Auto reload is intentionally disabled outside development contexts.
 ## Contributor Checks
 
 The test runner uses Docker or Podman.
-Run the checks with each supported PHP version (`8.4` and `8.5`); the CI setup covers GrumPHP, unit tests, and functional tests with MySQL, MariaDB, and PostgreSQL:
+Run the checks with each supported PHP version (`8.4`, `8.5` and `8.6`); the CI setup covers GrumPHP, unit tests, and functional tests with MySQL, MariaDB, and PostgreSQL:
 
 ```bash
 ./Build/Scripts/runTests.sh -p 8.5 -s composerUpdate

@@ -32,7 +32,7 @@ and [consumer usage](Playwright/README.md) for testing a user's components.
 
 ## Build, Test, and Development Commands
 
-`Build/Scripts/runTests.sh` runs checks in Docker or Podman. It supports PHP 8.4 and 8.5.
+`Build/Scripts/runTests.sh` runs checks in Docker or Podman. It supports PHP 8.4, 8.5 and 8.6.
 From the package root, use:
 
 ```bash
