@@ -190,10 +190,11 @@ Options:
             - 15    maintained until 2027-11-11
             - 16    maintained until 2028-11-09 (default)
 
-    -p <8.4|8.5>
+    -p <8.4|8.5|8.6>
         Specifies the PHP minor version to be used
             - 8.4: use PHP 8.4 (default)
             - 8.5: use PHP 8.5
+            - 8.6: use PHP 8.6
 
         JavaScript suites use Node.js ${NODE_VERSION} in pinned Debian Bookworm containers.
         Browser tests use a cached Chromium image built from the same Node.js version.
@@ -283,7 +284,7 @@ while getopts "a:b:d:i:s:p:xy:nhu" OPT; do
             ;;
         p)
             PHP_VERSION=${OPTARG}
-            if ! [[ ${PHP_VERSION} =~ ^(8.4|8.5)$ ]]; then
+            if ! [[ ${PHP_VERSION} =~ ^(8.4|8.5|8.6)$ ]]; then
                 INVALID_OPTIONS+=("p ${OPTARG}")
             fi
             ;;
