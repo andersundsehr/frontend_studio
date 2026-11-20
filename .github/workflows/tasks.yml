@@ -21,20 +21,13 @@ jobs:
       matrix:
         php: [ '8.4', '8.5', '8.6' ]
         typo3: [ '14' ]
-        include:
-          # phpro/grumphp does not allow PHP 8.6 yet
-          - php: '8.6'
-            ignorePlatformReqs: '--ignore-platform-req=php+'
     steps:
       - name: Setup PHP with PECL extension
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
       - uses: actions/checkout@v6
-      - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }} ${{ matrix.ignorePlatformReqs }}
-      # --ignore-platform-req=php+ may only skip the PHP check of dev dependencies (e.g. phpro/grumphp)
-      - if: matrix.php == '8.6'
-        run: composer check-platform-reqs --no-dev
+      - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }}
       - run: ./vendor/bin/grumphp run --ansi
 
   unit-tests:
@@ -45,17 +38,13 @@ jobs:
       matrix:
         php: [ '8.4', '8.5', '8.6' ]
         typo3: [ '14' ]
-        include:
-          # phpro/grumphp does not allow PHP 8.6 yet
-          - php: '8.6'
-            ignorePlatformReqs: '--ignore-platform-req=php+'
     steps:
       - name: Setup PHP with PECL extension
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
       - uses: actions/checkout@v6
-      - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }} ${{ matrix.ignorePlatformReqs }}
+      - run: composer update --with typo3/cms-core:^${{ matrix.typo3 }}
       - run: CI=true ./Build/Scripts/runTests.sh -p ${{ matrix.php }} -s unit
 
   functional-tests:
